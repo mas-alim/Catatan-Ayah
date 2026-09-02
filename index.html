@@ -1,121 +1,249 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Detail Transaksi</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detail Transaksi</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Phosphor Icons CDN -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
-<body class="bg-gray-600 min-h-screen flex items-center justify-center p-4">
+<body class="bg-gray-100 p-6">
 
-  <!-- Modal Container -->
-  <div class="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl space-y-5 font-sans">
-    
-    <!-- Modal Header -->
-    <div class="flex items-center justify-between">
-      <h2 class="text-xl font-medium text-gray-800">Detail Transaksi</h2>
-      <button class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition">
-        <i data-lucide="x" class="w-5 h-5"></i>
-      </button>
+    <!-- Tombol Trigger Dummy -->
+    <div class="max-w-md mx-auto mb-4">
+        <button onclick="openDetailModalByContact('budi')" class="bg-[#0f2942] text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-[#163758] transition shadow">
+            Buka Detail Transaksi (Budi)
+        </button>
     </div>
 
-    <!-- Detail Card -->
-    <div class="border border-gray-200 rounded-2xl p-5 bg-white space-y-4">
-      
-      <!-- Profile Header -->
-      <div class="flex items-center gap-3">
-        <div class="w-12 h-12 rounded-full bg-slate-400 text-white font-semibold flex items-center justify-center text-sm border-2 border-slate-300">
-          AIN
+    <!-- Modal Detail Transaksi -->
+    <div id="modal-detail-transaction" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-4 relative shadow-xl">
+            <button onclick="closeModal('modal-detail-transaction')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <i class="ph ph-x text-xl"></i>
+            </button>
+            <div id="detail-content"></div>
         </div>
-        <div>
-          <h3 class="text-lg font-bold text-gray-900 leading-tight">Angsus</h3>
-          <span class="inline-block px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 bg-emerald-50 rounded-full">
-            Active
-          </span>
-        </div>
-      </div>
-
-      <!-- Transaction Table -->
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="text-xs font-semibold text-gray-800 border-b border-gray-200">
-              <th class="py-2.5 px-2">Tgl. Transaksi</th>
-              <th class="py-2.5 px-2">Keterangan</th>
-              <th class="py-2.5 px-2 text-right">Debit</th>
-              <th class="py-2.5 px-2 text-right">Kredit</th>
-            </tr>
-          </thead>
-          <tbody class="text-xs divide-y divide-gray-50">
-            <tr class="bg-gray-50/70">
-              <td class="py-3 px-2 text-gray-700">1-Sep-2026</td>
-              <td class="py-3 px-2 text-gray-800">Ibu</td>
-              <td class="py-3 px-2 text-right"></td>
-              <td class="py-3 px-2 text-right font-medium text-[#7D2D2B]">Rp. 28.500</td>
-            </tr>
-            <tr>
-              <td class="py-3 px-2 text-gray-700">1-Sep-2026</td>
-              <td class="py-3 px-2 text-gray-800">Ibu</td>
-              <td class="py-3 px-2 text-right"></td>
-              <td class="py-3 px-2 text-right font-medium text-[#7D2D2B]">Rp. 30.000</td>
-            </tr>
-            <tr class="bg-gray-50/70">
-              <td class="py-3 px-2 text-gray-700">2-Sep-2026</td>
-              <td class="py-3 px-2 text-gray-800">Angsuran ke 1</td>
-              <td class="py-3 px-2 text-right font-medium text-emerald-600">Rp. 10.000</td>
-              <td class="py-3 px-2 text-right"></td>
-            </tr>
-            <tr>
-              <td class="py-3 px-2 text-gray-700">2-Sep-2026</td>
-              <td class="py-3 px-2 text-gray-800">Angsuran ke 2</td>
-              <td class="py-3 px-2 text-right font-medium text-emerald-600">Rp. 5.000</td>
-              <td class="py-3 px-2 text-right"></td>
-            </tr>
-            <tr class="bg-gray-50/70">
-              <td class="py-3 px-2 text-gray-700">2-Sep-2026</td>
-              <td class="py-3 px-2 text-gray-800">Sosis</td>
-              <td class="py-3 px-2 text-right"></td>
-              <td class="py-3 px-2 text-right font-medium text-[#7D2D2B]">Rp. 10.000</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <hr class="border-gray-200" />
-
-      <!-- Sisa Tagihan -->
-      <div class="flex justify-between items-center pt-1">
-        <span class="text-sm font-semibold text-gray-800">Sisa Tagihan</span>
-        <span class="text-sm font-bold text-[#7D2D2B]">Rp. 53.500</span>
-      </div>
-
     </div>
 
-    <!-- Action Buttons -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-      <button class="flex items-center justify-center gap-2 bg-[#0B2545] hover:bg-[#071930] text-white text-xs font-medium py-3 px-3 rounded-xl transition shadow-sm">
-        <i data-lucide="download" class="w-4 h-4"></i>
-        <span>Download Nota</span>
-      </button>
+    <script type="module">
+        // Dummy Data Transaksi
+        const data = {
+            transactions: [
+                {
+                    contact: "Budi",
+                    type: "hutang",
+                    amount: 500000,
+                    note: "Pinjam Dana Tunai",
+                    txDate: "2026-03-01",
+                    createdAt: "2026-03-01",
+                    image: "https://via.placeholder.com/300?text=Nota+1",
+                    payments: [
+                        { date: "2026-03-05", amount: 200000, note: "Cicil Pertama", image: "https://via.placeholder.com/300?text=Bukti+Bayar+1" }
+                    ]
+                },
+                {
+                    contact: "Budi",
+                    type: "hutang",
+                    amount: 150000,
+                    note: "Beli Alat Tulis",
+                    txDate: "2026-03-10",
+                    createdAt: "2026-03-10",
+                    payments: []
+                }
+            ]
+        };
 
-      <button class="flex items-center justify-center gap-2 bg-[#2B3A4A] hover:bg-[#1E2A37] text-white text-xs font-medium py-3 px-3 rounded-xl transition shadow-sm">
-        <i data-lucide="paperclip" class="w-4 h-4"></i>
-        <span>Download Lampiran</span>
-      </button>
+        // Helper Functions
+        function formatRupiah(amount) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
+        }
 
-      <button class="flex items-center justify-center gap-2 bg-[#8B2626] hover:bg-[#701E1E] text-white text-xs font-medium py-3 px-3 rounded-xl transition shadow-sm">
-        <i data-lucide="trash-2" class="w-4 h-4"></i>
-        <span>Hapus</span>
-      </button>
-    </div>
+        function formatDateShort(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+        }
 
-  </div>
+        function getTxPaidAmount(tx) {
+            if (!tx.payments || tx.payments.length === 0) return 0;
+            return tx.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+        }
 
-  <script>
-    lucide.createIcons();
-  </script>
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function downloadContactStatement(contactKey) {
+            alert(`Mengunduh nota statement untuk: ${contactKey}`);
+        }
+
+        function confirmDeleteContact(contactKey) {
+            if (confirm(`Apakah Anda yakin ingin menghapus seluruh transaksi kontak ${contactKey}?`)) {
+                alert('Transaksi berhasil dihapus');
+                closeModal('modal-detail-transaction');
+            }
+        }
+
+        /* DETAIL TRANSAKSI */
+        function openDetailModalByContact(contactKey) {
+            const contactTxs = data.transactions.filter(t => t.contact.trim().toLowerCase() === contactKey.toLowerCase());
+            if (contactTxs.length === 0) return;
+
+            const contactName = contactTxs[0].contact;
+            const initials = contactName.split(' ').map(n => n[0]).join('').substring(0, 3).toUpperCase() || 'USR';
+
+            const ledger = [];
+            let totalHutang = 0;
+            let totalPiutang = 0;
+
+            contactTxs.forEach(tx => {
+                const isHutang = tx.type === 'hutang';
+                ledger.push({
+                    date: tx.txDate || tx.createdAt,
+                    note: tx.note || (isHutang ? 'Hutang Baru' : 'Piutang Baru'),
+                    debit: isHutang ? 0 : tx.amount,
+                    kredit: isHutang ? tx.amount : 0,
+                    type: tx.type
+                });
+
+                if (tx.payments && tx.payments.length > 0) {
+                    tx.payments.forEach(p => {
+                        ledger.push({
+                            date: p.date,
+                            note: p.note || 'Cicil',
+                            debit: isHutang ? p.amount : 0,
+                            kredit: isHutang ? 0 : p.amount,
+                            type: 'payment'
+                        });
+                    });
+                }
+            });
+
+            ledger.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            contactTxs.forEach(tx => {
+                const paid = getTxPaidAmount(tx);
+                const remaining = Math.max(0, Number(tx.amount) - paid);
+                if (tx.type === 'hutang') totalHutang += remaining;
+                if (tx.type === 'piutang') totalPiutang += remaining;
+            });
+
+            const netSisa = totalHutang - totalPiutang;
+
+            const tableRows = ledger.map((item, index) => {
+                const rowBg = index % 2 === 1 ? 'bg-gray-50/80' : 'bg-white';
+                return `
+                    <tr class="${rowBg} text-xs">
+                        <td class="py-2.5 px-3 text-gray-700 font-normal whitespace-nowrap">${formatDateShort(item.date)}</td>
+                        <td class="py-2.5 px-3 text-gray-800 font-normal">${item.note}</td>
+                        <td class="py-2.5 px-3 text-right ${item.debit > 0 ? 'text-teal-600 font-medium' : 'text-gray-300'}">
+                            ${item.debit > 0 ? formatRupiah(item.debit) : ''}
+                        </td>
+                        <td class="py-2.5 px-3 text-right ${item.kredit > 0 ? 'text-gray-800 font-medium' : 'text-gray-300'}">
+                            ${item.kredit > 0 ? formatRupiah(item.kredit) : ''}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const detailContainer = document.getElementById('detail-content');
+            detailContainer.innerHTML = `
+                <!-- Kartu Utama Detail Transaksi -->
+                <div class="bg-white p-4 rounded-2xl border border-gray-200/80 shadow-sm space-y-4 font-sans">
+                    <!-- Header Profil Kontak -->
+                    <div class="flex items-center gap-3 border-b border-gray-100 pb-3">
+                        <div class="w-12 h-12 rounded-full bg-[#5f6c7b] text-white flex items-center justify-center font-bold text-sm tracking-wider shadow-inner">
+                            ${initials}
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900 leading-tight">${contactName}</h3>
+                            <span class="inline-block text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full mt-0.5">Active</span>
+                        </div>
+                    </div>
+
+                    <!-- Tabel Ledger -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-xs font-bold text-gray-900 border-b border-gray-200">
+                                    <th class="py-2 px-3">Tgl. Transaksi</th>
+                                    <th class="py-2 px-3">Keterangan</th>
+                                    <th class="py-2 px-3 text-right">Debit</th>
+                                    <th class="py-2 px-3 text-right">Kredit</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                ${tableRows}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Footer Sisa Tagihan -->
+                    <div class="pt-3 border-t border-gray-200 flex justify-between items-center text-sm font-bold">
+                        <span class="text-gray-800">Sisa Tagihan</span>
+                        <span class="text-[#8b2626] text-base">${formatRupiah(Math.abs(netSisa))}</span>
+                    </div>
+                </div>
+
+                <!-- Tombol Aksi Bawah -->
+                <div class="grid grid-cols-3 gap-2 pt-2">
+                    <button onclick="downloadContactStatement('${contactKey}')" class="bg-[#0f2942] hover:bg-[#163758] text-white font-medium rounded-xl py-3 text-[11px] flex items-center justify-center gap-1.5 active:scale-95 transition shadow-sm">
+                        <i class="ph ph-download-simple text-sm"></i> Download Nota
+                    </button>
+                    <button onclick="downloadAttachments('${contactKey}')" class="bg-[#2a3848] hover:bg-[#384a5f] text-white font-medium rounded-xl py-3 text-[11px] flex items-center justify-center gap-1.5 active:scale-95 transition shadow-sm">
+                        <i class="ph ph-paperclip text-sm"></i> Download Lampiran
+                    </button>
+                    <button onclick="confirmDeleteContact('${contactKey}')" class="bg-[#8b2626] hover:bg-[#a32d2d] text-white font-medium rounded-xl py-3 text-[11px] flex items-center justify-center gap-1.5 active:scale-95 transition shadow-sm">
+                        <i class="ph ph-trash text-sm"></i> Hapus
+                    </button>
+                </div>
+            `;
+
+            openModal('modal-detail-transaction');
+        }
+
+        /* Fungsi Download Lampiran Foto */
+        function downloadAttachments(contactKey) {
+            const contactTxs = data.transactions.filter(t => t.contact.trim().toLowerCase() === contactKey.toLowerCase());
+            const attachments = [];
+
+            contactTxs.forEach(t => {
+                if (t.image) attachments.push(t.image);
+                if (t.payments) {
+                    t.payments.forEach(p => {
+                        if (p.image) attachments.push(p.image);
+                    });
+                }
+            });
+
+            if (attachments.length === 0) {
+                alert('Tidak ada foto lampiran untuk transaksi kontak ini.');
+                return;
+            }
+
+            attachments.forEach((img, idx) => {
+                const link = document.createElement('a');
+                link.download = `Lampiran_${contactKey}_${idx + 1}.png`;
+                link.href = img;
+                link.click();
+            });
+        }
+
+        // Window Scope Exports
+        window.openDetailModalByContact = openDetailModalByContact;
+        window.downloadContactStatement = downloadContactStatement;
+        window.downloadAttachments = downloadAttachments;
+        window.confirmDeleteContact = confirmDeleteContact;
+        window.closeModal = closeModal;
+    </script>
 </body>
 </html>
