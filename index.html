@@ -17,10 +17,7 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <style>
-        /* Sembunyikan scrollbar tapi tetap bisa scroll */
-        ::-webkit-scrollbar {
-            display: none;
-        }
+        ::-webkit-scrollbar { display: none; }
         body {
             -ms-overflow-style: none;
             scrollbar-width: none;
@@ -28,15 +25,11 @@
             background-color: #f3f4f6;
         }
         .modal-open { overflow: hidden; }
-        
-        /* Animasi Transisi */
         .fade-in { animation: fadeIn 0.2s ease-in-out; }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        
-        /* App Container Wrapper */
         .app-wrapper {
             max-width: 480px;
             margin: 0 auto;
@@ -91,19 +84,17 @@
                     </h1>
                     <p id="current-date" class="text-xs text-green-100 mt-0.5 opacity-90"></p>
                 </div>
-                <!-- Indicator Status Sync Firebase -->
                 <div id="sync-status" class="flex items-center gap-1.5 bg-green-700/60 text-green-100 text-[11px] px-2.5 py-1 rounded-full border border-green-400/30 font-medium">
                     <i id="sync-icon" class="ph-bold ph-cloud-check text-green-300 text-sm"></i>
                     <span id="sync-text">Cloud Sync</span>
                 </div>
             </header>
 
-            <!-- Main Content Container (Injected via JS) -->
+            <!-- Main Content Container -->
             <main id="app-container" class="flex-1 p-4 pb-28 w-full overflow-y-auto fade-in">
-                <!-- Konten dinamis akan masuk ke sini -->
             </main>
 
-            <!-- Floating Action Button (Global Add Transaction) -->
+            <!-- Floating Action Button -->
             <button id="fab-add" onclick="openModal('modal-add-transaction')" class="absolute bottom-20 right-5 z-40 w-14 h-14 bg-green-600 text-white rounded-full shadow-lg shadow-green-200 flex items-center justify-center active:scale-90 transition-transform">
                 <i class="ph ph-plus text-2xl font-bold"></i>
             </button>
@@ -133,8 +124,8 @@
             </nav>
         </div>
 
-        <!-- MODAL: Tambah Transaksi (Hutang/Piutang) -->
-        <div id="modal-add-transaction" class="absolute inset-0 bg-black/50 z-50 hidden flex flex-col justify-end transition-opacity backdrop-blur-sm">
+        <!-- MODAL: Tambah Transaksi -->
+        <div id="modal-add-transaction" class="absolute inset-0 bg-black/50 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
             <div class="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto p-6 animate-[fadeIn_0.3s_ease-out]">
                 <div class="flex justify-between items-center mb-5">
                     <h2 class="text-lg font-bold text-gray-800">Catat Transaksi</h2>
@@ -144,7 +135,6 @@
                 </div>
                 
                 <form id="form-transaction" class="space-y-4" onsubmit="saveTransaction(event)">
-                    <!-- Tipe Transaksi -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Jenis Transaksi</label>
                         <div class="flex gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
@@ -163,31 +153,33 @@
                         </div>
                     </div>
 
-                    <!-- Nama Kontak -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Orang/Pihak</label>
-                        <input type="text" id="tx_name" required placeholder="Cth: Budi / Bank XYZ" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nama Orang / Pihak</label>
+                        <input type="text" id="tx_name" required placeholder="Cth: Angsus / Ibu / Bank XYZ" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
                     </div>
 
-                    <!-- Nominal -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Nominal (Rp)</label>
                         <input type="number" id="tx_amount" required placeholder="0" min="1" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
                     </div>
 
-                    <!-- Tanggal Jatuh Tempo -->
+                    <!-- FITUR 1: Tanggal Transaksi -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Estimasi / Jatuh Tempo</label>
-                        <input type="date" id="tx_date" required class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Transaksi</label>
+                        <input type="date" id="tx_txdate" required class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
                     </div>
 
-                    <!-- FITUR 2: Kolom Keterangan / Catatan -->
+                    <!-- FITUR 2: Tanggal Jatuh Tempo (OPSIONAL) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Estimasi / Jatuh Tempo <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label>
+                        <input type="date" id="tx_date" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
+                    </div>
+
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Keterangan / Catatan (Opsional)</label>
-                        <textarea id="tx_note" rows="2" placeholder="Cth: Pinjaman keperluan modal usaha, beli barang, dll." class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow resize-none"></textarea>
+                        <textarea id="tx_note" rows="2" placeholder="Cth: Keperluan modal usaha, beli barang, dll." class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow resize-none"></textarea>
                     </div>
 
-                    <!-- Upload Bukti awal -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Bukti Foto Transaksi (Opsional)</label>
                         <input type="file" id="tx_image" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition-colors">
@@ -199,7 +191,7 @@
         </div>
 
         <!-- MODAL: Tambah Kebutuhan -->
-        <div id="modal-add-need" class="absolute inset-0 bg-black/50 z-50 hidden flex flex-col justify-end transition-opacity backdrop-blur-sm">
+        <div id="modal-add-need" class="absolute inset-0 bg-black/50 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
             <div class="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto p-6 animate-[fadeIn_0.3s_ease-out]">
                 <div class="flex justify-between items-center mb-5">
                     <h2 class="text-lg font-bold text-gray-800">Catat Rencana Tagihan</h2>
@@ -227,7 +219,7 @@
         </div>
 
         <!-- MODAL: Custom Confirm Delete -->
-        <div id="modal-confirm" class="absolute inset-0 bg-black/60 z-[70] hidden flex flex-col justify-center items-center px-4 backdrop-blur-sm">
+        <div id="modal-confirm" class="absolute inset-0 bg-black/60 z-[70] hidden flex-col justify-center items-center px-4 backdrop-blur-sm">
             <div class="bg-white rounded-3xl p-6 w-full max-w-[300px] text-center animate-[fadeIn_0.2s_ease-out]">
                 <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="ph ph-warning-circle text-4xl"></i>
@@ -249,7 +241,7 @@
             <img id="photo-preview-img" src="" alt="Bukti Foto" class="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl">
         </div>
 
-        <!-- MODAL: Bayar / Catat Pembayaran (Cicil & Lunas) -->
+        <!-- MODAL: Bayar / Catat Pembayaran -->
         <div id="modal-pay-transaction" class="absolute inset-0 bg-black/60 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
             <div class="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto p-6 animate-[fadeIn_0.3s_ease-out]">
                 <div class="flex justify-between items-center mb-4">
@@ -269,8 +261,6 @@
                 
                 <form id="form-pay" class="space-y-4" onsubmit="savePayment(event)">
                     <input type="hidden" id="pay-tx-id">
-                    
-                    <!-- Pilihan Mode Bayar -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Opsi Pembayaran</label>
                         <div class="flex gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
@@ -289,19 +279,16 @@
                         </div>
                     </div>
 
-                    <!-- Nominal Pembayaran -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Nominal Yang Dibayar (Rp)</label>
                         <input type="number" id="pay_amount" required placeholder="0" min="1" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
                     </div>
 
-                    <!-- Catatan Tambahan Pembayaran -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Catatan / Keterangan Pembayaran (Opsional)</label>
                         <input type="text" id="pay_note" placeholder="Cth: Angsuran ke-1, via TF BCA" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
                     </div>
 
-                    <!-- FITUR 1: Upload Bukti Cicilan / Pelunasan -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Upload Bukti Pembayaran (Opsional)</label>
                         <input type="file" id="pay_image" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition-colors">
@@ -325,18 +312,16 @@
                 </div>
 
                 <div id="detail-content" class="space-y-4">
-                    <!-- Dynamic Content Injected Here -->
                 </div>
             </div>
         </div>
 
-    </div> <!-- END APP WRAPPER -->
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCIjl-mXei1es5yj_sQLW6Cq4EzTqkrw_A",
             authDomain: "catatan-ayah.firebaseapp.com",
@@ -375,7 +360,7 @@
         }
 
         function formatDate(dateStr) {
-            if (!dateStr) return '-';
+            if (!dateStr) return 'Tanpa Tenggat';
             const d = new Date(dateStr);
             if (isNaN(d.getTime())) return dateStr;
             return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -505,11 +490,8 @@
 
             const fab = document.getElementById('fab-add');
             if (fab) {
-                if (tab === 'kebutuhan') {
-                    fab.classList.add('hidden');
-                } else {
-                    fab.classList.remove('hidden');
-                }
+                if (tab === 'kebutuhan') fab.classList.add('hidden');
+                else fab.classList.remove('hidden');
             }
 
             renderApp();
@@ -520,12 +502,23 @@
             renderApp();
         }
 
-        function openModal(id) {
+        function openModal(id, contactName = '') {
             document.body.classList.add('modal-open');
             const el = document.getElementById(id);
             if (el) {
                 el.classList.remove('hidden');
                 el.classList.add('flex');
+            }
+
+            if (id === 'modal-add-transaction') {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const txDateInput = document.getElementById('tx_txdate');
+                if (txDateInput && !txDateInput.value) txDateInput.value = todayStr;
+                
+                if (contactName) {
+                    const nameInput = document.getElementById('tx_name');
+                    if (nameInput) nameInput.value = contactName;
+                }
             }
         }
 
@@ -547,9 +540,7 @@
         function confirmDelete(type, id) {
             deleteTarget = { type, id };
             const btnDelete = document.getElementById('btn-confirm-delete');
-            if (btnDelete) {
-                btnDelete.onclick = executeDelete;
-            }
+            if (btnDelete) btnDelete.onclick = executeDelete;
             openModal('modal-confirm');
         }
 
@@ -567,6 +558,7 @@
             }
             saveData();
             closeConfirmModal();
+            closeModal('modal-detail-transaction');
         }
 
         function viewPhoto(imgSrc) {
@@ -580,8 +572,9 @@
             const type = document.querySelector('input[name="tx_type"]:checked')?.value || 'hutang';
             const contact = document.getElementById('tx_name').value.trim();
             const amount = Number(document.getElementById('tx_amount').value);
-            const dueDate = document.getElementById('tx_date').value;
-            const note = document.getElementById('tx_note')?.value.trim() || ''; // FITUR 2: Keterangan
+            const txDate = document.getElementById('tx_txdate').value || new Date().toISOString().split('T')[0];
+            const dueDate = document.getElementById('tx_date').value || ''; 
+            const note = document.getElementById('tx_note')?.value.trim() || '';
             const imageInput = document.getElementById('tx_image');
 
             const handleSave = (imgBase64 = null) => {
@@ -590,6 +583,7 @@
                     type,
                     contact,
                     amount,
+                    txDate,
                     dueDate,
                     note,
                     image: imgBase64,
@@ -686,7 +680,7 @@
             const mode = document.querySelector('input[name="pay_mode"]:checked').value;
             const payAmount = Number(document.getElementById('pay_amount').value);
             const note = document.getElementById('pay_note').value || (mode === 'lunas' ? 'Pelunasan Total' : 'Pembayaran Cicilan');
-            const imageInput = document.getElementById('pay_image'); // FITUR 1: Gambar Bukti Bayar
+            const imageInput = document.getElementById('pay_image');
 
             if (payAmount <= 0) return;
 
@@ -781,6 +775,10 @@
                         
                         <div class="space-y-2 text-xs">
                             <div class="flex justify-between">
+                                <span class="text-gray-500">Tanggal Transaksi:</span>
+                                <span class="font-bold text-gray-800">${formatDate(tx.txDate || tx.createdAt)}</span>
+                            </div>
+                            <div class="flex justify-between">
                                 <span class="text-gray-500">Total Transaksi:</span>
                                 <span class="font-bold text-gray-800">${formatRupiah(tx.amount)}</span>
                             </div>
@@ -822,11 +820,16 @@
                     </div>
 
                     <div class="pt-3 border-t border-gray-100 space-y-2">
-                        ${remaining > 0 ? `
-                            <button onclick="closeModal('modal-detail-transaction'); openPayModal('${tx.id}')" class="w-full bg-green-600 text-white font-bold rounded-xl py-3 text-xs flex items-center justify-center gap-2 active:scale-95 transition shadow-sm">
-                                <i class="ph-bold ph-hand-coins text-base"></i> Catat Bayar (Cicil / Lunas)
+                        <div class="flex gap-2">
+                            ${remaining > 0 ? `
+                                <button onclick="closeModal('modal-detail-transaction'); openPayModal('${tx.id}')" class="flex-1 bg-green-600 text-white font-bold rounded-xl py-3 text-xs flex items-center justify-center gap-2 active:scale-95 transition shadow-sm">
+                                    <i class="ph-bold ph-hand-coins text-base"></i> Catat Bayar
+                                </button>
+                            ` : ''}
+                            <button onclick="closeModal('modal-detail-transaction'); openModal('modal-add-transaction', '${tx.contact}')" class="flex-1 bg-amber-500 text-white font-bold rounded-xl py-3 text-xs flex items-center justify-center gap-2 active:scale-95 transition shadow-sm">
+                                <i class="ph-bold ph-plus-circle text-base"></i> + Tambah Utang/Piutang
                             </button>
-                        ` : ''}
+                        </div>
 
                         <div class="flex gap-2">
                             <button onclick="downloadReceipt('${tx.id}')" class="flex-1 bg-blue-50 text-blue-600 border border-blue-200 font-bold rounded-xl py-2.5 text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
@@ -837,7 +840,7 @@
                                     <i class="ph-bold ph-image text-base"></i> Foto Transaksi
                                 </button>
                             ` : ''}
-                            <button onclick="closeModal('modal-detail-transaction'); confirmDelete('tx', '${tx.id}')" class="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center active:scale-95 transition flex-shrink-0">
+                            <button onclick="confirmDelete('tx', '${tx.id}')" class="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center active:scale-95 transition flex-shrink-0">
                                 <i class="ph-bold ph-trash text-base"></i>
                             </button>
                         </div>
@@ -858,7 +861,7 @@
 
             const canvas = document.createElement('canvas');
             canvas.width = 600;
-            canvas.height = tx.note ? 820 : 760;
+            canvas.height = tx.note ? 860 : 800;
             const ctx = canvas.getContext('2d');
 
             ctx.fillStyle = '#ffffff';
@@ -883,17 +886,20 @@
             ctx.font = 'bold 18px sans-serif'; ctx.fillText('Nama Pihak:', 60, 210);
             ctx.font = '20px sans-serif'; ctx.fillText(tx.contact, 240, 210);
 
-            ctx.font = 'bold 18px sans-serif'; ctx.fillText('Jenis Transaksi:', 60, 260);
-            ctx.font = '18px sans-serif'; ctx.fillText(isHutang ? 'Hutang (Saya Pinjam)' : 'Piutang (Memberi Pinjaman)', 240, 260);
+            ctx.font = 'bold 18px sans-serif'; ctx.fillText('Jenis Transaksi:', 60, 255);
+            ctx.font = '18px sans-serif'; ctx.fillText(isHutang ? 'Hutang (Saya Pinjam)' : 'Piutang (Memberi Pinjaman)', 240, 255);
 
-            ctx.font = 'bold 18px sans-serif'; ctx.fillText('Jatuh Tempo:', 60, 310);
-            ctx.font = '18px sans-serif'; ctx.fillText(formatDate(tx.dueDate), 240, 310);
+            ctx.font = 'bold 18px sans-serif'; ctx.fillText('Tgl Transaksi:', 60, 300);
+            ctx.font = '18px sans-serif'; ctx.fillText(formatDate(tx.txDate || tx.createdAt), 240, 300);
 
-            let currY = 360;
+            ctx.font = 'bold 18px sans-serif'; ctx.fillText('Jatuh Tempo:', 60, 345);
+            ctx.font = '18px sans-serif'; ctx.fillText(formatDate(tx.dueDate), 240, 345);
+
+            let currY = 390;
             if (tx.note) {
                 ctx.font = 'bold 18px sans-serif'; ctx.fillText('Keterangan:', 60, currY);
                 ctx.font = '16px sans-serif'; ctx.fillText(tx.note.substring(0, 35) + (tx.note.length > 35 ? '...' : ''), 240, currY);
-                currY += 50;
+                currY += 45;
             }
 
             ctx.font = 'bold 18px sans-serif'; ctx.fillText('Status Pembayaran:', 60, currY);
@@ -905,21 +911,21 @@
             ctx.strokeStyle = '#d1d5db';
             ctx.beginPath(); ctx.moveTo(60, currY); ctx.lineTo(540, currY); ctx.stroke();
 
-            currY += 50;
+            currY += 45;
             ctx.fillStyle = '#374151';
             ctx.font = '18px sans-serif'; ctx.fillText('Total Nominal:', 60, currY);
             ctx.font = 'bold 22px sans-serif'; ctx.fillText(formatRupiah(tx.amount), 300, currY);
 
-            currY += 50;
+            currY += 45;
             ctx.font = '18px sans-serif'; ctx.fillText('Total Terbayar:', 60, currY);
             ctx.font = 'bold 22px sans-serif'; ctx.fillStyle = '#16a34a'; ctx.fillText(formatRupiah(paid), 300, currY);
 
-            currY += 50;
+            currY += 45;
             ctx.fillStyle = '#374151';
             ctx.font = 'bold 18px sans-serif'; ctx.fillText('Sisa Tagihan:', 60, currY);
             ctx.font = 'bold 24px sans-serif'; ctx.fillStyle = remaining > 0 ? '#ef4444' : '#16a34a'; ctx.fillText(formatRupiah(remaining), 300, currY);
 
-            currY += 80;
+            currY += 75;
             ctx.fillStyle = '#9ca3af';
             ctx.font = '14px sans-serif';
             ctx.fillText('Dicetak otomatis dari Aplikasi Buku Catatan Ayah', 60, currY);
@@ -944,9 +950,11 @@
                     if (tx.type === 'hutang') totalHutang += remaining;
                     if (tx.type === 'piutang') totalPiutang += remaining;
                     
-                    const days = calculateDaysDiff(tx.dueDate);
-                    if (days >= 0 && days <= 3) {
-                        upcoming.push({...tx, days, remaining});
+                    if (tx.dueDate) {
+                        const days = calculateDaysDiff(tx.dueDate);
+                        if (days >= 0 && days <= 3) {
+                            upcoming.push({...tx, days, remaining});
+                        }
                     }
                 }
             });
@@ -1028,11 +1036,26 @@
             return html;
         }
 
+        /* FITUR 3: Pengelompokan 1 Kartu 1 Nama pada Tab Transaksi */
         function buildTransaksi() {
             let filteredTx = data.transactions;
             if (txFilter === 'hutang') filteredTx = data.transactions.filter(t => t.type === 'hutang');
             if (txFilter === 'piutang') filteredTx = data.transactions.filter(t => t.type === 'piutang');
-            filteredTx = [...filteredTx].reverse();
+
+            // Kelompokkan data berdasarkan Nama Kontak (Case-insensitive)
+            const groupedContacts = {};
+            filteredTx.forEach(tx => {
+                const key = tx.contact.trim().toLowerCase();
+                if (!groupedContacts[key]) {
+                    groupedContacts[key] = {
+                        name: tx.contact.trim(),
+                        items: []
+                    };
+                }
+                groupedContacts[key].items.push(tx);
+            });
+
+            const contactKeys = Object.keys(groupedContacts);
 
             let html = `
                 <div class="flex gap-2 mb-5 bg-white p-1.5 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-10">
@@ -1042,7 +1065,7 @@
                 </div>
             `;
 
-            if (filteredTx.length === 0) {
+            if (contactKeys.length === 0) {
                 html += `
                     <div class="text-center text-gray-400 mt-16">
                         <i class="ph-fill ph-folder-open text-6xl mb-3 text-gray-300"></i>
@@ -1051,76 +1074,111 @@
                 `;
             } else {
                 html += `<div class="space-y-4">`;
-                filteredTx.forEach(tx => {
-                    const isHutang = tx.type === 'hutang';
-                    const paid = getTxPaidAmount(tx);
-                    const remaining = Math.max(0, Number(tx.amount) - paid);
+                
+                contactKeys.forEach(key => {
+                    const group = groupedContacts[key];
+                    let totalSisaHutang = 0;
+                    let totalSisaPiutang = 0;
 
-                    let statusColor = 'bg-gray-100 text-gray-600';
-                    let statusIcon = 'ph-hourglass';
-                    if (tx.status === TX_STATUS.CICIL) { statusColor = 'bg-orange-100 text-orange-600'; statusIcon = 'ph-spinner-gap'; }
-                    if (tx.status === TX_STATUS.LUNAS) { statusColor = 'bg-green-100 text-green-700'; statusIcon = 'ph-check-circle'; }
+                    group.items.forEach(tx => {
+                        const paid = getTxPaidAmount(tx);
+                        const remaining = Math.max(0, Number(tx.amount) - paid);
+                        if (tx.type === 'hutang') totalSisaHutang += remaining;
+                        if (tx.type === 'piutang') totalSisaPiutang += remaining;
+                    });
 
                     html += `
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative group">
-                            <div class="absolute left-0 top-0 bottom-0 w-1.5 ${isHutang ? 'bg-red-400' : 'bg-green-400'}"></div>
-                            
-                            <div class="p-5 pl-6">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div>
-                                        <div class="flex items-center gap-2 mb-1">
-                                            <span class="text-[10px] font-bold uppercase tracking-wider ${isHutang ? 'text-red-500' : 'text-green-500'}">
-                                                ${isHutang ? 'Hutang Ke' : 'Piutang Dari'}
-                                            </span>
-                                            <span class="text-[9px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${statusColor}">
-                                                <i class="ph-bold ${statusIcon}"></i> ${tx.status.toUpperCase()}
-                                            </span>
-                                        </div>
-                                        <h3 class="font-bold text-gray-800 text-lg leading-tight truncate max-w-[180px]">${tx.contact}</h3>
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative">
+                            <!-- Card Header Contact -->
+                            <div class="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                                <div>
+                                    <h3 class="font-bold text-gray-800 text-lg leading-tight flex items-center gap-2">
+                                        <i class="ph-bold ph-user-circle text-green-600 text-xl"></i> ${group.name}
+                                    </h3>
+                                    <p class="text-[11px] text-gray-400 mt-0.5">${group.items.length} catatan transaksi</p>
+                                </div>
+                                <div class="text-right">
+                                    ${totalSisaHutang > 0 ? `<p class="text-xs font-bold text-red-500">Sisa Hutang: ${formatRupiah(totalSisaHutang)}</p>` : ''}
+                                    ${totalSisaPiutang > 0 ? `<p class="text-xs font-bold text-green-600">Sisa Piutang: ${formatRupiah(totalSisaPiutang)}</p>` : ''}
+                                    ${totalSisaHutang === 0 && totalSisaPiutang === 0 ? `<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">Semua Lunas</span>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Inner Transaction List -->
+                            <div class="p-4 space-y-3">
+                    `;
+
+                    group.items.slice().reverse().forEach(tx => {
+                        const isHutang = tx.type === 'hutang';
+                        const paid = getTxPaidAmount(tx);
+                        const remaining = Math.max(0, Number(tx.amount) - paid);
+
+                        let statusColor = 'bg-gray-100 text-gray-600';
+                        if (tx.status === TX_STATUS.CICIL) statusColor = 'bg-orange-100 text-orange-600';
+                        if (tx.status === TX_STATUS.LUNAS) statusColor = 'bg-green-100 text-green-700';
+
+                        html += `
+                            <div class="bg-gray-50/70 p-3 rounded-xl border border-gray-100 space-y-2">
+                                <div class="flex justify-between items-start">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[10px] font-bold uppercase tracking-wider ${isHutang ? 'text-red-500 bg-red-50' : 'text-green-600 bg-green-50'} px-2 py-0.5 rounded border">
+                                            ${isHutang ? 'Hutang Ke' : 'Piutang Dari'}
+                                        </span>
+                                        <span class="text-[9px] font-bold px-2 py-0.5 rounded ${statusColor}">
+                                            ${tx.status.toUpperCase()}
+                                        </span>
                                     </div>
                                     <div class="text-right">
-                                        <p class="font-black text-gray-800 text-base">${formatRupiah(tx.amount)}</p>
-                                        ${paid > 0 && remaining > 0 ? `<p class="text-[11px] font-bold text-red-500">Sisa: ${formatRupiah(remaining)}</p>` : ''}
+                                        <p class="font-bold text-gray-800 text-sm">${formatRupiah(tx.amount)}</p>
+                                        ${remaining > 0 && paid > 0 ? `<p class="text-[10px] font-bold text-red-500">Sisa: ${formatRupiah(remaining)}</p>` : ''}
                                     </div>
                                 </div>
 
-                                ${tx.note ? `
-                                    <p class="text-xs text-gray-500 line-clamp-1 mb-2 bg-gray-50 px-2 py-1 rounded-md italic">
-                                        <i class="ph-bold ph-note text-gray-400 mr-0.5"></i> ${tx.note}
-                                    </p>
-                                ` : ''}
-                                
-                                <div class="flex items-center justify-between text-[11px] font-medium text-gray-500 mb-3 pt-2 border-t border-gray-50">
-                                    <span class="flex items-center gap-1"><i class="ph-fill ph-calendar-blank text-gray-400"></i> ${formatDate(tx.dueDate)}</span>
-                                    ${paid > 0 ? `<span class="text-green-600 font-bold">Terbayar: ${formatRupiah(paid)}</span>` : ''}
+                                ${tx.note ? `<p class="text-xs text-gray-600 italic bg-white p-2 rounded border border-gray-100"><i class="ph-bold ph-note text-gray-400 mr-1"></i>${tx.note}</p>` : ''}
+
+                                <div class="flex justify-between items-center text-[11px] text-gray-400">
+                                    <span>Tgl Transaksi: <strong>${formatDate(tx.txDate || tx.createdAt)}</strong></span>
+                                    <span>Jatuh Tempo: <strong>${formatDate(tx.dueDate)}</strong></span>
                                 </div>
 
-                                <div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
-                                    <div class="flex gap-1.5 flex-1">
+                                <div class="flex justify-between items-center pt-2 border-t border-gray-200/60">
+                                    <div class="flex gap-1">
                                         ${remaining > 0 ? `
-                                            <button onclick="openPayModal('${tx.id}')" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95 transition">
+                                            <button onclick="openPayModal('${tx.id}')" class="px-2.5 py-1 bg-green-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm active:scale-95 transition">
                                                 <i class="ph-bold ph-hand-coins"></i> Bayar
                                             </button>
                                         ` : ''}
-                                        <button onclick="openDetailModal('${tx.id}')" class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 transition">
+                                        <button onclick="openDetailModal('${tx.id}')" class="px-2.5 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 transition">
                                             <i class="ph-bold ph-eye"></i> Detail
                                         </button>
                                     </div>
-                                    
+
                                     <div class="flex gap-1">
-                                        <button onclick="downloadReceipt('${tx.id}')" title="Download Nota" class="w-8 h-8 flex justify-center items-center text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition active:scale-90">
-                                            <i class="ph-bold ph-download-simple text-sm"></i>
+                                        <button onclick="downloadReceipt('${tx.id}')" title="Download Nota" class="w-7 h-7 flex justify-center items-center text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition active:scale-90">
+                                            <i class="ph-bold ph-download-simple text-xs"></i>
                                         </button>
-                                        ${tx.image ? `<button onclick="viewPhoto('${tx.image}')" title="Lihat Foto Transaksi" class="w-8 h-8 flex justify-center items-center text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition active:scale-90"><i class="ph-bold ph-image text-sm"></i></button>` : ''}
-                                        <button onclick="confirmDelete('tx', '${tx.id}')" title="Hapus" class="w-8 h-8 flex justify-center items-center text-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition active:scale-90">
-                                            <i class="ph-bold ph-trash text-sm"></i>
+                                        ${tx.image ? `<button onclick="viewPhoto('${tx.image}')" title="Lihat Foto Transaksi" class="w-7 h-7 flex justify-center items-center text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition active:scale-90"><i class="ph-bold ph-image text-xs"></i></button>` : ''}
+                                        <button onclick="confirmDelete('tx', '${tx.id}')" title="Hapus" class="w-7 h-7 flex justify-center items-center text-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition active:scale-90">
+                                            <i class="ph-bold ph-trash text-xs"></i>
                                         </button>
                                     </div>
                                 </div>
                             </div>
+                        `;
+                    });
+
+                    /* FITUR 3: Tombol Tambah Utang / Piutang untuk Nama Terkait */
+                    html += `
+                            </div>
+                            <div class="p-3 bg-gray-50 border-t border-gray-100 flex gap-2">
+                                <button onclick="openModal('modal-add-transaction', '${group.name}')" class="w-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition">
+                                    <i class="ph-bold ph-plus-circle text-sm"></i> Tambah Utang / Piutang ${group.name}
+                                </button>
+                            </div>
                         </div>
                     `;
                 });
+
                 html += `</div>`;
             }
             return html;
