@@ -299,17 +299,20 @@
             </div>
         </div>
 
-        <!-- MODAL: Detail Transaksi (Tampilan Premium Ledger + Tombol Lampiran) -->
+        <!-- MODAL: Detail Transaksi (Desain Mobile-First Modern & Responsif) -->
         <div id="modal-detail-transaction" class="absolute inset-0 bg-black/60 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
-            <div class="bg-white rounded-t-3xl w-full max-h-[92vh] overflow-y-auto p-6 animate-[fadeIn_0.3s_ease-out]">
-                <div class="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
+            <div class="bg-white rounded-t-3xl w-full max-h-[94vh] overflow-y-auto p-5 animate-[fadeIn_0.3s_ease-out]">
+                <div class="flex justify-between items-center mb-3 pb-3 border-b border-gray-100">
                     <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                            <i class="ph-bold ph-receipt text-base"></i>
+                        <div class="w-8 h-8 rounded-xl bg-green-100 text-green-700 flex items-center justify-center shadow-sm">
+                            <i class="ph-bold ph-receipt text-lg"></i>
                         </div>
-                        <h2 class="text-lg font-extrabold text-gray-800 tracking-tight">Detail Transaksi</h2>
+                        <div>
+                            <h2 class="text-base font-extrabold text-gray-800 tracking-tight leading-none">Detail Ledger</h2>
+                            <p class="text-[10px] text-gray-400 mt-0.5">Riwayat Lengkap & Ringkasan</p>
+                        </div>
                     </div>
-                    <button onclick="closeModal('modal-detail-transaction')" class="p-2 text-gray-500 rounded-full bg-gray-100 hover:bg-gray-200 active:scale-95 transition">
+                    <button onclick="closeModal('modal-detail-transaction')" class="p-2 text-gray-400 hover:text-gray-600 rounded-full bg-gray-100 active:scale-95 transition">
                         <i class="ph ph-x text-lg"></i>
                     </button>
                 </div>
@@ -359,7 +362,7 @@
         }
 
         function formatRupiah(num) {
-            return 'Rp. ' + Number(num || 0).toLocaleString('id-ID');
+            return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
         }
 
         function formatDateShort(dateStr) {
@@ -370,7 +373,7 @@
             const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
             const month = monthNames[d.getMonth()];
             const year = d.getFullYear();
-            return `${day}-${month}-${year}`;
+            return `${day} ${month} ${year}`;
         }
 
         function formatDate(dateStr) {
@@ -743,129 +746,234 @@
             }
         }
 
-        /* DETAIL TRANSAKSI: Tampilan Premium + Tombol Download Lampiran */
+        /* DETAIL TRANSAKSI: Redesain Mobile-First Modern dengan Feed & Bagan Visual */
         function openDetailModalByContact(contactKey) {
             const contactTxs = data.transactions.filter(t => t.contact.trim().toLowerCase() === contactKey);
             if (contactTxs.length === 0) return;
 
             const contactName = contactTxs[0].contact;
 
-            const ledger = [];
-            let totalHutang = 0;
-            let totalPiutang = 0;
+            const timelineItems = [];
+            let totalHutangBruto = 0;
+            let totalPiutangBruto = 0;
+            let totalPembayaranDiterima = 0;
+            let totalPembayaranDikeluarkan = 0;
 
             contactTxs.forEach(tx => {
                 const isHutang = tx.type === 'hutang';
-                ledger.push({
+                if (isHutang) totalHutangBruto += Number(tx.amount);
+                else totalPiutangBruto += Number(tx.amount);
+
+                timelineItems.push({
+                    id: tx.id,
                     date: tx.txDate || tx.createdAt,
+                    title: isHutang ? 'Pinjaman Diterima (Hutang)' : 'Pinjaman Diberikan (Piutang)',
                     note: tx.note || (isHutang ? 'Hutang Baru' : 'Piutang Baru'),
-                    debit: isHutang ? 0 : tx.amount,
-                    kredit: isHutang ? tx.amount : 0,
-                    type: tx.type,
+                    amount: tx.amount,
+                    type: tx.type, // 'hutang' / 'piutang'
+                    isPayment: false,
                     image: tx.image
                 });
 
                 if (tx.payments && tx.payments.length > 0) {
                     tx.payments.forEach(p => {
-                        ledger.push({
+                        if (isHutang) totalPembayaranDikeluarkan += Number(p.amount);
+                        else totalPembayaranDiterima += Number(p.amount);
+
+                        timelineItems.push({
+                            id: p.id || generateId(),
                             date: p.date,
-                            note: p.note || 'Cicil',
-                            debit: isHutang ? p.amount : 0,
-                            kredit: isHutang ? 0 : p.amount,
-                            type: 'payment',
+                            title: p.mode === 'lunas' ? 'Pelunasan Tagihan' : 'Pembayaran Cicilan',
+                            note: p.note || 'Cicilan',
+                            amount: p.amount,
+                            type: isHutang ? 'bayar_hutang' : 'terima_piutang',
+                            isPayment: true,
                             image: p.image
                         });
                     });
                 }
             });
 
-            ledger.sort((a, b) => new Date(a.date) - new Date(b.date));
+            // Urutkan riwayat dari yang paling baru di atas
+            timelineItems.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            contactTxs.forEach(tx => {
-                const paid = getTxPaidAmount(tx);
-                const remaining = Math.max(0, Number(tx.amount) - paid);
-                if (tx.type === 'hutang') totalHutang += remaining;
-                if (tx.type === 'piutang') totalPiutang += remaining;
-            });
+            const totalHutangBersih = Math.max(0, totalHutangBruto - totalPembayaranDikeluarkan);
+            const totalPiutangBersih = Math.max(0, totalPiutangBruto - totalPembayaranDiterima);
+            const netSisa = totalHutangBersih - totalPiutangBersih;
 
-            const netSisa = totalHutang - totalPiutang;
-            let sisaBadge = '';
+            // Hitung progress pelunasan (%)
+            const totalPokok = totalHutangBruto + totalPiutangBruto;
+            const totalBayar = totalPembayaranDikeluarkan + totalPembayaranDiterima;
+            const progressPercent = totalPokok > 0 ? Math.min(100, Math.round((totalBayar / totalPokok) * 100)) : 100;
+
+            let statusBadgeHtml = '';
+            let sisaText = '';
+            let mainBgGradient = '';
+
             if (netSisa > 0) {
-                sisaBadge = `<span class="text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full text-xs font-black">${formatRupiah(netSisa)}</span>`;
+                sisaText = formatRupiah(netSisa);
+                statusBadgeHtml = `<span class="bg-rose-100 text-rose-700 text-[11px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 border border-rose-200">
+                    <i class="ph-fill ph-warning-circle"></i> Sisa Hutang: ${sisaText}
+                </span>`;
+                mainBgGradient = 'from-rose-500/10 via-amber-500/5 to-transparent';
             } else if (netSisa < 0) {
-                sisaBadge = `<span class="text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-black">${formatRupiah(Math.abs(netSisa))} (Piutang)</span>`;
+                sisaText = formatRupiah(Math.abs(netSisa));
+                statusBadgeHtml = `<span class="bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 border border-emerald-200">
+                    <i class="ph-fill ph-arrow-circle-down"></i> Sisa Piutang: ${sisaText}
+                </span>`;
+                mainBgGradient = 'from-emerald-500/10 via-teal-500/5 to-transparent';
             } else {
-                sisaBadge = `<span class="text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1 rounded-full text-xs font-black">Rp. 0 (Lunas)</span>`;
+                statusBadgeHtml = `<span class="bg-slate-100 text-slate-700 text-[11px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 border border-slate-200">
+                    <i class="ph-fill ph-check-circle"></i> LUNAS (Rp 0)
+                </span>`;
+                mainBgGradient = 'from-slate-500/10 via-gray-500/5 to-transparent';
             }
 
-            let tableRows = ledger.map(item => `
-                <tr class="border-b border-slate-200/80 hover:bg-slate-50/50 transition-colors text-xs">
-                    <td class="py-3 px-3 text-slate-600 font-medium whitespace-nowrap">${formatDateShort(item.date)}</td>
-                    <td class="py-3 px-3 text-slate-800 font-semibold">${item.note}</td>
-                    <td class="py-3 px-3 text-right ${item.debit > 0 ? 'text-emerald-600 font-bold' : 'text-slate-300'}">
-                        ${item.debit > 0 ? formatRupiah(item.debit) : ''}
-                    </td>
-                    <td class="py-3 px-3 text-right ${item.kredit > 0 ? 'text-slate-900 font-bold' : 'text-slate-300'}">
-                        ${item.kredit > 0 ? formatRupiah(item.kredit) : ''}
-                    </td>
-                </tr>
-            `).join('');
+            // Generate Kartu Timeline
+            let timelineCardsHtml = timelineItems.map(item => {
+                let badgeStyle = '';
+                let iconClass = '';
+                let amountColor = '';
+                let amountPrefix = '';
+
+                if (item.type === 'hutang') {
+                    badgeStyle = 'bg-rose-50 text-rose-600 border-rose-200';
+                    iconClass = 'ph-bold ph-trend-down text-rose-500 bg-rose-100';
+                    amountColor = 'text-rose-600';
+                    amountPrefix = '+';
+                } else if (item.type === 'piutang') {
+                    badgeStyle = 'bg-teal-50 text-teal-600 border-teal-200';
+                    iconClass = 'ph-bold ph-trend-up text-teal-600 bg-teal-100';
+                    amountColor = 'text-teal-600';
+                    amountPrefix = '+';
+                } else { // Payment
+                    badgeStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                    iconClass = 'ph-bold ph-check text-emerald-600 bg-emerald-100';
+                    amountColor = 'text-emerald-600';
+                    amountPrefix = '-';
+                }
+
+                let photoBtn = '';
+                if (item.image) {
+                    photoBtn = `
+                        <button onclick="viewPhoto('${item.image}')" class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-semibold rounded-lg transition active:scale-95">
+                            <i class="ph-bold ph-image text-green-600"></i> Lihat Foto Bukti
+                        </button>
+                    `;
+                }
+
+                return `
+                    <div class="relative pl-6 pb-4 border-l-2 border-gray-200 last:border-l-0 last:pb-0">
+                        <div class="absolute -left-[13px] top-0 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm ${iconClass}">
+                            <i class="${iconClass}"></i>
+                        </div>
+
+                        <div class="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition">
+                            <div class="flex justify-between items-start gap-2 mb-1">
+                                <div>
+                                    <span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase block">
+                                        ${formatDateShort(item.date)}
+                                    </span>
+                                    <h4 class="font-bold text-gray-800 text-xs mt-0.5">${item.title}</h4>
+                                </div>
+                                <span class="font-black text-sm ${amountColor} whitespace-nowrap">
+                                    ${amountPrefix}${formatRupiah(item.amount)}
+                                </span>
+                            </div>
+
+                            <p class="text-xs text-gray-500 font-normal leading-relaxed bg-gray-50/80 p-2 rounded-xl mt-1.5 border border-gray-100">
+                                ${item.note}
+                            </p>
+
+                            ${photoBtn}
+                        </div>
+                    </div>
+                `;
+            }).join('');
 
             const detailContainer = document.getElementById('detail-content');
             detailContainer.innerHTML = `
-                <!-- Premium Card Wrapper -->
-                <div class="bg-gradient-to-b from-slate-50 via-white to-emerald-50/30 p-5 rounded-3xl border border-slate-200 shadow-xl space-y-5 font-sans relative overflow-hidden">
-                    <div class="flex justify-between items-start border-b border-slate-200/80 pb-4">
+                <!-- Header Profil Kontak & Ringkasan Stats -->
+                <div class="bg-gradient-to-br ${mainBgGradient} p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-11 h-11 rounded-2xl bg-white text-green-700 shadow-sm border border-green-100 flex items-center justify-center font-black text-lg">
+                                ${contactName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <h3 class="text-base font-black text-gray-900 leading-tight">${contactName}</h3>
+                                <p class="text-[11px] text-gray-500 font-medium">${contactTxs.length} Transaksi Terdaftar</p>
+                            </div>
+                        </div>
                         <div>
-                            <span class="text-[10px] font-bold text-emerald-700 tracking-wider uppercase bg-emerald-100/80 px-2.5 py-1 rounded-md mb-1.5 inline-block">Ledger Keuangan</span>
-                            <h3 class="text-2xl font-black text-slate-900 tracking-tight leading-tight">${contactName}</h3>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block mb-1">Status Sisa Tagihan</span>
-                            ${sisaBadge}
+                            ${statusBadgeHtml}
                         </div>
                     </div>
 
-                    <div class="overflow-hidden rounded-2xl border border-slate-200 shadow-sm bg-white">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-900 text-white text-[11px] font-bold tracking-wide uppercase">
-                                    <th class="py-3 px-3">Tgl. Transaksi</th>
-                                    <th class="py-3 px-3">Keterangan</th>
-                                    <th class="py-3 px-3 text-right">Debit</th>
-                                    <th class="py-3 px-3 text-right">Kredit</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                ${tableRows}
-                            </tbody>
-                        </table>
+                    <!-- Progress Pelunasan -->
+                    <div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-1.5">
+                        <div class="flex justify-between items-center text-[11px] font-bold">
+                            <span class="text-gray-500">Kemajuan Pelunasan</span>
+                            <span class="text-green-600 font-extrabold">${progressPercent}% Terbayar</span>
+                        </div>
+                        <div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500" style="width: ${progressPercent}%"></div>
+                        </div>
                     </div>
 
-                    <div class="pt-3 border-t-2 border-slate-900 flex justify-between items-center text-sm font-bold text-slate-900">
-                        <span class="uppercase tracking-wide text-xs">Total Sisa Tagihan</span>
-                        <div class="text-base font-black">${sisaBadge}</div>
+                    <!-- Grid Ringkasan Nominal -->
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-white p-2.5 rounded-xl border border-gray-100">
+                            <span class="text-[10px] text-gray-400 font-bold uppercase block">Total Akumulasi</span>
+                            <span class="font-extrabold text-gray-800 text-xs">${formatRupiah(totalPokok)}</span>
+                        </div>
+                        <div class="bg-white p-2.5 rounded-xl border border-gray-100">
+                            <span class="text-[10px] text-gray-400 font-bold uppercase block">Total Masuk/Dicicil</span>
+                            <span class="font-extrabold text-green-600 text-xs">${formatRupiah(totalBayar)}</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Action Buttons Layout -->
-                <div class="space-y-2 pt-2">
+                <!-- Judul Timeline / Feed -->
+                <div class="flex justify-between items-center pt-1 px-1">
+                    <h3 class="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="ph-bold ph-clock-counter-clock-wise text-green-600"></i> Riwayat & Catatan Struk
+                    </h3>
+                    <button onclick="openModal('modal-add-transaction', '${contactName}')" class="text-[11px] font-bold text-green-600 hover:text-green-700 flex items-center gap-1">
+                        <i class="ph-bold ph-plus-circle"></i> Tambah Baru
+                    </button>
+                </div>
+
+                <!-- Container Timeline Feed -->
+                <div class="py-2 px-1">
+                    ${timelineCardsHtml}
+                </div>
+
+                <!-- Tombol Aksi HP Responsive -->
+                <div class="pt-3 border-t border-gray-100 space-y-2">
                     <div class="flex gap-2">
-                        <!-- Tombol Download Nota -->
-                        <button onclick="downloadContactStatement('${contactKey}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl py-3 text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-200 active:scale-95 transition">
-                            <i class="ph-bold ph-download-simple text-base"></i> Download Nota
+                        <!-- Tombol Bayar Langsung -->
+                        <button onclick="openPayModalByContact('${contactKey}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl py-3 text-xs flex items-center justify-center gap-1.5 shadow-md shadow-green-100 active:scale-95 transition">
+                            <i class="ph-bold ph-hand-coins text-sm"></i> Catat Bayar
                         </button>
 
-                        <!-- Tombol Download Lampiran (Di samping Nota) -->
-                        <button onclick="downloadAttachment('${contactKey}')" class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold rounded-2xl py-3 text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
-                            <i class="ph-bold ph-paperclip text-base"></i> Download Lampiran
+                        <!-- Tombol Download Nota -->
+                        <button onclick="downloadContactStatement('${contactKey}')" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold rounded-xl py-3 text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
+                            <i class="ph-bold ph-download-simple text-sm"></i> Download Nota
                         </button>
                     </div>
 
-                    <!-- Tombol Hapus -->
-                    <button onclick="confirmDeleteContact('${contactKey}')" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold rounded-2xl py-2.5 text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
-                        <i class="ph-bold ph-trash text-base"></i> Hapus Catatan Kontak
-                    </button>
+                    <div class="flex gap-2">
+                        <!-- Tombol Download Lampiran -->
+                        <button onclick="downloadAttachment('${contactKey}')" class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold rounded-xl py-2.5 text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
+                            <i class="ph-bold ph-paperclip text-sm"></i> Lampiran Foto
+                        </button>
+
+                        <!-- Tombol Hapus -->
+                        <button onclick="confirmDeleteContact('${contactKey}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold rounded-xl px-4 py-2.5 text-xs flex items-center justify-center gap-1.5 active:scale-95 transition">
+                            <i class="ph-bold ph-trash text-sm"></i> Hapus
+                        </button>
+                    </div>
                 </div>
             `;
 
