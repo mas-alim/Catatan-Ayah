@@ -283,6 +283,11 @@
                     </div>
 
                     <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Transaksi / Pembayaran</label>
+                        <input type="date" id="pay_date" required class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
+                    </div>
+
+                    <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Keterangan Pembayaran (Opsional)</label>
                         <input type="text" id="pay_note" placeholder="Cth: Cicil" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
                     </div>
@@ -672,6 +677,10 @@
             const payAmountInput = document.getElementById('pay_amount');
             payAmountInput.max = remaining;
             payAmountInput.value = '';
+
+            // Set default tanggal pembayaran ke hari ini
+            const payDateInput = document.getElementById('pay_date');
+            if (payDateInput) payDateInput.value = new Date().toISOString().split('T')[0];
             
             const cicilRadio = document.querySelector('input[name="pay_mode"][value="cicil"]');
             if (cicilRadio) cicilRadio.checked = true;
@@ -703,6 +712,7 @@
 
             const mode = document.querySelector('input[name="pay_mode"]:checked').value;
             const payAmount = Number(document.getElementById('pay_amount').value);
+            const payDate = document.getElementById('pay_date').value || new Date().toISOString().split('T')[0];
             const note = document.getElementById('pay_note').value || (mode === 'lunas' ? 'Pelunasan Total' : 'Cicil');
             const imageInput = document.getElementById('pay_image');
 
@@ -712,7 +722,7 @@
                 if (!tx.payments) tx.payments = [];
                 tx.payments.push({
                     id: generateId(),
-                    date: new Date().toISOString(),
+                    date: payDate,
                     amount: payAmount,
                     mode: mode,
                     note: note,
@@ -746,7 +756,6 @@
             }
         }
 
-        /* DETAIL TRANSAKSI: Redesain Mobile-First Modern dengan Feed & Bagan Visual */
         function openDetailModalByContact(contactKey) {
             const contactTxs = data.transactions.filter(t => t.contact.trim().toLowerCase() === contactKey);
             if (contactTxs.length === 0) return;
@@ -980,7 +989,6 @@
             openModal('modal-detail-transaction');
         }
 
-        /* Fungsi Unggah / Download Lampiran */
         function downloadAttachment(contactKey) {
             const contactTxs = data.transactions.filter(t => t.contact.trim().toLowerCase() === contactKey);
             const attachments = [];
