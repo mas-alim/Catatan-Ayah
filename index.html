@@ -5,12 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Buku Catatan Ayah</title>
     
-    <!-- Konfigurasi PWA Mobile & Fullscreen -->
+    <!-- Konfigurasi Meta PWA Mobile & Android Header -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Catatan Ayah">
+    <meta name="application-name" content="Catatan Ayah">
     <meta name="theme-color" content="#16a34a">
+    <meta name="msapplication-TileColor" content="#16a34a">
+    <meta name="format-detection" content="telephone=no">
+
+    <!-- Favicon Dynamic Placeholder -->
+    <link id="app-favicon" rel="icon" type="image/png" href="">
+    <link id="app-apple-icon" rel="apple-touch-icon" href="">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,18 +25,24 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <style>
+        /* Sembunyikan Scrollbar untuk Tampilan Native App */
         ::-webkit-scrollbar { display: none; }
-        body {
+        * {
             -ms-overflow-style: none;
             scrollbar-width: none;
             -webkit-tap-highlight-color: transparent;
+        }
+        body {
             background-color: #f3f4f6;
             user-select: none;
+            -webkit-user-select: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overscroll-behavior-y: none;
         }
         .modal-open { overflow: hidden; }
         .fade-in { animation: fadeIn 0.2s ease-in-out; }
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(8px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .app-wrapper {
@@ -37,14 +50,42 @@
             margin: 0 auto;
             background-color: #f9fafb;
             min-height: 100vh;
+            min-height: 100dvh;
             position: relative;
-            box-shadow: 0 0 15px rgba(0,0,0,0.05);
+            box-shadow: 0 0 20px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+        }
+        /* Safe Area Padding untuk HP dengan Notch & Navigation Bar Android */
+        .pb-safe {
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+        }
+        .pt-safe {
+            padding-top: env(safe-area-inset-top, 0px);
         }
     </style>
 </head>
 <body class="text-gray-800 font-sans selection:bg-green-200">
 
     <div class="app-wrapper">
+
+        <!-- BANNER INSTALASI PWA ANDROID / MOBILE -->
+        <div id="pwa-install-banner" class="hidden fixed top-2 left-2 right-2 max-w-[464px] mx-auto z-[110] bg-slate-900/95 text-white p-3.5 rounded-2xl shadow-2xl backdrop-blur-md border border-white/10 items-center justify-between fade-in">
+            <div class="flex items-center gap-3">
+                <div id="pwa-banner-icon" class="w-10 h-10 rounded-xl bg-green-600 flex items-center justify-center font-bold text-lg shadow-inner">
+                    👛
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold leading-tight">Pasang Aplikasi HP</h4>
+                    <p class="text-[10px] text-gray-300 mt-0.5">Akses cepat & offline di Layar Utama</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button onclick="dismissInstallBanner()" class="text-gray-400 text-xs px-2 py-1.5 hover:text-white">Nanti</button>
+                <button onclick="installPWA()" class="bg-green-600 hover:bg-green-500 text-white font-bold text-xs px-3 py-1.5 rounded-xl shadow-lg active:scale-95 transition">Install</button>
+            </div>
+        </div>
+
         <!-- SCREEN: Setup PIN -->
         <div id="screen-setup" class="absolute inset-0 bg-green-600 z-[100] flex flex-col justify-center items-center px-4 hidden">
             <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-sm text-center">
@@ -77,9 +118,9 @@
         </div>
 
         <!-- APP CONTENT WRAPPER -->
-        <div id="app-content" class="hidden flex flex-col min-h-screen">
+        <div id="app-content" class="hidden flex flex-col min-h-screen flex-1">
             <!-- Header -->
-            <header class="bg-green-600 text-white p-5 sticky top-0 z-30 shadow-md flex justify-between items-center rounded-b-2xl">
+            <header class="bg-green-600 text-white p-5 pt-safe sticky top-0 z-30 shadow-md flex justify-between items-center rounded-b-2xl">
                 <div class="text-left">
                     <h1 class="text-xl font-bold flex items-center gap-2">
                         <i class="ph-fill ph-wallet text-2xl"></i> Buku Catatan Ayah
@@ -102,12 +143,12 @@
             </main>
 
             <!-- Floating Action Button -->
-            <button id="fab-add" onclick="openModal('modal-add-transaction')" class="absolute bottom-20 right-5 z-40 w-14 h-14 bg-green-600 text-white rounded-full shadow-lg shadow-green-200 flex items-center justify-center active:scale-90 transition-transform">
+            <button id="fab-add" onclick="openModal('modal-add-transaction')" class="fixed bottom-20 right-5 z-40 w-14 h-14 bg-green-600 text-white rounded-full shadow-xl shadow-green-600/30 flex items-center justify-center active:scale-90 transition-transform">
                 <i class="ph ph-plus text-2xl font-bold"></i>
             </button>
 
             <!-- Bottom Navigation -->
-            <nav class="absolute bottom-0 w-full bg-white border-t border-gray-100 z-30 rounded-t-2xl shadow-[0_-4px_15px_-3px_rgba(0,0,0,0.05)] pb-safe">
+            <nav class="sticky bottom-0 w-full bg-white/95 backdrop-blur-md border-t border-gray-100 z-30 rounded-t-2xl shadow-[0_-4px_15px_-3px_rgba(0,0,0,0.05)] pb-safe">
                 <ul class="flex justify-around items-center h-16">
                     <li class="flex-1">
                         <button id="nav-beranda" onclick="switchTab('beranda')" class="w-full h-full flex flex-col items-center justify-center text-green-600 transition-colors">
@@ -132,8 +173,8 @@
         </div>
 
         <!-- MODAL: Tambah / Edit Transaksi -->
-        <div id="modal-add-transaction" class="absolute inset-0 bg-black/50 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
-            <div class="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto p-6 animate-[fadeIn_0.3s_ease-out]">
+        <div id="modal-add-transaction" class="fixed inset-0 bg-black/60 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
+            <div class="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto p-6 animate-[fadeIn_0.3s_ease-out] pb-safe">
                 <div class="flex justify-between items-center mb-5">
                     <h2 class="text-lg font-bold text-gray-800" id="modal-tx-title">Catat Transaksi</h2>
                     <button onclick="closeModal('modal-add-transaction')" class="p-2 text-gray-500 rounded-full bg-gray-100 hover:bg-gray-200 active:scale-95 transition">
@@ -196,8 +237,8 @@
         </div>
 
         <!-- MODAL: Tambah Kebutuhan -->
-        <div id="modal-add-need" class="absolute inset-0 bg-black/50 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
-            <div class="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto p-6 animate-[fadeIn_0.3s_ease-out]">
+        <div id="modal-add-need" class="fixed inset-0 bg-black/60 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
+            <div class="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto p-6 animate-[fadeIn_0.3s_ease-out] pb-safe">
                 <div class="flex justify-between items-center mb-5">
                     <h2 class="text-lg font-bold text-gray-800">Catat Rencana Tagihan</h2>
                     <button onclick="closeModal('modal-add-need')" class="p-2 text-gray-500 rounded-full bg-gray-100 hover:bg-gray-200 active:scale-95 transition">
@@ -224,7 +265,7 @@
         </div>
 
         <!-- MODAL: Custom Confirm Delete -->
-        <div id="modal-confirm" class="absolute inset-0 bg-black/60 z-[70] hidden flex-col justify-center items-center px-4 backdrop-blur-sm">
+        <div id="modal-confirm" class="fixed inset-0 bg-black/60 z-[70] hidden flex-col justify-center items-center px-4 backdrop-blur-sm">
             <div class="bg-white rounded-3xl p-6 w-full max-w-[300px] text-center animate-[fadeIn_0.2s_ease-out]">
                 <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="ph ph-warning-circle text-4xl"></i>
@@ -239,7 +280,7 @@
         </div>
 
         <!-- MODAL: Lihat Bukti Foto -->
-        <div id="modal-photo" class="absolute inset-0 bg-black/95 z-[80] hidden flex-col justify-center items-center p-4 backdrop-blur-sm">
+        <div id="modal-photo" class="fixed inset-0 bg-black/95 z-[80] hidden flex-col justify-center items-center p-4 backdrop-blur-sm">
             <button onclick="closeModal('modal-photo')" class="absolute top-6 right-6 text-white bg-white/20 rounded-full p-2 hover:bg-white/30 transition">
                 <i class="ph ph-x text-2xl"></i>
             </button>
@@ -247,8 +288,8 @@
         </div>
 
         <!-- MODAL: Bayar / Catat Pembayaran -->
-        <div id="modal-pay-transaction" class="absolute inset-0 bg-black/60 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
-            <div class="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto p-6 animate-[fadeIn_0.3s_ease-out]">
+        <div id="modal-pay-transaction" class="fixed inset-0 bg-black/60 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
+            <div class="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto p-6 animate-[fadeIn_0.3s_ease-out] pb-safe">
                 <div class="flex justify-between items-center mb-4">
                     <div>
                         <h2 class="text-lg font-bold text-gray-800">Catat Pembayaran</h2>
@@ -311,9 +352,9 @@
             </div>
         </div>
 
-        <!-- MODAL: Detail Transaksi (Desain Mobile-First Modern & Responsif) -->
-        <div id="modal-detail-transaction" class="absolute inset-0 bg-black/60 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
-            <div class="bg-white rounded-t-3xl w-full max-h-[94vh] overflow-y-auto p-5 animate-[fadeIn_0.3s_ease-out]">
+        <!-- MODAL: Detail Transaksi -->
+        <div id="modal-detail-transaction" class="fixed inset-0 bg-black/60 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
+            <div class="bg-white rounded-t-3xl w-full max-h-[94vh] overflow-y-auto p-5 animate-[fadeIn_0.3s_ease-out] pb-safe">
                 <div class="flex justify-between items-center mb-3 pb-3 border-b border-gray-100">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded-xl bg-green-100 text-green-700 flex items-center justify-center shadow-sm">
@@ -335,8 +376,8 @@
         </div>
 
         <!-- MODAL: Petunjuk Install iOS -->
-        <div id="modal-ios-install" class="absolute inset-0 bg-black/60 z-[90] hidden flex-col justify-end transition-opacity backdrop-blur-sm">
-            <div class="bg-white rounded-t-3xl w-full p-6 animate-[fadeIn_0.3s_ease-out]">
+        <div id="modal-ios-install" class="fixed inset-0 bg-black/60 z-[90] hidden flex-col justify-end transition-opacity backdrop-blur-sm">
+            <div class="bg-white rounded-t-3xl w-full p-6 animate-[fadeIn_0.3s_ease-out] pb-safe">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-base font-bold text-gray-800">Cara Install di iPhone / iPad</h3>
                     <button onclick="closeModal('modal-ios-install')" class="p-2 text-gray-400 hover:text-gray-600 rounded-full bg-gray-100">
@@ -363,72 +404,135 @@
 
     </div>
 
+    <!-- Firebase Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         let deferredPrompt = null;
 
+        // Mendengarkan Event PWA Install Prompt di Android/Chrome
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
+            
+            // Tampilkan Tombol di Header
             const installBtn = document.getElementById('btn-install-app');
             if (installBtn) installBtn.classList.remove('hidden');
+
+            // Tampilkan Banner PWA di Atas Layar HP
+            const pwaBanner = document.getElementById('pwa-install-banner');
+            if (pwaBanner && !localStorage.getItem('pwa_banner_dismissed')) {
+                pwaBanner.classList.remove('hidden');
+                pwaBanner.classList.add('flex');
+            }
         });
 
+        window.addEventListener('appinstalled', () => {
+            deferredPrompt = null;
+            const installBtn = document.getElementById('btn-install-app');
+            if (installBtn) installBtn.classList.add('hidden');
+            const pwaBanner = document.getElementById('pwa-install-banner');
+            if (pwaBanner) {
+                pwaBanner.classList.add('hidden');
+                pwaBanner.classList.remove('flex');
+            }
+            console.log('PWA Buku Catatan Ayah berhasil diinstal!');
+        });
+
+        function dismissInstallBanner() {
+            const pwaBanner = document.getElementById('pwa-install-banner');
+            if (pwaBanner) {
+                pwaBanner.classList.add('hidden');
+                pwaBanner.classList.remove('flex');
+            }
+            localStorage.setItem('pwa_banner_dismissed', 'true');
+        }
+
+        // ==========================================
+        // CONFIGURASI PWA, MANIFEST & SERVICE WORKER
+        // ==========================================
         function setupPWA() {
-            // Generate icon PNG via Offscreen Canvas
+            // High-DPI Dynamic Icon Generator (Support Maskable Android App Icon)
             function createIconDataUrl(size) {
                 const canvas = document.createElement('canvas');
                 canvas.width = size;
                 canvas.height = size;
                 const ctx = canvas.getContext('2d');
-                
-                ctx.fillStyle = '#16a34a';
+
+                // Canvas Background (Hijau Emerald Gradient)
+                const gradient = ctx.createLinearGradient(0, 0, size, size);
+                gradient.addColorStop(0, '#16a34a');
+                gradient.addColorStop(1, '#15803d');
+                ctx.fillStyle = gradient;
+
+                // Squircle Radius untuk Ikon Android Modern
+                const cornerRadius = size * 0.22;
                 ctx.beginPath();
                 if (ctx.roundRect) {
-                    ctx.roundRect(0, 0, size, size, size * 0.22);
+                    ctx.roundRect(0, 0, size, size, cornerRadius);
                 } else {
                     ctx.rect(0, 0, size, size);
                 }
                 ctx.fill();
-                
+
+                // Lingkaran aksen putih di tengah
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                ctx.beginPath();
+                ctx.arc(size / 2, size / 2, size * 0.38, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Emoji/Simbol Dompet
                 ctx.fillStyle = '#ffffff';
-                ctx.font = `${Math.round(size * 0.45)}px sans-serif`;
+                ctx.font = `bold ${Math.round(size * 0.44)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText('👛', size / 2, size / 2 + size * 0.03);
+                ctx.fillText('👛', size / 2, size / 2 + size * 0.02);
+
                 return canvas.toDataURL('image/png');
             }
 
             const icon192 = createIconDataUrl(192);
             const icon512 = createIconDataUrl(512);
 
-            // Apple Touch Icon
-            let appleIconLink = document.querySelector('link[rel="apple-touch-icon"]');
-            if (!appleIconLink) {
-                appleIconLink = document.createElement('link');
-                appleIconLink.rel = 'apple-touch-icon';
-                document.head.appendChild(appleIconLink);
-            }
-            appleIconLink.href = icon192;
+            // Set Apple Icon & Favicon
+            const appleIcon = document.getElementById('app-apple-icon');
+            if (appleIcon) appleIcon.href = icon192;
 
-            // Web App Manifest Object
+            const appFavicon = document.getElementById('app-favicon');
+            if (appFavicon) appFavicon.href = icon192;
+
+            // PWA Web App Manifest Object
             const manifestObj = {
+                id: "/catatan-ayah-pwa",
                 name: "Buku Catatan Ayah",
                 short_name: "Catatan Ayah",
-                description: "Aplikasi Catatan Keuangan, Hutang & Piutang Ayah",
-                start_url: window.location.href,
+                description: "Aplikasi Keuangan, Hutang, Piutang & Tagihan Ayah Praktis",
+                start_url: window.location.href.split('#')[0],
+                scope: "./",
                 display: "standalone",
+                display_override: ["standalone", "minimal-ui"],
                 background_color: "#16a34a",
                 theme_color: "#16a34a",
                 orientation: "portrait",
+                categories: ["finance", "utilities"],
                 icons: [
-                    { src: icon192, sizes: "192x192", type: "image/png", purpose: "any maskable" },
-                    { src: icon512, sizes: "512x512", type: "image/png", purpose: "any maskable" }
+                    {
+                        src: icon192,
+                        sizes: "192x192",
+                        type: "image/png",
+                        purpose: "any maskable"
+                    },
+                    {
+                        src: icon512,
+                        sizes: "512x512",
+                        type: "image/png",
+                        purpose: "any maskable"
+                    }
                 ]
             };
 
+            // Injeksi Manifest ke Tag Head
             const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
             const manifestUrl = URL.createObjectURL(manifestBlob);
             
@@ -440,37 +544,61 @@
             }
             manifestLink.href = manifestUrl;
 
-            // Register Inline Service Worker via Blob
+            // Registrasi Service Worker untuk Akses Cepat & Offline PWA
             if ('serviceWorker' in navigator) {
                 const swContent = `
-                    const CACHE = 'catatan-ayah-v1';
+                    const CACHE_NAME = 'catatan-ayah-v2';
+                    const ASSETS_TO_CACHE = [
+                        '${window.location.href}',
+                        'https://cdn.tailwindcss.com',
+                        'https://unpkg.com/@phosphor-icons/web'
+                    ];
+
                     self.addEventListener('install', (e) => {
                         self.skipWaiting();
+                        e.waitUntil(
+                            caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE)).catch(() => {})
+                        );
                     });
+
                     self.addEventListener('activate', (e) => {
-                        e.waitUntil(clients.claim());
+                        e.waitUntil(
+                            caches.keys().then((keys) => {
+                                return Promise.all(
+                                    keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+                                );
+                            }).then(() => self.clients.claim())
+                        );
                     });
+
                     self.addEventListener('fetch', (e) => {
+                        if (e.request.method !== 'GET') return;
                         e.respondWith(
                             caches.match(e.request).then((cached) => {
-                                const networked = fetch(e.request)
-                                    .then((response) => {
-                                        if (response.status === 200) {
-                                            const cacheCopy = response.clone();
-                                            caches.open(CACHE).then((cache) => cache.put(e.request, cacheCopy));
+                                const fetchPromise = fetch(e.request)
+                                    .then((networkResponse) => {
+                                        if (networkResponse && networkResponse.status === 200) {
+                                            const resCopy = networkResponse.clone();
+                                            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, resCopy));
                                         }
-                                        return response;
+                                        return networkResponse;
                                     })
                                     .catch(() => cached);
-                                return cached || networked;
+                                return cached || fetchPromise;
                             })
                         );
                     });
                 `;
-                const swBlob = new Blob([swContent], { type: 'text/javascript' });
-                const swUrl = URL.createObjectURL(swBlob);
-                navigator.serviceWorker.register(swUrl, { scope: './' })
-                    .catch(err => console.log('Service Worker Note:', err));
+                
+                try {
+                    const swBlob = new Blob([swContent], { type: 'text/javascript' });
+                    const swUrl = URL.createObjectURL(swBlob);
+                    navigator.serviceWorker.register(swUrl, { scope: './' })
+                        .then(() => console.log('PWA Service Worker Aktif'))
+                        .catch(err => console.log('SW Note:', err));
+                } catch(e) {
+                    console.log('SW Registration fallback', e);
+                }
             }
         }
 
@@ -481,6 +609,7 @@
                     if (choiceResult.outcome === 'accepted') {
                         const installBtn = document.getElementById('btn-install-app');
                         if (installBtn) installBtn.classList.add('hidden');
+                        dismissInstallBanner();
                     }
                     deferredPrompt = null;
                 });
@@ -489,11 +618,14 @@
                 if (isIOS) {
                     openModal('modal-ios-install');
                 } else {
-                    alert('Untuk menginstal aplikasi:\n\n1. Ketuk menu browser (titik tiga di kanan atas)\n2. Pilih "Tambah ke Layar Utama" atau "Install Aplikasi"');
+                    alert('Untuk menginstal aplikasi di Android:\n\n1. Ketuk menu browser (titik tiga di kanan atas)\n2. Pilih "Tambah ke Layar Utama" atau "Install Aplikasi"');
                 }
             }
         }
 
+        // ==========================================
+        // FIREBASE DATABASE & LOGIKA APLIKASI
+        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyCIjl-mXei1es5yj_sQLW6Cq4EzTqkrw_A",
             authDomain: "catatan-ayah.firebaseapp.com",
@@ -839,7 +971,6 @@
             payAmountInput.max = remaining;
             payAmountInput.value = '';
 
-            // Set default tanggal pembayaran ke hari ini
             const payDateInput = document.getElementById('pay_date');
             if (payDateInput) payDateInput.value = new Date().toISOString().split('T')[0];
             
@@ -940,7 +1071,7 @@
                     title: isHutang ? 'Pinjaman Diterima (Hutang)' : 'Pinjaman Diberikan (Piutang)',
                     note: tx.note || (isHutang ? 'Hutang Baru' : 'Piutang Baru'),
                     amount: tx.amount,
-                    type: tx.type, // 'hutang' / 'piutang'
+                    type: tx.type,
                     isPayment: false,
                     image: tx.image
                 });
@@ -964,14 +1095,12 @@
                 }
             });
 
-            // Urutkan riwayat dari yang paling baru di atas
             timelineItems.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             const totalHutangBersih = Math.max(0, totalHutangBruto - totalPembayaranDikeluarkan);
             const totalPiutangBersih = Math.max(0, totalPiutangBruto - totalPembayaranDiterima);
             const netSisa = totalHutangBersih - totalPiutangBersih;
 
-            // Hitung progress pelunasan (%)
             const totalPokok = totalHutangBruto + totalPiutangBruto;
             const totalBayar = totalPembayaranDikeluarkan + totalPembayaranDiterima;
             const progressPercent = totalPokok > 0 ? Math.min(100, Math.round((totalBayar / totalPokok) * 100)) : 100;
@@ -999,7 +1128,6 @@
                 mainBgGradient = 'from-slate-500/10 via-gray-500/5 to-transparent';
             }
 
-            // Generate Kartu Timeline
             let timelineCardsHtml = timelineItems.map(item => {
                 let badgeStyle = '';
                 let iconClass = '';
@@ -1016,7 +1144,7 @@
                     iconClass = 'ph-bold ph-trend-up text-teal-600 bg-teal-100';
                     amountColor = 'text-teal-600';
                     amountPrefix = '+';
-                } else { // Payment
+                } else {
                     badgeStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200';
                     iconClass = 'ph-bold ph-check text-emerald-600 bg-emerald-100';
                     amountColor = 'text-emerald-600';
@@ -1063,7 +1191,6 @@
 
             const detailContainer = document.getElementById('detail-content');
             detailContainer.innerHTML = `
-                <!-- Header Profil Kontak & Ringkasan Stats -->
                 <div class="bg-gradient-to-br ${mainBgGradient} p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-3">
@@ -1080,7 +1207,6 @@
                         </div>
                     </div>
 
-                    <!-- Progress Pelunasan -->
                     <div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm space-y-1.5">
                         <div class="flex justify-between items-center text-[11px] font-bold">
                             <span class="text-gray-500">Kemajuan Pelunasan</span>
@@ -1091,7 +1217,6 @@
                         </div>
                     </div>
 
-                    <!-- Grid Ringkasan Nominal -->
                     <div class="grid grid-cols-2 gap-2 text-xs">
                         <div class="bg-white p-2.5 rounded-xl border border-gray-100">
                             <span class="text-[10px] text-gray-400 font-bold uppercase block">Total Akumulasi</span>
@@ -1104,7 +1229,6 @@
                     </div>
                 </div>
 
-                <!-- Judul Timeline / Feed -->
                 <div class="flex justify-between items-center pt-1 px-1">
                     <h3 class="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
                         <i class="ph-bold ph-clock-counter-clock-wise text-green-600"></i> Riwayat & Catatan Struk
@@ -1114,25 +1238,20 @@
                     </button>
                 </div>
 
-                <!-- Container Timeline Feed -->
                 <div class="py-2 px-1">
                     ${timelineCardsHtml}
                 </div>
 
-                <!-- Tombol Aksi HP Responsive -->
                 <div class="pt-3 border-t border-gray-100">
                     <div class="flex gap-2">
-                        <!-- Tombol Download Nota -->
                         <button onclick="downloadContactStatement('${contactKey}')" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-bold rounded-xl py-2.5 text-[11px] flex items-center justify-center gap-1 active:scale-95 transition">
                             <i class="ph-bold ph-download-simple text-sm"></i> Download Nota
                         </button>
 
-                        <!-- Tombol Download Lampiran -->
                         <button onclick="downloadAttachment('${contactKey}')" class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold rounded-xl py-2.5 text-[11px] flex items-center justify-center gap-1 active:scale-95 transition">
                             <i class="ph-bold ph-paperclip text-sm"></i> Lampiran Foto
                         </button>
 
-                        <!-- Tombol Hapus -->
                         <button onclick="confirmDeleteContact('${contactKey}')" class="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold rounded-xl py-2.5 text-[11px] flex items-center justify-center gap-1 active:scale-95 transition">
                             <i class="ph-bold ph-trash text-sm"></i> Hapus
                         </button>
@@ -1498,7 +1617,9 @@
             checkPinAuth();
         }
 
+        // Global Bindings untuk Event Handlers Inline
         window.installPWA = installPWA;
+        window.dismissInstallBanner = dismissInstallBanner;
         window.savePin = savePin;
         window.login = login;
         window.switchTab = switchTab;
