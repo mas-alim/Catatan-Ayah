@@ -18,7 +18,7 @@
     <!-- Favicon Dynamic Placeholder -->
     <link id="app-favicon" rel="icon" type="image/png" href="">
     <link id="app-apple-icon" rel="apple-touch-icon" href="">
-    <!-- Manifest PWA ditanam di HTML ini (tanpa manifest.json terpisah) -->
+    <!-- Manifest PWA Dynamic Link -->
     <link id="app-manifest" rel="manifest" href="">
     
     <!-- Tailwind CSS -->
@@ -70,6 +70,12 @@
 <body class="text-gray-800 font-sans selection:bg-green-200">
 
     <div class="app-wrapper">
+
+        <!-- NOTIFIKASI TOAST CUSTOM -->
+        <div id="app-toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-[200] hidden items-center gap-2 bg-slate-900/95 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md border border-white/10 transition-all duration-300 max-w-[340px] w-full text-center justify-center">
+            <span id="toast-icon">ℹ️</span>
+            <span id="toast-text">Pesan Notifikasi</span>
+        </div>
 
         <!-- BANNER INSTALASI PWA ANDROID / MOBILE -->
         <div id="pwa-install-banner" class="hidden fixed top-2 left-2 right-2 max-w-[464px] mx-auto z-[110] bg-slate-900/95 text-white p-3.5 rounded-2xl shadow-2xl backdrop-blur-md border border-white/10 items-center justify-between fade-in">
@@ -130,12 +136,15 @@
                     <p id="current-date" class="text-xs text-green-100 mt-0.5 opacity-90"></p>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button onclick="openModal('modal-backup')" title="Backup & Restore Data" class="flex items-center justify-center w-8 h-8 bg-white/20 hover:bg-white/30 text-white rounded-full border border-white/30 backdrop-blur-sm transition active:scale-95 shadow-sm">
+                        <i class="ph-bold ph-database text-sm"></i>
+                    </button>
                     <button id="btn-install-app" onclick="installPWA()" class="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-full border border-white/30 backdrop-blur-sm transition active:scale-95 shadow-sm">
-                        <i class="ph-bold ph-download-simple text-sm"></i> Install App
+                        <i class="ph-bold ph-download-simple text-sm"></i> Install
                     </button>
                     <div id="sync-status" class="flex items-center gap-1.5 bg-green-700/60 text-green-100 text-[11px] px-2.5 py-1 rounded-full border border-green-400/30 font-medium">
                         <i id="sync-icon" class="ph-bold ph-cloud-check text-green-300 text-sm"></i>
-                        <span id="sync-text">Cloud Sync</span>
+                        <span id="sync-text">Lokal Mode</span>
                     </div>
                 </div>
             </header>
@@ -178,7 +187,7 @@
         <div id="modal-add-transaction" class="fixed inset-0 bg-black/60 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
             <div class="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto p-6 animate-[fadeIn_0.3s_ease-out] pb-safe">
                 <div class="flex justify-between items-center mb-5">
-                    <h2 class="text-lg font-bold text-gray-800" id="modal-tx-title">Catat Transaksi</h2>
+                    <h2 class="text-lg font-bold text-gray-800" id="modal-tx-title">Catat Transaksi Baru</h2>
                     <button onclick="closeModal('modal-add-transaction')" class="p-2 text-gray-500 rounded-full bg-gray-100 hover:bg-gray-200 active:scale-95 transition">
                         <i class="ph ph-x text-lg"></i>
                     </button>
@@ -205,7 +214,7 @@
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Nama Orang / Pihak</label>
-                        <input type="text" id="tx_name" required placeholder="Cth: Angsus / Ibu / Bank XYZ" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
+                        <input type="text" id="tx_name" required placeholder="Cth: Angsuran / Ibu / Bank XYZ" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none transition-shadow">
                     </div>
 
                     <div>
@@ -268,15 +277,15 @@
 
         <!-- MODAL: Custom Confirm Delete -->
         <div id="modal-confirm" class="fixed inset-0 bg-black/60 z-[70] hidden flex-col justify-center items-center px-4 backdrop-blur-sm">
-            <div class="bg-white rounded-3xl p-6 w-full max-w-[300px] text-center animate-[fadeIn_0.2s_ease-out]">
+            <div class="bg-white rounded-3xl p-6 w-full max-w-[320px] text-center animate-[fadeIn_0.2s_ease-out]">
                 <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="ph ph-warning-circle text-4xl"></i>
                 </div>
                 <h3 class="text-lg font-bold text-gray-800 mb-2">Hapus Catatan?</h3>
-                <p class="text-sm text-gray-500 mb-6">Data ini akan dihapus permanen dan tidak dapat dikembalikan.</p>
+                <p id="confirm-delete-msg" class="text-xs text-gray-500 mb-6">Data ini akan dihapus permanen dan tidak dapat dikembalikan.</p>
                 <div class="flex gap-3">
-                    <button onclick="closeConfirmModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold rounded-xl py-3 active:scale-95 transition-transform">Batal</button>
-                    <button id="btn-confirm-delete" class="flex-1 bg-red-500 text-white font-bold rounded-xl py-3 active:scale-95 transition-transform shadow-lg shadow-red-200">Hapus</button>
+                    <button onclick="closeConfirmModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold rounded-xl py-3 active:scale-95 transition-transform text-xs">Batal</button>
+                    <button id="btn-confirm-delete" class="flex-1 bg-red-500 text-white font-bold rounded-xl py-3 active:scale-95 transition-transform shadow-lg shadow-red-200 text-xs">Hapus</button>
                 </div>
             </div>
         </div>
@@ -354,7 +363,7 @@
             </div>
         </div>
 
-        <!-- MODAL: Detail Transaksi -->
+        <!-- MODAL: Detail Transaksi / Ledger -->
         <div id="modal-detail-transaction" class="fixed inset-0 bg-black/60 z-50 hidden flex-col justify-end transition-opacity backdrop-blur-sm">
             <div class="bg-white rounded-t-3xl w-full max-h-[94vh] overflow-y-auto p-5 animate-[fadeIn_0.3s_ease-out] pb-safe">
                 <div class="flex justify-between items-center mb-3 pb-3 border-b border-gray-100">
@@ -374,6 +383,41 @@
 
                 <div id="detail-content" class="space-y-4">
                 </div>
+            </div>
+        </div>
+
+        <!-- MODAL: Backup & Restore Data -->
+        <div id="modal-backup" class="fixed inset-0 bg-black/60 z-[90] hidden flex-col justify-end transition-opacity backdrop-blur-sm">
+            <div class="bg-white rounded-t-3xl w-full p-6 animate-[fadeIn_0.3s_ease-out] pb-safe">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-base font-bold text-gray-800">Backup & Cadangan Data</h3>
+                    <button onclick="closeModal('modal-backup')" class="p-2 text-gray-400 hover:text-gray-600 rounded-full bg-gray-100">
+                        <i class="ph ph-x text-lg"></i>
+                    </button>
+                </div>
+                <div class="space-y-4 text-sm text-gray-600 mb-6">
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-xs">Unduh Backup (JSON)</h4>
+                            <p class="text-[10px] text-gray-400 mt-0.5">Simpan salinan data catatan ke HP</p>
+                        </div>
+                        <button onclick="exportDataJSON()" class="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-3 py-2 rounded-xl transition active:scale-95">
+                            Ekspor Data
+                        </button>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <h4 class="font-bold text-gray-800 text-xs">Impor Backup (JSON)</h4>
+                            <p class="text-[10px] text-gray-400 mt-0.5">Pulihkan catatan dari berkas file JSON</p>
+                        </div>
+                        <label class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3 py-2 rounded-xl transition active:scale-95 cursor-pointer">
+                            Impor Data
+                            <input type="file" accept=".json" onchange="importDataJSON(event)" class="hidden">
+                        </label>
+                    </div>
+                </div>
+                <button onclick="closeModal('modal-backup')" class="w-full bg-gray-100 text-gray-700 font-bold rounded-xl py-3 active:scale-95 transition">Tutup</button>
             </div>
         </div>
 
@@ -406,35 +450,92 @@
 
     </div>
 
-    <!-- Firebase Script -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
+    <!-- MAIN APPLICATION SCRIPT -->
+    <script>
         let deferredPrompt = null;
+        let dbRef = null;
+        let firebaseSet = null;
 
-        // Mendengarkan Event PWA Install Prompt di Android/Chrome
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
+        let currentTab = 'beranda';
+        let txFilter = 'semua'; 
+        let data = {
+            transactions: [],
+            needs: []
+        };
+        let deleteTarget = null;
+        let activePayTx = null;
 
-            const installBtn = document.getElementById('btn-install-app');
-            if (installBtn) installBtn.classList.remove('hidden');
+        const TX_STATUS = {
+            BELUM: 'Belum Lunas',
+            CICIL: 'Dicicil',
+            LUNAS: 'Lunas'
+        };
 
-            const pwaBanner = document.getElementById('pwa-install-banner');
-            if (pwaBanner && !localStorage.getItem('pwa_banner_dismissed') && !isStandaloneMode()) {
-                pwaBanner.classList.remove('hidden');
-                pwaBanner.classList.add('flex');
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('app-toast');
+            const toastText = document.getElementById('toast-text');
+            const toastIcon = document.getElementById('toast-icon');
+            if (!toast || !toastText) return;
+
+            toastText.textContent = message;
+            toastIcon.textContent = type === 'success' ? '✅' : (type === 'error' ? '⚠️' : 'ℹ️');
+
+            toast.classList.remove('hidden');
+            toast.classList.add('flex');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('flex');
+            }, 3000);
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        }
+
+        function formatRupiah(num) {
+            return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+        }
+
+        function formatDateShort(dateStr) {
+            if (!dateStr) return '-';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            const day = d.getDate();
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+            const month = monthNames[d.getMonth()];
+            const year = d.getFullYear();
+            return `${day} ${month} ${year}`;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'Tanpa Tenggat';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function calculateDaysDiff(dueDateStr) {
+            if (!dueDateStr) return 999;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const due = new Date(dueDateStr);
+            due.setHours(0, 0, 0, 0);
+            if (isNaN(due.getTime())) return 999;
+            const diffTime = due.getTime() - today.getTime();
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        function getTxPaidAmount(tx) {
+            if (!tx) return 0;
+            if (Array.isArray(tx.payments) && tx.payments.length > 0) {
+                return tx.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
             }
-        });
+            if (tx.status === TX_STATUS.LUNAS) return Number(tx.amount);
+            return 0;
+        }
 
-        // ==========================================
-        // PWA: SINGLE-FILE MODE
-        // Tidak membutuhkan manifest.json / sw.js terpisah.
-        // ==========================================
         function setupPWA() {
-            // Generator ikon PNG langsung di browser sehingga tidak membutuhkan
-            // file icon.png, icon-192.png, atau icon-512.png terpisah.
             function createIconDataUrl(size) {
                 const canvas = document.createElement('canvas');
                 canvas.width = size;
@@ -485,14 +586,22 @@
             const appFavicon = document.getElementById('app-favicon');
             if (appFavicon) appFavicon.href = icon192;
 
-            // Gunakan URL absolut karena manifest ditanam sebagai data URL.
-            // Ini membuat start_url, scope, dan id tetap valid saat di-host
-            // di GitHub Pages pada folder/repository mana pun.
-            const currentUrl = new URL(window.location.href);
-            currentUrl.hash = '';
-            const startUrl = currentUrl.href;
-            const scopeUrl = new URL('./', startUrl).href;
-            const appId = new URL('./?catatan-ayah-app', startUrl).href;
+            let startUrl = './';
+            let scopeUrl = './';
+            let appId = './?catatan-ayah-app';
+
+            try {
+                const href = window.location.href;
+                if (href && (href.startsWith('http://') || href.startsWith('https://'))) {
+                    const currentUrl = new URL(href);
+                    currentUrl.hash = '';
+                    startUrl = currentUrl.href;
+                    scopeUrl = new URL('./', startUrl).href;
+                    appId = new URL('./?catatan-ayah-app', startUrl).href;
+                }
+            } catch (err) {
+                console.warn('Fallback URL parsing for preview context:', err);
+            }
 
             const manifestObj = {
                 id: appId,
@@ -509,29 +618,43 @@
                 categories: ['finance', 'utilities'],
                 prefer_related_applications: false,
                 icons: [
-                    { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-                    { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+                    { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
+                    { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+                    { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any' },
+                    { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' }
                 ]
             };
 
-            // Satu-satunya manifest dibuat sebagai Data URL di HTML ini.
-            // Tidak ada manifest.json yang perlu di-commit ke GitHub.
             const manifestLink = document.getElementById('app-manifest');
             if (manifestLink) {
-                const manifestDataUrl = 'data:application/manifest+json;charset=utf-8,' +
-                    encodeURIComponent(JSON.stringify(manifestObj));
-                manifestLink.href = manifestDataUrl;
+                try {
+                    const blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
+                    manifestLink.href = URL.createObjectURL(blob);
+                } catch(e) {
+                    manifestLink.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestObj));
+                }
             }
 
-            // Jangan lagi membuat Service Worker via blob:.
-            // Mode single-file sengaja mengandalkan LocalStorage + Firebase;
-            // Service Worker normal memang membutuhkan file/URL JS same-origin.
+            // Pendaftaran SW Aman
+            if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
+                try {
+                    const swCode = `
+                        self.addEventListener('install', (e) => self.skipWaiting());
+                        self.addEventListener('activate', (e) => e.waitUntil(clients.claim()));
+                        self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request).catch(() => caches.match(e.request))));
+                    `;
+                    const blob = new Blob([swCode], { type: 'text/javascript' });
+                    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+                } catch (e) {
+                    console.warn('SW registration bypassed.');
+                }
+            }
+
             updateInstallButtonState();
         }
 
         function isStandaloneMode() {
-            return window.matchMedia('(display-mode: standalone)').matches ||
-                   window.navigator.standalone === true;
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
         }
 
         function updateInstallButtonState() {
@@ -546,17 +669,24 @@
             }
         }
 
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+
+            const installBtn = document.getElementById('btn-install-app');
+            if (installBtn) installBtn.classList.remove('hidden');
+
+            const pwaBanner = document.getElementById('pwa-install-banner');
+            if (pwaBanner && !localStorage.getItem('pwa_banner_dismissed') && !isStandaloneMode()) {
+                pwaBanner.classList.remove('hidden');
+                pwaBanner.classList.add('flex');
+            }
+        });
+
         window.addEventListener('appinstalled', () => {
             deferredPrompt = null;
             updateInstallButtonState();
-            const installBtn = document.getElementById('btn-install-app');
-            if (installBtn) installBtn.classList.add('hidden');
-            const pwaBanner = document.getElementById('pwa-install-banner');
-            if (pwaBanner) {
-                pwaBanner.classList.add('hidden');
-                pwaBanner.classList.remove('flex');
-            }
-            console.log('Buku Catatan Ayah berhasil diinstal.');
+            showToast('Buku Catatan Ayah berhasil dipasang!', 'success');
         });
 
         function installPWA() {
@@ -564,14 +694,10 @@
                 deferredPrompt.prompt();
                 deferredPrompt.userChoice.then((choiceResult) => {
                     if (choiceResult.outcome === 'accepted') {
-                        const installBtn = document.getElementById('btn-install-app');
-                        if (installBtn) installBtn.classList.add('hidden');
                         dismissInstallBanner();
                     }
                     deferredPrompt = null;
-                }).catch(() => {
-                    deferredPrompt = null;
-                });
+                }).catch(() => { deferredPrompt = null; });
                 return;
             }
 
@@ -581,9 +707,7 @@
                 return;
             }
 
-            // Android/Chrome yang tidak memunculkan beforeinstallprompt tetap
-            // bisa dipasang melalui menu browser.
-            alert('Untuk menginstal Buku Catatan Ayah di Android:\n\n1. Buka menu browser (⋮).\n2. Pilih "Install app", "Pasang aplikasi", atau "Tambah ke Layar Utama".\n3. Ikuti konfirmasi instalasi.');
+            showToast('Buka menu browser (⋮) -> Tambahkan ke Layar Utama', 'info');
         }
 
         function dismissInstallBanner() {
@@ -595,81 +719,79 @@
             localStorage.setItem('pwa_banner_dismissed', 'true');
         }
 
-        // ==========================================
-        // FIREBASE DATABASE & LOGIKA APLIKASI
-        // ==========================================
-        const firebaseConfig = {
-            apiKey: "AIzaSyCIjl-mXei1es5yj_sQLW6Cq4EzTqkrw_A",
-            authDomain: "catatan-ayah.firebaseapp.com",
-            databaseURL: "https://catatan-ayah-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "catatan-ayah",
-            storageBucket: "catatan-ayah.firebasestorage.app",
-            messagingSenderId: "1075310951800",
-            appId: "1:1075310951800:web:30aa475aba2d3186d95c8d"
-        };
+        async function setupFirebaseListener() {
+            const syncIcon = document.getElementById('sync-icon');
+            const syncText = document.getElementById('sync-text');
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const dbRef = ref(db, 'catatan_keuangan_v1');
+            const firebaseConfig = {
+                apiKey: "AIzaSyCIjl-mXei1es5yj_sQLW6Cq4EzTqkrw_A",
+                authDomain: "catatan-ayah.firebaseapp.com",
+                databaseURL: "https://catatan-ayah-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "catatan-ayah",
+                storageBucket: "catatan-ayah.firebasestorage.app",
+                messagingSenderId: "1075310951800",
+                appId: "1:1075310951800:web:30aa475aba2d3186d95c8d"
+            };
 
-        let currentTab = 'beranda';
-        let txFilter = 'semua'; 
-        let data = {
-            transactions: [],
-            needs: []
-        };
-        let deleteTarget = null;
-        let activePayTx = null;
+            try {
+                const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js");
+                const { getDatabase, ref, set, onValue } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js");
 
-        const TX_STATUS = {
-            BELUM: 'Belum Lunas',
-            CICIL: 'Dicicil',
-            LUNAS: 'Lunas'
-        };
+                const app = initializeApp(firebaseConfig);
+                const db = getDatabase(app);
+                dbRef = ref(db, 'catatan_keuangan_v1');
+                firebaseSet = set;
 
-        function generateId() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-        }
-
-        function formatRupiah(num) {
-            return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
-        }
-
-        function formatDateShort(dateStr) {
-            if (!dateStr) return '-';
-            const d = new Date(dateStr);
-            if (isNaN(d.getTime())) return dateStr;
-            const day = d.getDate();
-            const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-            const month = monthNames[d.getMonth()];
-            const year = d.getFullYear();
-            return `${day} ${month} ${year}`;
-        }
-
-        function formatDate(dateStr) {
-            if (!dateStr) return 'Tanpa Tenggat';
-            const d = new Date(dateStr);
-            if (isNaN(d.getTime())) return dateStr;
-            return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-        }
-
-        function calculateDaysDiff(dueDateStr) {
-            if (!dueDateStr) return 999;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const due = new Date(dueDateStr);
-            due.setHours(0, 0, 0, 0);
-            const diffTime = due.getTime() - today.getTime();
-            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        }
-
-        function getTxPaidAmount(tx) {
-            if (!tx) return 0;
-            if (Array.isArray(tx.payments) && tx.payments.length > 0) {
-                return tx.payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                onValue(dbRef, (snapshot) => {
+                    const cloudData = snapshot.val();
+                    if (cloudData) {
+                        data.transactions = cloudData.transactions || [];
+                        data.needs = cloudData.needs || [];
+                        localStorage.setItem('catatanKeuanganApp', JSON.stringify(data));
+                    }
+                    
+                    if (syncIcon && syncText) {
+                        syncIcon.className = 'ph-bold ph-cloud-check text-green-300 text-sm';
+                        syncText.textContent = 'Cloud Sync';
+                    }
+                    renderApp();
+                }, (error) => {
+                    console.warn('Firebase error, offline fallback active:', error);
+                    if (syncIcon && syncText) {
+                        syncIcon.className = 'ph-bold ph-cloud-slash text-orange-300 text-sm';
+                        syncText.textContent = 'Lokal Mode';
+                    }
+                });
+            } catch (err) {
+                console.warn('Could not connect to Cloud DB. Application running offline.', err);
+                if (syncIcon && syncText) {
+                    syncIcon.className = 'ph-bold ph-cloud-slash text-orange-300 text-sm';
+                    syncText.textContent = 'Lokal Mode';
+                }
             }
-            if (tx.status === TX_STATUS.LUNAS) return Number(tx.amount);
-            return 0;
+        }
+
+        function saveData() {
+            localStorage.setItem('catatanKeuanganApp', JSON.stringify(data));
+            if (dbRef && firebaseSet) {
+                firebaseSet(dbRef, data).catch((err) => {
+                    console.error("Gagal sync cloud:", err);
+                });
+            }
+            renderApp();
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('catatanKeuanganApp');
+            if (saved) {
+                try {
+                    data = JSON.parse(saved);
+                    if (!data.transactions) data.transactions = [];
+                    if (!data.needs) data.needs = [];
+                } catch (e) {
+                    console.error("Gagal load data lokal", e);
+                }
+            }
         }
 
         function savePin(e) {
@@ -707,53 +829,6 @@
                 document.getElementById('screen-setup').classList.remove('hidden');
             } else {
                 document.getElementById('screen-login').classList.remove('hidden');
-            }
-        }
-
-        function setupFirebaseListener() {
-            const syncIcon = document.getElementById('sync-icon');
-            const syncText = document.getElementById('sync-text');
-
-            onValue(dbRef, (snapshot) => {
-                const cloudData = snapshot.val();
-                if (cloudData) {
-                    data.transactions = cloudData.transactions || [];
-                    data.needs = cloudData.needs || [];
-                    localStorage.setItem('catatanKeuanganApp', JSON.stringify(data));
-                }
-                
-                if (syncIcon && syncText) {
-                    syncIcon.className = 'ph-bold ph-cloud-check text-green-300 text-sm';
-                    syncText.textContent = 'Cloud Sync';
-                }
-                renderApp();
-            }, (error) => {
-                console.warn('Firebase Sync Error, fallback ke Local Storage:', error);
-                if (syncIcon && syncText) {
-                    syncIcon.className = 'ph-bold ph-cloud-slash text-orange-300 text-sm';
-                    syncText.textContent = 'Offline Mode';
-                }
-            });
-        }
-
-        function saveData() {
-            localStorage.setItem('catatanKeuanganApp', JSON.stringify(data));
-            set(dbRef, data).catch((err) => {
-                console.error("Gagal sinkronisasi ke Firebase:", err);
-            });
-            renderApp();
-        }
-
-        function loadData() {
-            const saved = localStorage.getItem('catatanKeuanganApp');
-            if (saved) {
-                try {
-                    data = JSON.parse(saved);
-                    if (!data.transactions) data.transactions = [];
-                    if (!data.needs) data.needs = [];
-                } catch (e) {
-                    console.error("Gagal memuat data lokal", e);
-                }
             }
         }
 
@@ -800,7 +875,7 @@
             if (id === 'modal-add-transaction') {
                 const todayStr = new Date().toISOString().split('T')[0];
                 const txDateInput = document.getElementById('tx_txdate');
-                if (txDateInput && !txDateInput.value) txDateInput.value = todayStr;
+                if (txDateInput) txDateInput.value = todayStr;
                 
                 if (contactName) {
                     const nameInput = document.getElementById('tx_name');
@@ -826,6 +901,26 @@
 
         function confirmDeleteContact(contactKey) {
             deleteTarget = { type: 'contact', key: contactKey };
+            const msgEl = document.getElementById('confirm-delete-msg');
+            if (msgEl) msgEl.textContent = "Semua catatan transaksi untuk kontak ini akan dihapus permanen.";
+            const btnDelete = document.getElementById('btn-confirm-delete');
+            if (btnDelete) btnDelete.onclick = executeDelete;
+            openModal('modal-confirm');
+        }
+
+        function confirmDeleteNeed(needId) {
+            deleteTarget = { type: 'need', id: needId };
+            const msgEl = document.getElementById('confirm-delete-msg');
+            if (msgEl) msgEl.textContent = "Rencana tagihan ini akan dihapus permanen.";
+            const btnDelete = document.getElementById('btn-confirm-delete');
+            if (btnDelete) btnDelete.onclick = executeDelete;
+            openModal('modal-confirm');
+        }
+
+        function confirmDeleteTxItem(txId, contactKey) {
+            deleteTarget = { type: 'tx_item', id: txId, contactKey: contactKey };
+            const msgEl = document.getElementById('confirm-delete-msg');
+            if (msgEl) msgEl.textContent = "Item transaksi ini akan dihapus dari riwayat.";
             const btnDelete = document.getElementById('btn-confirm-delete');
             if (btnDelete) btnDelete.onclick = executeDelete;
             openModal('modal-confirm');
@@ -840,12 +935,22 @@
             if (!deleteTarget) return;
             if (deleteTarget.type === 'contact') {
                 data.transactions = data.transactions.filter(t => t.contact.trim().toLowerCase() !== deleteTarget.key);
+                closeModal('modal-detail-transaction');
             } else if (deleteTarget.type === 'need') {
                 data.needs = data.needs.filter(n => n.id !== deleteTarget.id);
+            } else if (deleteTarget.type === 'tx_item') {
+                data.transactions = data.transactions.filter(t => t.id !== deleteTarget.id);
+                // Hapus juga pembayaran terkait jika id milik pembayaran
+                data.transactions.forEach(t => {
+                    if (t.payments) {
+                        t.payments = t.payments.filter(p => p.id !== deleteTarget.id);
+                    }
+                });
+                if (deleteTarget.contactKey) openDetailModalByContact(deleteTarget.contactKey);
             }
             saveData();
             closeConfirmModal();
-            closeModal('modal-detail-transaction');
+            showToast('Catatan berhasil dihapus', 'success');
         }
 
         function viewPhoto(imgSrc) {
@@ -881,6 +986,7 @@
                 data.transactions.push(newTx);
                 saveData();
                 closeModal('modal-add-transaction');
+                showToast('Transaksi berhasil disimpan', 'success');
             };
 
             if (imageInput && imageInput.files && imageInput.files[0]) {
@@ -911,6 +1017,7 @@
             data.needs.push(newNeed);
             saveData();
             closeModal('modal-add-need');
+            showToast('Tagihan berhasil ditambahkan', 'success');
         }
 
         function toggleNeedStatus(needId) {
@@ -929,7 +1036,10 @@
                 return Math.max(0, Number(t.amount) - paid) > 0;
             });
 
-            if (!tx) tx = contactTxs[contactTxs.length - 1];
+            if (!tx) {
+                showToast('Semua tagihan untuk kontak ini sudah lunas!', 'info');
+                return;
+            }
 
             activePayTx = tx;
             const paid = getTxPaidAmount(tx);
@@ -1002,6 +1112,7 @@
 
                 saveData();
                 closeModal('modal-pay-transaction');
+                showToast('Pembayaran berhasil dicatat', 'success');
                 
                 const detailModal = document.getElementById('modal-detail-transaction');
                 if (detailModal && !detailModal.classList.contains('hidden')) {
@@ -1127,7 +1238,7 @@
                 if (item.image) {
                     photoBtn = `
                         <button onclick="viewPhoto('${item.image}')" class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-semibold rounded-lg transition active:scale-95">
-                            <i class="ph-bold ph-image text-green-600"></i> Lihat Foto Bukti
+                            <i class="ph-bold ph-image text-green-600"></i> Lihat Foto
                         </button>
                     `;
                 }
@@ -1138,8 +1249,12 @@
                             <i class="${iconClass}"></i>
                         </div>
 
-                        <div class="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition">
-                            <div class="flex justify-between items-start gap-2 mb-1">
+                        <div class="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition relative">
+                            <button onclick="confirmDeleteTxItem('${item.id}', '${contactKey}')" title="Hapus Item" class="absolute top-3 right-3 text-gray-300 hover:text-red-500 transition p-1">
+                                <i class="ph-bold ph-trash text-sm"></i>
+                            </button>
+
+                            <div class="flex justify-between items-start gap-2 mb-1 pr-6">
                                 <div>
                                     <span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase block">
                                         ${formatDateShort(item.date)}
@@ -1203,7 +1318,7 @@
 
                 <div class="flex justify-between items-center pt-1 px-1">
                     <h3 class="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-                        <i class="ph-bold ph-clock-counter-clock-wise text-green-600"></i> Riwayat & Catatan Struk
+                        <i class="ph-bold ph-clock-counter-clock-wise text-green-600"></i> Riwayat Transaksi
                     </h3>
                     <button onclick="openModal('modal-add-transaction', '${contactName}')" class="text-[11px] font-bold text-green-600 hover:text-green-700 flex items-center gap-1">
                         <i class="ph-bold ph-plus-circle"></i> Tambah Baru
@@ -1221,7 +1336,7 @@
                         </button>
 
                         <button onclick="downloadAttachment('${contactKey}')" class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold rounded-xl py-2.5 text-[11px] flex items-center justify-center gap-1 active:scale-95 transition">
-                            <i class="ph-bold ph-paperclip text-sm"></i> Lampiran Foto
+                            <i class="ph-bold ph-paperclip text-sm"></i> Foto Bukti
                         </button>
 
                         <button onclick="confirmDeleteContact('${contactKey}')" class="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold rounded-xl py-2.5 text-[11px] flex items-center justify-center gap-1 active:scale-95 transition">
@@ -1248,7 +1363,7 @@
             });
 
             if (attachments.length === 0) {
-                alert('Tidak ada lampiran gambar/bukti transaksi untuk kontak ini.');
+                showToast('Tidak ada bukti foto untuk kontak ini', 'info');
                 return;
             }
 
@@ -1268,9 +1383,10 @@
 
             const contactName = contactTxs[0].contact;
 
+            const requiredHeight = Math.max(600, 260 + contactTxs.length * 35);
             const canvas = document.createElement('canvas');
             canvas.width = 600;
-            canvas.height = 700;
+            canvas.height = requiredHeight;
             const ctx = canvas.getContext('2d');
 
             ctx.fillStyle = '#ffffff';
@@ -1301,24 +1417,59 @@
 
                 ctx.font = '14px sans-serif';
                 ctx.fillText(`${idx + 1}. ${formatDateShort(tx.txDate || tx.createdAt)} - ${tx.note || tx.type} (${formatRupiah(tx.amount)})`, 30, currY);
-                currY += 25;
+                currY += 30;
             });
 
-            currY += 20;
-            ctx.strokeStyle = '#000000';
+            currY += 15;
+            ctx.strokeStyle = '#e5e7eb';
             ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(30, currY); ctx.lineTo(570, currY); ctx.stroke();
 
             currY += 35;
             ctx.font = 'bold 18px sans-serif';
             ctx.fillText('Sisa Tagihan:', 30, currY);
-            ctx.fillStyle = '#ef4444';
+            ctx.fillStyle = (totalHutang - totalPiutang) > 0 ? '#ef4444' : '#16a34a';
             ctx.fillText(formatRupiah(totalHutang - totalPiutang), 200, currY);
 
             const link = document.createElement('a');
             link.download = `Nota_${contactName.replace(/\s+/g, '_')}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
+            showToast('Nota berhasil diunduh', 'success');
+        }
+
+        function exportDataJSON() {
+            const jsonStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `Backup_Catatan_Ayah_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            showToast('Backup data berhasil diunduh', 'success');
+        }
+
+        function importDataJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported && (Array.isArray(imported.transactions) || Array.isArray(imported.needs))) {
+                        data.transactions = imported.transactions || [];
+                        data.needs = imported.needs || [];
+                        saveData();
+                        closeModal('modal-backup');
+                        showToast('Data berhasil dipulihkan!', 'success');
+                    } else {
+                        showToast('Format file JSON tidak valid', 'error');
+                    }
+                } catch (err) {
+                    showToast('Gagal membaca file JSON', 'error');
+                }
+            };
+            reader.readAsText(file);
         }
 
         function buildBeranda() {
@@ -1504,7 +1655,7 @@
                                     <i class="ph-bold ph-eye"></i> Detail
                                 </button>
                                 <button onclick="openModal('modal-add-transaction', '${group.name}')" class="px-3 py-1.5 border border-indigo-200 text-indigo-700 hover:bg-indigo-50 rounded-lg text-xs font-bold active:scale-95 transition">
-                                    Edit
+                                    + Baru
                                 </button>
                                 <button onclick="downloadContactStatement('${group.key}')" title="Download Nota" class="w-8 h-8 flex justify-center items-center text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition active:scale-90">
                                     <i class="ph-bold ph-download-simple text-sm"></i>
@@ -1556,7 +1707,7 @@
                             </div>
                             <div class="text-right flex items-center gap-2">
                                 <p class="font-bold text-sm ${isDone ? 'text-gray-400' : 'text-indigo-600'}">${formatRupiah(nd.amount)}</p>
-                                <button onclick="confirmDeleteContact('${nd.id}')" class="text-gray-400 hover:text-red-500 p-1"><i class="ph-bold ph-trash"></i></button>
+                                <button onclick="confirmDeleteNeed('${nd.id}')" class="text-gray-400 hover:text-red-500 p-1"><i class="ph-bold ph-trash"></i></button>
                             </div>
                         </div>
                     `;
@@ -1586,9 +1737,10 @@
                 dateEl.textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             }
             checkPinAuth();
+            setupPWA();
         }
 
-        // Global Bindings untuk Event Handlers Inline
+        // Global Bindings untuk Handler Inline
         window.installPWA = installPWA;
         window.dismissInstallBanner = dismissInstallBanner;
         window.savePin = savePin;
@@ -1599,6 +1751,8 @@
         window.closeModal = closeModal;
         window.viewPhoto = viewPhoto;
         window.confirmDeleteContact = confirmDeleteContact;
+        window.confirmDeleteNeed = confirmDeleteNeed;
+        window.confirmDeleteTxItem = confirmDeleteTxItem;
         window.closeConfirmModal = closeConfirmModal;
         window.executeDelete = executeDelete;
         window.saveTransaction = saveTransaction;
@@ -1610,13 +1764,10 @@
         window.openDetailModalByContact = openDetailModalByContact;
         window.downloadContactStatement = downloadContactStatement;
         window.downloadAttachment = downloadAttachment;
+        window.exportDataJSON = exportDataJSON;
+        window.importDataJSON = importDataJSON;
 
-        // Siapkan manifest PWA lebih awal agar browser sempat mendeteksi instalasi.
-        setupPWA();
         document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
-index.html
-Addressing System Crash
-Menampilkan index.html.
