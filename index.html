@@ -5,21 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Buku Catatan Ayah</title>
     
-    <!-- KONFIGURASI META PWA & STANDALONE DISPLAY -->
+    <!-- Konfigurasi Meta PWA Mobile & Android Header -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Catatan Ayah">
     <meta name="application-name" content="Catatan Ayah">
     <meta name="theme-color" content="#16a34a">
-    <meta name="msapplication-navbutton-color" content="#16a34a">
     <meta name="msapplication-TileColor" content="#16a34a">
-    <meta name="msapplication-tap-highlight" content="no">
     <meta name="format-detection" content="telephone=no">
 
-    <!-- Favicon & Apple Icon Dynamic Placeholders -->
+    <!-- Favicon Dynamic Placeholder -->
     <link id="app-favicon" rel="icon" type="image/png" href="">
     <link id="app-apple-icon" rel="apple-touch-icon" href="">
+    <!-- Manifest PWA ditanam di HTML ini (tanpa manifest.json terpisah) -->
+    <link id="app-manifest" rel="manifest" href="">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -130,7 +130,7 @@
                     <p id="current-date" class="text-xs text-green-100 mt-0.5 opacity-90"></p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button id="btn-install-app" onclick="installPWA()" class="hidden flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-full border border-white/30 backdrop-blur-sm transition active:scale-95 shadow-sm">
+                    <button id="btn-install-app" onclick="installPWA()" class="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-full border border-white/30 backdrop-blur-sm transition active:scale-95 shadow-sm">
                         <i class="ph-bold ph-download-simple text-sm"></i> Install App
                     </button>
                     <div id="sync-status" class="flex items-center gap-1.5 bg-green-700/60 text-green-100 text-[11px] px-2.5 py-1 rounded-full border border-green-400/30 font-medium">
@@ -417,19 +417,138 @@
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-            
+
             const installBtn = document.getElementById('btn-install-app');
             if (installBtn) installBtn.classList.remove('hidden');
 
             const pwaBanner = document.getElementById('pwa-install-banner');
-            if (pwaBanner && !localStorage.getItem('pwa_banner_dismissed')) {
+            if (pwaBanner && !localStorage.getItem('pwa_banner_dismissed') && !isStandaloneMode()) {
                 pwaBanner.classList.remove('hidden');
                 pwaBanner.classList.add('flex');
             }
         });
 
+        // ==========================================
+        // PWA: SINGLE-FILE MODE
+        // Tidak membutuhkan manifest.json / sw.js terpisah.
+        // ==========================================
+        function setupPWA() {
+            // Generator ikon PNG langsung di browser sehingga tidak membutuhkan
+            // file icon.png, icon-192.png, atau icon-512.png terpisah.
+            function createIconDataUrl(size) {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return '';
+
+                const gradient = ctx.createLinearGradient(0, 0, size, size);
+                gradient.addColorStop(0, '#16a34a');
+                gradient.addColorStop(1, '#15803d');
+                ctx.fillStyle = gradient;
+
+                const radius = size * 0.22;
+                ctx.beginPath();
+                if (ctx.roundRect) ctx.roundRect(0, 0, size, size, radius);
+                else {
+                    ctx.moveTo(radius, 0);
+                    ctx.lineTo(size - radius, 0);
+                    ctx.quadraticCurveTo(size, 0, size, radius);
+                    ctx.lineTo(size, size - radius);
+                    ctx.quadraticCurveTo(size, size, size - radius, size);
+                    ctx.lineTo(radius, size);
+                    ctx.quadraticCurveTo(0, size, 0, size - radius);
+                    ctx.lineTo(0, radius);
+                    ctx.quadraticCurveTo(0, 0, radius, 0);
+                }
+                ctx.fill();
+
+                ctx.fillStyle = 'rgba(255,255,255,0.16)';
+                ctx.beginPath();
+                ctx.arc(size / 2, size / 2, size * 0.37, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold ${Math.round(size * 0.44)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('👛', size / 2, size / 2 + size * 0.02);
+                return canvas.toDataURL('image/png');
+            }
+
+            const icon192 = createIconDataUrl(192);
+            const icon512 = createIconDataUrl(512);
+
+            const appleIcon = document.getElementById('app-apple-icon');
+            if (appleIcon) appleIcon.href = icon192;
+
+            const appFavicon = document.getElementById('app-favicon');
+            if (appFavicon) appFavicon.href = icon192;
+
+            // Gunakan URL absolut karena manifest ditanam sebagai data URL.
+            // Ini membuat start_url, scope, dan id tetap valid saat di-host
+            // di GitHub Pages pada folder/repository mana pun.
+            const currentUrl = new URL(window.location.href);
+            currentUrl.hash = '';
+            const startUrl = currentUrl.href;
+            const scopeUrl = new URL('./', startUrl).href;
+            const appId = new URL('./?catatan-ayah-app', startUrl).href;
+
+            const manifestObj = {
+                id: appId,
+                name: 'Buku Catatan Ayah',
+                short_name: 'Catatan Ayah',
+                description: 'Aplikasi Keuangan, Hutang, Piutang & Tagihan Ayah Praktis',
+                start_url: startUrl,
+                scope: scopeUrl,
+                display: 'standalone',
+                display_override: ['standalone', 'minimal-ui'],
+                background_color: '#16a34a',
+                theme_color: '#16a34a',
+                orientation: 'portrait',
+                categories: ['finance', 'utilities'],
+                prefer_related_applications: false,
+                icons: [
+                    { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+                    { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+                ]
+            };
+
+            // Satu-satunya manifest dibuat sebagai Data URL di HTML ini.
+            // Tidak ada manifest.json yang perlu di-commit ke GitHub.
+            const manifestLink = document.getElementById('app-manifest');
+            if (manifestLink) {
+                const manifestDataUrl = 'data:application/manifest+json;charset=utf-8,' +
+                    encodeURIComponent(JSON.stringify(manifestObj));
+                manifestLink.href = manifestDataUrl;
+            }
+
+            // Jangan lagi membuat Service Worker via blob:.
+            // Mode single-file sengaja mengandalkan LocalStorage + Firebase;
+            // Service Worker normal memang membutuhkan file/URL JS same-origin.
+            updateInstallButtonState();
+        }
+
+        function isStandaloneMode() {
+            return window.matchMedia('(display-mode: standalone)').matches ||
+                   window.navigator.standalone === true;
+        }
+
+        function updateInstallButtonState() {
+            const installBtn = document.getElementById('btn-install-app');
+            const pwaBanner = document.getElementById('pwa-install-banner');
+            if (isStandaloneMode()) {
+                if (installBtn) installBtn.classList.add('hidden');
+                if (pwaBanner) {
+                    pwaBanner.classList.add('hidden');
+                    pwaBanner.classList.remove('flex');
+                }
+            }
+        }
+
         window.addEventListener('appinstalled', () => {
             deferredPrompt = null;
+            updateInstallButtonState();
             const installBtn = document.getElementById('btn-install-app');
             if (installBtn) installBtn.classList.add('hidden');
             const pwaBanner = document.getElementById('pwa-install-banner');
@@ -437,179 +556,8 @@
                 pwaBanner.classList.add('hidden');
                 pwaBanner.classList.remove('flex');
             }
-            console.log('PWA Buku Catatan Ayah berhasil diinstal!');
+            console.log('Buku Catatan Ayah berhasil diinstal.');
         });
-
-        function dismissInstallBanner() {
-            const pwaBanner = document.getElementById('pwa-install-banner');
-            if (pwaBanner) {
-                pwaBanner.classList.add('hidden');
-                pwaBanner.classList.remove('flex');
-            }
-            localStorage.setItem('pwa_banner_dismissed', 'true');
-        }
-
-        // ==========================================
-        // GENERATOR PWA LENGKAP: MANIFEST & SERVICE WORKER
-        // ==========================================
-        function setupPWA() {
-            // 1. GENERATE DYNAMIC HIGH-RES ICONS (SQUIRCLE)
-            function createIconDataUrl(size) {
-                const canvas = document.createElement('canvas');
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext('2d');
-
-                // Canvas Background (Hijau Emerald Gradient)
-                const gradient = ctx.createLinearGradient(0, 0, size, size);
-                gradient.addColorStop(0, '#16a34a');
-                gradient.addColorStop(1, '#15803d');
-                ctx.fillStyle = gradient;
-
-                // Squircle Radius untuk Ikon Android & iOS
-                const cornerRadius = size * 0.22;
-                ctx.beginPath();
-                if (ctx.roundRect) {
-                    ctx.roundRect(0, 0, size, size, cornerRadius);
-                } else {
-                    ctx.rect(0, 0, size, size);
-                }
-                ctx.fill();
-
-                // Lingkaran aksen putih di tengah
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-                ctx.beginPath();
-                ctx.arc(size / 2, size / 2, size * 0.38, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Emoji/Simbol Dompet
-                ctx.fillStyle = '#ffffff';
-                ctx.font = `bold ${Math.round(size * 0.44)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('👛', size / 2, size / 2 + size * 0.02);
-
-                return canvas.toDataURL('image/png');
-            }
-
-            const icon192 = createIconDataUrl(192);
-            const icon512 = createIconDataUrl(512);
-
-            // Set Apple Icon & Favicon langsung ke DOM
-            const appleIcon = document.getElementById('app-apple-icon');
-            if (appleIcon) appleIcon.href = icon192;
-
-            const appFavicon = document.getElementById('app-favicon');
-            if (appFavicon) appFavicon.href = icon192;
-
-            // 2. GENERATE PWA MANIFEST MENGGUNAKAN DATA URI (Lebih handal dari Blob)
-            const currentUrl = window.location.href.split('?')[0].split('#')[0];
-            
-            let scopePath = '/';
-            try {
-                scopePath = new URL('.', currentUrl).pathname;
-            } catch (e) {
-                console.warn("PWA Scope URL fallback to '/' due to preview environment constraints.");
-            }
-
-            const manifestObj = {
-                name: "Buku Catatan Ayah",
-                short_name: "Catatan Ayah",
-                description: "Aplikasi Keuangan, Hutang, Piutang & Tagihan Ayah Praktis",
-                start_url: currentUrl,
-                scope: scopePath,
-                display: "standalone",
-                display_override: ["standalone", "fullscreen", "minimal-ui"],
-                background_color: "#16a34a",
-                theme_color: "#16a34a",
-                orientation: "portrait-primary",
-                icons: [
-                    { src: icon192, sizes: "192x192", type: "image/png", purpose: "any maskable" },
-                    { src: icon512, sizes: "512x512", type: "image/png", purpose: "any maskable" }
-                ]
-            };
-
-            const manifestString = JSON.stringify(manifestObj);
-            const manifestDataUrl = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(manifestString);
-            
-            let manifestLink = document.querySelector('link[rel="manifest"]');
-            if (!manifestLink) {
-                manifestLink = document.createElement('link');
-                manifestLink.rel = 'manifest';
-                document.head.appendChild(manifestLink);
-            }
-            manifestLink.href = manifestDataUrl;
-
-            // 3. GENERATE & REGISTER SERVICE WORKER (Offline-first strategy)
-            if ('serviceWorker' in navigator) {
-                // Skrip SW yang akan di-blob
-                const swContent = `
-                    const CACHE_NAME = 'catatan-ayah-offline-v3';
-                    const ASSETS_TO_CACHE = [
-                        '${currentUrl}',
-                        'https://cdn.tailwindcss.com',
-                        'https://unpkg.com/@phosphor-icons/web'
-                    ];
-
-                    self.addEventListener('install', (event) => {
-                        self.skipWaiting();
-                        event.waitUntil(
-                            caches.open(CACHE_NAME).then((cache) => {
-                                return cache.addAll(ASSETS_TO_CACHE);
-                            }).catch((err) => console.log('PWA SW Install Error:', err))
-                        );
-                    });
-
-                    self.addEventListener('activate', (event) => {
-                        event.waitUntil(
-                            caches.keys().then((cacheNames) => {
-                                return Promise.all(
-                                    cacheNames.filter((name) => name !== CACHE_NAME)
-                                              .map((name) => caches.delete(name))
-                                );
-                            }).then(() => self.clients.claim())
-                        );
-                    });
-
-                    self.addEventListener('fetch', (event) => {
-                        if (event.request.method !== 'GET') return;
-                        
-                        event.respondWith(
-                            fetch(event.request).then((networkResponse) => {
-                                // Cache respons yang sukses
-                                if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-                                    const responseToCache = networkResponse.clone();
-                                    caches.open(CACHE_NAME).then((cache) => {
-                                        cache.put(event.request, responseToCache);
-                                    });
-                                }
-                                return networkResponse;
-                            }).catch(() => {
-                                // Fallback ke Cache saat Offline
-                                return caches.match(event.request).then((cachedResponse) => {
-                                    return cachedResponse || caches.match('${currentUrl}');
-                                });
-                            })
-                        );
-                    });
-                `;
-                
-                try {
-                    const swBlob = new Blob([swContent], { type: 'text/javascript' });
-                    const swUrl = URL.createObjectURL(swBlob);
-                    
-                    navigator.serviceWorker.register(swUrl)
-                        .then(registration => {
-                            console.log('PWA Service Worker berhasil diregistrasi dengan scope:', registration.scope);
-                        })
-                        .catch(err => {
-                            console.log('Registrasi SW fallback gagal (Ini normal di beberapa browser tanpa file sw.js asli):', err);
-                        });
-                } catch(e) {
-                    console.log('Pembuatan Blob Service Worker ditolak oleh browser.', e);
-                }
-            }
-        }
 
         function installPWA() {
             if (deferredPrompt) {
@@ -621,15 +569,30 @@
                         dismissInstallBanner();
                     }
                     deferredPrompt = null;
+                }).catch(() => {
+                    deferredPrompt = null;
                 });
-            } else {
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                if (isIOS) {
-                    openModal('modal-ios-install');
-                } else {
-                    alert('Untuk menginstal aplikasi di Android:\n\n1. Ketuk menu browser (titik tiga di kanan atas)\n2. Pilih "Tambah ke Layar Utama" (Add to Home screen) atau "Install Aplikasi"');
-                }
+                return;
             }
+
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            if (isIOS) {
+                if (!isStandaloneMode()) openModal('modal-ios-install');
+                return;
+            }
+
+            // Android/Chrome yang tidak memunculkan beforeinstallprompt tetap
+            // bisa dipasang melalui menu browser.
+            alert('Untuk menginstal Buku Catatan Ayah di Android:\n\n1. Buka menu browser (⋮).\n2. Pilih "Install app", "Pasang aplikasi", atau "Tambah ke Layar Utama".\n3. Ikuti konfirmasi instalasi.');
+        }
+
+        function dismissInstallBanner() {
+            const pwaBanner = document.getElementById('pwa-install-banner');
+            if (pwaBanner) {
+                pwaBanner.classList.add('hidden');
+                pwaBanner.classList.remove('flex');
+            }
+            localStorage.setItem('pwa_banner_dismissed', 'true');
         }
 
         // ==========================================
@@ -1617,7 +1580,6 @@
         }
 
         function initApp() {
-            setupPWA(); // Menjalankan PWA Generator
             loadData();
             const dateEl = document.getElementById('current-date');
             if (dateEl) {
@@ -1649,6 +1611,8 @@
         window.downloadContactStatement = downloadContactStatement;
         window.downloadAttachment = downloadAttachment;
 
+        // Siapkan manifest PWA lebih awal agar browser sempat mendeteksi instalasi.
+        setupPWA();
         document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
