@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Buku Catatan Ayah</title>
+    <title>Buku Catatan Ayah V2.1 Fix</title>
     <meta name="theme-color" content="#16a34a">
     <meta name="application-name" content="Catatan Ayah">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -248,7 +248,10 @@ function formatDateShort(dateStr) { if(!dateStr) return '-'; const d=new Date(da
 function formatDate(dateStr) { if(!dateStr) return 'Tanpa Tenggat'; const d=new Date(dateStr); if(Number.isNaN(d.getTime())) return dateStr; return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}); }
 function daysDiff(dateStr) { if(!dateStr) return 999; const a=new Date(); a.setHours(0,0,0,0); const b=new Date(dateStr); b.setHours(0,0,0,0); return Math.ceil((b-a)/86400000); }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
-function jsArg(value) { return JSON.stringify(String(value)); }
+function jsArg(value) {
+    const s = String(value ?? '');
+    return `'${s.replace(/\/g, '\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/</g, '\\x3C').replace(/>/g, '\\x3E')}'`;
+}
 function getTxPaidAmount(tx) { return Array.isArray(tx?.payments) ? tx.payments.reduce((s,p)=>s+Number(p?.amount||0),0) : (tx?.status===TX_STATUS.LUNAS ? Number(tx.amount||0) : 0); }
 function getTxRemaining(tx) { return Math.max(0, Number(tx?.amount||0)-getTxPaidAmount(tx)); }
 function deriveStatus(tx) { const paid=getTxPaidAmount(tx); const amount=Number(tx?.amount||0); return paid>=amount && amount>0 ? TX_STATUS.LUNAS : paid>0 ? TX_STATUS.CICIL : TX_STATUS.BELUM; }
