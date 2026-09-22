@@ -250,7 +250,14 @@ function daysDiff(dateStr) { if(!dateStr) return 999; const a=new Date(); a.setH
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function jsArg(value) {
     const s = String(value ?? '');
-    return `'${s.replace(/\/g, '\\').replace(/'/g, "\\'").replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/</g, '\\x3C').replace(/>/g, '\\x3E')}'`;
+    return "'" + s
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\r/g, '\\r')
+        .replace(/\n/g, '\\n')
+        .replace(/</g, '\\x3C')
+        .replace(/>/g, '\\x3E')
+        .replace(/&/g, '\\x26') + "'";
 }
 function getTxPaidAmount(tx) { return Array.isArray(tx?.payments) ? tx.payments.reduce((s,p)=>s+Number(p?.amount||0),0) : (tx?.status===TX_STATUS.LUNAS ? Number(tx.amount||0) : 0); }
 function getTxRemaining(tx) { return Math.max(0, Number(tx?.amount||0)-getTxPaidAmount(tx)); }
