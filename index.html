@@ -79,6 +79,9 @@
                         <i id="sync-icon" class="ph-bold ph-cloud-check text-green-300 text-sm"></i>
                         <span id="sync-text">Siap</span>
                     </div>
+                    <button onclick="openSettings()" title="Pengaturan" class="w-9 h-9 rounded-full bg-white/15 border border-white/20 flex items-center justify-center active:scale-95 transition">
+                        <i class="ph-bold ph-gear text-base"></i>
+                    </button>
                     <button onclick="lockApp()" title="Kunci aplikasi" class="w-9 h-9 rounded-full bg-white/15 border border-white/20 flex items-center justify-center active:scale-95 transition">
                         <i class="ph-bold ph-lock-key text-base"></i>
                     </button>
@@ -180,6 +183,26 @@
     <!-- CONFIRM DELETE -->
     <div id="modal-confirm" class="fixed inset-0 bg-black/60 z-[70] hidden flex-col justify-center items-center px-4 backdrop-blur-sm"><div class="bg-white rounded-3xl p-6 w-full max-w-[330px] text-center slide-up"><div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><i class="ph ph-warning-circle text-4xl"></i></div><h3 id="confirm-title" class="text-lg font-bold text-gray-800 mb-2">Hapus Catatan?</h3><p id="confirm-text" class="text-sm text-gray-500 mb-6">Data ini akan dihapus permanen dan tidak dapat dikembalikan.</p><div class="flex gap-3"><button onclick="closeConfirmModal()" class="flex-1 bg-gray-100 text-gray-700 font-bold rounded-xl py-3">Batal</button><button id="btn-confirm-delete" class="flex-1 bg-red-500 text-white font-bold rounded-xl py-3 shadow-lg shadow-red-200">Hapus</button></div></div></div>
 
+    <!-- SETTINGS MODAL -->
+    <div id="modal-settings" class="fixed inset-0 bg-black/60 z-[95] hidden flex-col justify-end backdrop-blur-sm">
+        <div class="bg-white rounded-t-3xl w-full max-h-[92vh] overflow-y-auto p-5 slide-up safe-bottom">
+            <div class="flex justify-between items-center mb-5">
+                <div><p class="text-[10px] uppercase tracking-widest text-green-600 font-black">Pengaturan</p><h2 class="text-lg font-bold text-gray-800">Catatan Ayah</h2></div>
+                <button onclick="closeModal('modal-settings')" class="p-2 text-gray-500 rounded-full bg-gray-100"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div class="bg-green-50 border border-green-100 rounded-2xl p-4"><div class="flex items-start gap-3"><div class="w-10 h-10 rounded-xl bg-green-600 text-white flex items-center justify-center flex-shrink-0"><i class="ph-bold ph-cloud-check text-lg"></i></div><div><p class="font-bold text-sm text-gray-800">Sinkronisasi Cloud</p><p class="text-[11px] text-gray-500 mt-0.5">Data utama tetap tersimpan pada Firebase. Perangkat ini menyimpan cache lokal untuk akses cepat.</p></div></div></div>
+                <button onclick="downloadBackup()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-download-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Backup Data</p><p class="text-[11px] text-gray-500">Simpan transaksi dan tagihan ke file JSON.</p></div></button>
+                <button onclick="document.getElementById('restore-file').click()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><i class="ph-bold ph-upload-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Restore Data</p><p class="text-[11px] text-gray-500">Impor backup JSON dan mengganti data saat ini.</p></div></button>
+                <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
+                <button onclick="migrateLegacyPhotos()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center"><i class="ph-bold ph-images-square text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Migrasi Foto Lama</p><p class="text-[11px] text-gray-500">Pindahkan foto Base64 lama ke Firebase Storage.</p></div></button>
+                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4"><div class="flex justify-between items-center mb-1 gap-2"><p class="text-xs font-bold text-gray-700">Penyimpanan foto</p><span id="photo-storage-status" class="text-[10px] font-bold text-gray-500 text-right">Foto baru → Firebase Storage</span></div><p id="photo-legacy-count" class="text-[10px] text-gray-500">Memeriksa lampiran lama...</p></div>
+                <button onclick="lockApp(); closeModal('modal-settings')" class="w-full flex items-center justify-center gap-2 p-3.5 bg-gray-900 text-white rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-lock-key"></i> Kunci Aplikasi</button>
+                <p class="text-center text-[10px] text-gray-400 pt-1">Catatan Ayah V2 • Backup/Restore bekerja dengan Firebase dan cache perangkat.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- TOAST -->
     <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-[120] hidden max-w-[90%]"><div id="toast-inner" class="bg-gray-900 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-2xl"></div></div>
 </div>
@@ -187,6 +210,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCIjl-mXei1es5yj_sQLW6Cq4EzTqkrw_A",
@@ -201,11 +225,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const dbRef = ref(db, 'catatan_keuangan_v1');
+const storage = getStorage(app);
+const STORAGE_ROOT = 'catatan-ayah/attachments';
 const LOCAL_DATA_KEY = 'catatanKeuanganApp';
 const PIN_KEY = 'app_pin';
 
 let currentTab = 'beranda';
 let txFilter = 'semua';
+let txStatus = 'semua';
+let txSearch = '';
 let data = { transactions: [], needs: [] };
 let deleteTarget = null;
 let activePayTx = null;
@@ -226,7 +254,7 @@ function getTxRemaining(tx) { return Math.max(0, Number(tx?.amount||0)-getTxPaid
 function deriveStatus(tx) { const paid=getTxPaidAmount(tx); const amount=Number(tx?.amount||0); return paid>=amount && amount>0 ? TX_STATUS.LUNAS : paid>0 ? TX_STATUS.CICIL : TX_STATUS.BELUM; }
 function normalizeData(input) {
     const next = { transactions:Array.isArray(input?.transactions) ? input.transactions : [], needs:Array.isArray(input?.needs) ? input.needs : [] };
-    next.transactions.forEach(tx => { if(!Array.isArray(tx.payments)) tx.payments=[]; tx.status=deriveStatus(tx); if(!tx.id) tx.id=generateId(); });
+    next.transactions.forEach(tx => { if(!tx.id) tx.id=generateId(); if(!Array.isArray(tx.payments)) tx.payments=[]; tx.payments.forEach(p=>{ if(!p.id) p.id=generateId(); }); tx.status=deriveStatus(tx); });
     next.needs.forEach(n => { if(!n.id) n.id=generateId(); if(!n.status) n.status='Belum Lunas'; });
     return next;
 }
@@ -335,6 +363,9 @@ function switchTab(tab){
     renderApp();
 }
 function setTxFilter(filter){ txFilter=filter; renderApp(); }
+function setTxStatus(status){ txStatus=status; renderApp(); }
+function setTxSearch(value){ txSearch=String(value||''); renderApp(); const input=document.querySelector('#app-container input[data-tx-search]'); if(input){ input.focus(); input.setSelectionRange(txSearch.length,txSearch.length); } }
+function clearTxSearch(){ txSearch=''; renderApp(); }
 
 function openModal(id){ const el=document.getElementById(id); if(!el) return; document.body.classList.add('modal-open'); el.classList.remove('hidden'); el.classList.add('flex'); }
 function closeModal(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('hidden'); el.classList.remove('flex'); document.body.classList.remove('modal-open'); if(id==='modal-add-transaction'){ document.getElementById('form-transaction').reset(); document.getElementById('tx_edit_id').value=''; document.getElementById('tx-existing-image').classList.add('hidden'); } if(id==='modal-add-need'){ document.getElementById('form-need').reset(); document.getElementById('nd_edit_id').value=''; } if(id==='modal-pay-transaction'){ document.getElementById('form-pay').reset(); activePayTx=null; } }
@@ -367,7 +398,35 @@ function openNeedModal(needId=''){
     openModal('modal-add-need');
 }
 
-function readImageAsDataUrl(file){ return new Promise((resolve,reject)=>{ if(!file) return resolve(null); const r=new FileReader(); r.onload=()=>resolve(r.result); r.onerror=reject; r.readAsDataURL(file); }); }
+async function compressImage(file){
+    if(!file) return null;
+    const maxSize=1600;
+    const bitmap=await createImageBitmap(file);
+    const scale=Math.min(1,maxSize/Math.max(bitmap.width,bitmap.height));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(bitmap.width*scale));
+    canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+    const ctx=canvas.getContext('2d',{alpha:false});
+    ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+    bitmap.close?.();
+    return await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Gagal memproses gambar')), 'image/jpeg', 0.78));
+}
+function safeStorageName(value){ return String(value||'item').replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,60); }
+async function uploadImageToStorage(file, folder, itemId){
+    const blob=await compressImage(file); if(!blob) return null;
+    const target=storageRef(storage,`${STORAGE_ROOT}/${safeStorageName(folder)}/${safeStorageName(itemId)}.jpg`);
+    await uploadBytes(target,blob,{contentType:'image/jpeg',cacheControl:'public,max-age=31536000'});
+    return await getDownloadURL(target);
+}
+async function uploadDataUrlToStorage(dataUrl, folder, itemId){
+    if(!String(dataUrl||'').startsWith('data:image/')) return dataUrl;
+    const res=await fetch(dataUrl); const blob=await res.blob();
+    const target=storageRef(storage,`${STORAGE_ROOT}/${safeStorageName(folder)}/${safeStorageName(itemId)}.jpg`);
+    await uploadBytes(target,blob,{contentType:blob.type||'image/jpeg',cacheControl:'public,max-age=31536000'});
+    return await getDownloadURL(target);
+}
+function countLegacyPhotos(){ let count=0; data.transactions.forEach(tx=>{ if(String(tx.image||'').startsWith('data:image/')) count++; (tx.payments||[]).forEach(p=>{ if(String(p.image||'').startsWith('data:image/')) count++; }); }); return count; }
+function refreshPhotoStorageStatus(){ const el=document.getElementById('photo-legacy-count'); if(el){ const n=countLegacyPhotos(); el.textContent=n?`${n} lampiran lama masih tersimpan sebagai Base64.`:'Tidak ada lampiran Base64 lama yang terdeteksi.'; } }
 
 async function saveTransaction(e){
     e.preventDefault();
@@ -382,17 +441,12 @@ async function saveTransaction(e){
     if(!contact || !Number.isFinite(amount) || amount<=0){ showToast('Lengkapi nama dan nominal transaksi.'); return; }
     const btn=document.getElementById('btn-save-tx'); btn.disabled=true; btn.classList.add('disabled');
     try{
-        const image=await readImageAsDataUrl(imageFile);
-        if(editId){
-            const tx=data.transactions.find(t=>t.id===editId); if(!tx) throw new Error('Transaksi tidak ditemukan');
-            tx.type=type; tx.contact=contact; tx.amount=amount; tx.txDate=txDate; tx.dueDate=dueDate; tx.note=note; if(image) tx.image=image; tx.status=deriveStatus(tx);
-            await saveData(); showToast('Transaksi berhasil diperbarui.');
-        } else {
-            data.transactions.push({ id:generateId(), type, contact, amount, txDate, dueDate, note, image, status:TX_STATUS.BELUM, payments:[], createdAt:new Date().toISOString() });
-            await saveData(); showToast('Transaksi berhasil disimpan.');
-        }
-        closeModal('modal-add-transaction'); renderApp();
-    } catch(err){ console.error(err); showToast('Transaksi gagal disimpan.'); }
+        let tx;
+        if(editId){ tx=data.transactions.find(t=>t.id===editId); if(!tx) throw new Error('Transaksi tidak ditemukan'); tx.type=type; tx.contact=contact; tx.amount=amount; tx.txDate=txDate; tx.dueDate=dueDate; tx.note=note; }
+        else { tx={id:generateId(),type,contact,amount,txDate,dueDate,note,image:null,status:TX_STATUS.BELUM,payments:[],createdAt:new Date().toISOString()}; data.transactions.push(tx); }
+        if(imageFile){ try{ tx.image=await uploadImageToStorage(imageFile,contact,tx.id); } catch(err){ console.warn('Upload foto transaksi gagal',err); showToast('Transaksi disimpan, tetapi foto gagal diunggah. Periksa Firebase Storage.'); } }
+        tx.status=deriveStatus(tx); await saveData(); closeModal('modal-add-transaction'); renderApp(); showToast(editId?'Transaksi berhasil diperbarui.':'Transaksi berhasil disimpan.');
+    }catch(err){ console.error(err); showToast('Transaksi gagal disimpan.'); }
     finally{ btn.disabled=false; btn.classList.remove('disabled'); }
 }
 
@@ -426,11 +480,16 @@ async function savePayment(e){
     e.preventDefault(); if(!activePayTx) return;
     const mode=document.querySelector('input[name="pay_mode"]:checked')?.value || 'cicil';
     const amount=Number(document.getElementById('pay_amount').value); const date=document.getElementById('pay_date').value||todayStr(); const note=document.getElementById('pay_note').value.trim() || (mode==='lunas'?'Pelunasan Total':'Cicilan'); const imageFile=document.getElementById('pay_image').files?.[0];
-    const remaining=getTxRemaining(activePayTx);
-    if(amount<=0 || amount>remaining){ showToast(`Nominal pembayaran maksimal ${formatRupiah(remaining)}.`); return; }
+    const remaining=getTxRemaining(activePayTx); if(amount<=0 || amount>remaining){ showToast(`Nominal pembayaran maksimal ${formatRupiah(remaining)}.`); return; }
     const btn=document.getElementById('btn-save-pay'); btn.disabled=true; btn.classList.add('disabled');
-    try{ const image=await readImageAsDataUrl(imageFile); if(!Array.isArray(activePayTx.payments)) activePayTx.payments=[]; activePayTx.payments.push({id:generateId(),date,amount,mode,note,image}); activePayTx.status=deriveStatus(activePayTx); const contactKey=(activePayTx.contact||'').trim().toLowerCase(); await saveData(); closeModal('modal-pay-transaction'); renderApp(); if(document.getElementById('modal-detail-transaction') && !document.getElementById('modal-detail-transaction').classList.contains('hidden')) openDetailModalByContact(contactKey); showToast(activePayTx.status===TX_STATUS.LUNAS?'Pembayaran lunas berhasil dicatat.':'Cicilan berhasil dicatat.'); }
-    catch(err){ console.error(err); showToast('Pembayaran gagal disimpan.'); }
+    try{
+        const payment={id:generateId(),date,amount,mode,note,image:null};
+        if(imageFile){ try{ payment.image=await uploadImageToStorage(imageFile,activePayTx.contact||'pembayaran',payment.id); } catch(err){ console.warn('Upload foto pembayaran gagal',err); showToast('Pembayaran disimpan, tetapi foto gagal diunggah.'); } }
+        if(!Array.isArray(activePayTx.payments)) activePayTx.payments=[]; activePayTx.payments.push(payment); activePayTx.status=deriveStatus(activePayTx);
+        const contactKey=(activePayTx.contact||'').trim().toLowerCase(); await saveData(); closeModal('modal-pay-transaction'); renderApp();
+        if(document.getElementById('modal-detail-transaction') && !document.getElementById('modal-detail-transaction').classList.contains('hidden')) openDetailModalByContact(contactKey);
+        showToast(activePayTx.status===TX_STATUS.LUNAS?'Pembayaran lunas berhasil dicatat.':'Cicilan berhasil dicatat.');
+    }catch(err){ console.error(err); showToast('Pembayaran gagal disimpan.'); }
     finally{ btn.disabled=false; btn.classList.remove('disabled'); }
 }
 
@@ -492,18 +551,34 @@ function downloadContactStatement(contactKey){
     const link=document.createElement('a'); link.download=`Nota_${name.replace(/[^a-z0-9_.-]/gi,'_')}.png`; link.href=canvas.toDataURL('image/png'); link.click();
 }
 
+function monthKey(dateStr){ return String(dateStr||'').slice(0,7); }
+function monthLabel(key){ if(!/^\d{4}-\d{2}$/.test(key)) return key; const [y,m]=key.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('id-ID',{month:'long',year:'numeric'}); }
+function buildMonthlySummary(){
+    const key=monthKey(todayStr()); let incoming=0,outgoing=0,count=0;
+    data.transactions.forEach(tx=>{
+        if(monthKey(tx.txDate||tx.createdAt)===key){ count++; if(tx.type==='hutang') incoming+=Number(tx.amount||0); else outgoing+=Number(tx.amount||0); }
+        (tx.payments||[]).forEach(p=>{ if(monthKey(p.date)===key){ if(tx.type==='hutang') outgoing+=Number(p.amount||0); else incoming+=Number(p.amount||0); } });
+    });
+    const net=incoming-outgoing;
+    return `<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3"><div class="flex items-center justify-between"><div><p class="text-[10px] uppercase tracking-widest text-gray-400 font-black">Ringkasan Bulan Ini</p><h3 class="text-base font-black text-gray-800">${escapeHtml(monthLabel(key))}</h3></div><div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-chart-line-up text-lg"></i></div></div><div class="grid grid-cols-2 gap-2"><div class="rounded-xl bg-green-50 border border-green-100 p-3"><p class="text-[10px] text-green-700 font-bold uppercase">Uang Masuk</p><p class="text-sm font-black text-gray-800 mt-1">${formatRupiah(incoming)}</p></div><div class="rounded-xl bg-red-50 border border-red-100 p-3"><p class="text-[10px] text-red-700 font-bold uppercase">Uang Keluar</p><p class="text-sm font-black text-gray-800 mt-1">${formatRupiah(outgoing)}</p></div></div><div class="flex items-center justify-between text-[11px] bg-gray-50 rounded-xl px-3 py-2"><span class="font-bold text-gray-500">Arus bersih</span><span class="font-black ${net>=0?'text-green-600':'text-red-600'}">${formatRupiah(net)}</span></div><p class="text-[10px] text-gray-400">${count} transaksi utama tercatat pada bulan ini.</p></div>`;
+}
 function buildBeranda(){
     let totalHutang=0,totalPiutang=0,totalLunas=0; const upcoming=[];
-    data.transactions.forEach(tx=>{const rem=getTxRemaining(tx); if(rem<=0){totalLunas++;return;} if(tx.type==='hutang') totalHutang+=rem; else totalPiutang+=rem; if(tx.dueDate){const d=daysDiff(tx.dueDate); if(d<=3) upcoming.push({...tx,days:d,remaining:rem});}});
-    upcoming.sort((a,b)=>a.days-b.days); const saldo=totalPiutang-totalHutang;
-    return `<div class="space-y-5"><div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden"><div class="absolute -right-8 -top-8 w-28 h-28 bg-green-50 rounded-full"></div><p class="text-gray-500 text-sm mb-1 font-medium relative z-10">Saldo Bersih (Sisa Piutang - Sisa Hutang)</p><h2 class="text-3xl font-black tracking-tight ${saldo<0?'text-red-500':'text-green-600'} mb-5 relative z-10">${formatRupiah(saldo)}</h2><div class="grid grid-cols-2 gap-3 relative z-10"><div class="bg-red-50 p-3.5 rounded-xl border border-red-100"><div class="flex items-center gap-1.5 text-red-500 mb-1"><i class="ph-fill ph-arrow-down-right"></i><span class="text-[10px] font-bold uppercase">Sisa Hutang</span></div><p class="font-bold text-gray-800 text-sm">${formatRupiah(totalHutang)}</p></div><div class="bg-green-50 p-3.5 rounded-xl border border-green-100"><div class="flex items-center gap-1.5 text-green-600 mb-1"><i class="ph-fill ph-arrow-up-right"></i><span class="text-[10px] font-bold uppercase">Sisa Piutang</span></div><p class="font-bold text-gray-800 text-sm">${formatRupiah(totalPiutang)}</p></div></div></div><div class="flex items-center justify-between px-1"><h3 class="font-extrabold text-gray-800 text-lg flex items-center gap-2"><i class="ph-fill ph-bell text-orange-400"></i> Pengingat Jatuh Tempo</h3><span class="text-[10px] text-gray-400 font-bold">H-3</span></div>${upcoming.length?`<div class="space-y-3">${upcoming.map(item=>{const isH=item.type==='hutang',days=item.days;const label=days<0?`Terlambat ${Math.abs(days)} hari`:days===0?'Hari ini':`H-${days}`;return `<button onclick="openDetailModalByContact(${jsArg((item.contact||'').trim().toLowerCase())})" class="w-full text-left bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between active:scale-[.99] transition"><div class="flex items-center gap-4 min-w-0"><div class="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ${isH?'text-red-500 bg-red-100':'text-green-500 bg-green-100'}"><i class="ph-bold ${isH?'ph-arrow-down':'ph-arrow-up'} text-xl"></i></div><div class="min-w-0"><p class="text-[10px] font-semibold text-gray-400 uppercase">${isH?'Bayar ke':'Tagih ke'}</p><p class="font-bold text-gray-800 leading-tight truncate">${escapeHtml(item.contact)}</p><span class="inline-flex items-center gap-1 text-[10px] font-bold ${days<0?'text-red-600 bg-red-50':'text-orange-600 bg-orange-50'} px-2 py-0.5 rounded-full"><i class="ph-fill ph-clock"></i>${label}</span></div></div><div class="text-right ml-2"><p class="font-bold text-sm ${isH?'text-red-500':'text-green-600'}">${formatRupiah(item.remaining)}</p></div></button>`}).join('')}</div>`:`<div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center text-gray-400"><i class="ph-fill ph-check-circle text-5xl mb-3 text-green-300"></i><p class="text-sm font-medium">Tidak ada tagihan jatuh tempo dalam 3 hari ke depan.</p></div>`}<div class="grid grid-cols-3 gap-2"><div class="bg-white rounded-xl border border-gray-100 p-3 text-center"><p class="text-[10px] text-gray-400 font-bold uppercase">Transaksi</p><p class="text-lg font-black text-gray-800">${data.transactions.length}</p></div><div class="bg-white rounded-xl border border-gray-100 p-3 text-center"><p class="text-[10px] text-gray-400 font-bold uppercase">Lunas</p><p class="text-lg font-black text-green-600">${totalLunas}</p></div><div class="bg-white rounded-xl border border-gray-100 p-3 text-center"><p class="text-[10px] text-gray-400 font-bold uppercase">Tagihan</p><p class="text-lg font-black text-indigo-600">${data.needs.filter(n=>n.status!=='Lunas').length}</p></div></div></div>`;
+    data.transactions.forEach(tx=>{ const rem=getTxRemaining(tx); if(rem<=0){ totalLunas++; return; } if(tx.type==='hutang') totalHutang+=rem; else totalPiutang+=rem; if(tx.dueDate){ const d=daysDiff(tx.dueDate); if(d<=3) upcoming.push({...tx,days:d,remaining:rem}); } });
+    upcoming.sort((a,b)=>a.days-b.days); const saldoBersih=totalPiutang-totalHutang;
+    return `<div class="space-y-5"><div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden"><div class="absolute -right-10 -top-10 w-32 h-32 rounded-full bg-green-50"></div><p class="text-gray-500 text-xs mb-1 font-medium relative z-10">Saldo Bersih</p><h2 class="text-3xl font-black tracking-tight ${saldoBersih<0?'text-red-500':'text-green-600'} relative z-10">${formatRupiah(saldoBersih)}</h2><p class="text-[10px] text-gray-400 mt-1 relative z-10">Sisa Piutang − Sisa Hutang</p><div class="grid grid-cols-2 gap-2 mt-5 relative z-10"><div class="bg-red-50 p-3.5 rounded-xl border border-red-100"><div class="flex items-center gap-1.5 text-red-500 mb-1"><i class="ph-fill ph-arrow-down-right"></i><span class="text-[10px] font-bold uppercase">Sisa Hutang</span></div><p class="font-bold text-gray-800 text-sm">${formatRupiah(totalHutang)}</p></div><div class="bg-green-50 p-3.5 rounded-xl border border-green-100"><div class="flex items-center gap-1.5 text-green-600 mb-1"><i class="ph-fill ph-arrow-up-right"></i><span class="text-[10px] font-bold uppercase">Sisa Piutang</span></div><p class="font-bold text-gray-800 text-sm">${formatRupiah(totalPiutang)}</p></div></div></div><div class="grid grid-cols-3 gap-2"><div class="bg-white rounded-xl border border-gray-100 p-3 text-center"><p class="text-[10px] text-gray-400 font-bold uppercase">Transaksi</p><p class="text-lg font-black text-gray-800">${data.transactions.length}</p></div><div class="bg-white rounded-xl border border-gray-100 p-3 text-center"><p class="text-[10px] text-gray-400 font-bold uppercase">Lunas</p><p class="text-lg font-black text-green-600">${totalLunas}</p></div><div class="bg-white rounded-xl border border-gray-100 p-3 text-center"><p class="text-[10px] text-gray-400 font-bold uppercase">Tagihan</p><p class="text-lg font-black text-indigo-600">${data.needs.filter(n=>n.status!=='Lunas').length}</p></div></div>${buildMonthlySummary()}<div class="flex items-center justify-between px-1"><h3 class="font-extrabold text-gray-800 text-lg flex items-center gap-2"><i class="ph-fill ph-bell text-orange-400"></i> Pengingat Jatuh Tempo</h3><span class="text-[10px] text-gray-400 font-bold">H-3</span></div>${upcoming.length?`<div class="space-y-3">${upcoming.map(item=>{const isH=item.type==='hutang',days=item.days;const label=days<0?`Terlambat ${Math.abs(days)} hari`:days===0?'Hari ini':`H-${days}`;return `<button onclick="openDetailModalByContact(${jsArg((item.contact||'').trim().toLowerCase())})" class="w-full text-left bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between active:scale-[.99] transition"><div class="flex items-center gap-4 min-w-0"><div class="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ${isH?'text-red-500 bg-red-100':'text-green-500 bg-green-100'}"><i class="ph-bold ${isH?'ph-arrow-down':'ph-arrow-up'} text-xl"></i></div><div class="min-w-0"><p class="text-[10px] font-semibold text-gray-400 uppercase">${isH?'Bayar ke':'Tagih ke'}</p><p class="font-bold text-gray-800 leading-tight truncate">${escapeHtml(item.contact)}</p><span class="inline-flex items-center gap-1 text-[10px] font-bold ${days<0?'text-red-600 bg-red-50':'text-orange-600 bg-orange-50'} px-2 py-0.5 rounded-full"><i class="ph-fill ph-clock"></i>${label}</span></div></div><div class="text-right ml-2"><p class="font-bold text-sm ${isH?'text-red-500':'text-green-600'}">${formatRupiah(item.remaining)}</p></div></button>`}).join('')}</div>`:`<div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center text-gray-400"><i class="ph-fill ph-check-circle text-5xl mb-3 text-green-300"></i><p class="text-sm font-medium">Tidak ada tagihan jatuh tempo dalam 3 hari ke depan.</p></div>`}</div>`;
 }
 
 function buildTransaksi(){
-    const filtered=txFilter==='hutang'?data.transactions.filter(t=>t.type==='hutang'):txFilter==='piutang'?data.transactions.filter(t=>t.type==='piutang'):data.transactions;
+    let filtered=data.transactions.slice();
+    if(txFilter==='hutang') filtered=filtered.filter(t=>t.type==='hutang');
+    if(txFilter==='piutang') filtered=filtered.filter(t=>t.type==='piutang');
+    if(txStatus!=='semua') filtered=filtered.filter(t=>deriveStatus(t)===txStatus);
+    const search=txSearch.trim().toLowerCase();
+    if(search) filtered=filtered.filter(t=>`${t.contact||''} ${t.note||''}`.toLowerCase().includes(search));
     const groups={}; filtered.forEach(tx=>{const key=(tx.contact||'').trim().toLowerCase(); if(!groups[key]) groups[key]={key,name:tx.contact||'Tanpa Nama',items:[]}; groups[key].items.push(tx);});
-    let html=`<div class="flex gap-2 mb-4 bg-white p-1.5 rounded-xl shadow-sm border border-gray-100 sticky top-0 z-10"><button onclick="setTxFilter('semua')" class="flex-1 py-2 text-sm font-bold rounded-lg ${txFilter==='semua'?'bg-green-100 text-green-700':'text-gray-500'}">Semua</button><button onclick="setTxFilter('hutang')" class="flex-1 py-2 text-sm font-bold rounded-lg ${txFilter==='hutang'?'bg-red-100 text-red-700':'text-gray-500'}">Hutang</button><button onclick="setTxFilter('piutang')" class="flex-1 py-2 text-sm font-bold rounded-lg ${txFilter==='piutang'?'bg-green-100 text-green-700':'text-gray-500'}">Piutang</button></div>`;
-    const keys=Object.keys(groups); if(!keys.length) return html+`<div class="text-center text-gray-400 mt-16"><i class="ph-fill ph-folder-open text-6xl mb-3 text-gray-300"></i><p class="font-medium">Belum ada data transaksi.</p></div>`;
+    let html=`<div class="space-y-3 mb-4"><div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100"><div class="relative"><i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input data-tx-search value="${escapeHtml(txSearch)}" oninput="setTxSearch(this.value)" placeholder="Cari nama atau catatan..." class="w-full pl-9 pr-9 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-green-500"><button onclick="clearTxSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 text-gray-400 ${txSearch?'':'hidden'}"><i class="ph-bold ph-x"></i></button></div></div><div class="bg-white p-1.5 rounded-xl shadow-sm border border-gray-100"><div class="flex gap-1.5"><button onclick="setTxFilter('semua')" class="flex-1 py-2 text-[11px] font-bold rounded-lg ${txFilter==='semua'?'bg-green-100 text-green-700':'text-gray-500'}">Semua</button><button onclick="setTxFilter('hutang')" class="flex-1 py-2 text-[11px] font-bold rounded-lg ${txFilter==='hutang'?'bg-red-100 text-red-700':'text-gray-500'}">Hutang</button><button onclick="setTxFilter('piutang')" class="flex-1 py-2 text-[11px] font-bold rounded-lg ${txFilter==='piutang'?'bg-green-100 text-green-700':'text-gray-500'}">Piutang</button></div><div class="grid grid-cols-4 gap-1.5 mt-1.5"><button onclick="setTxStatus('semua')" class="py-2 text-[10px] font-bold rounded-lg ${txStatus==='semua'?'bg-gray-200 text-gray-800':'text-gray-500'}">Semua</button><button onclick="setTxStatus(${jsArg(TX_STATUS.BELUM)})" class="py-2 text-[10px] font-bold rounded-lg ${txStatus===TX_STATUS.BELUM?'bg-amber-100 text-amber-700':'text-gray-500'}">Belum</button><button onclick="setTxStatus(${jsArg(TX_STATUS.CICIL)})" class="py-2 text-[10px] font-bold rounded-lg ${txStatus===TX_STATUS.CICIL?'bg-orange-100 text-orange-700':'text-gray-500'}">Cicil</button><button onclick="setTxStatus(${jsArg(TX_STATUS.LUNAS)})" class="py-2 text-[10px] font-bold rounded-lg ${txStatus===TX_STATUS.LUNAS?'bg-green-100 text-green-700':'text-gray-500'}">Lunas</button></div></div></div>`;
+    const keys=Object.keys(groups); if(!keys.length) return html+`<div class="text-center text-gray-400 mt-16"><i class="ph-fill ph-folder-open text-6xl mb-3 text-gray-300"></i><p class="font-medium">Data transaksi tidak ditemukan.</p><p class="text-[11px] mt-1">Coba ubah pencarian atau filter.</p></div>`;
     html+=`<div class="space-y-3">`+keys.map(key=>{const g=groups[key];let h=0,p=0;g.items.forEach(tx=>{const r=getTxRemaining(tx);if(tx.type==='hutang')h+=r;else p+=r});const status=h>0?`<span class="text-xs font-bold text-red-500">Sisa Hutang: ${formatRupiah(h)}</span>`:p>0?`<span class="text-xs font-bold text-green-600">Sisa Piutang: ${formatRupiah(p)}</span>`:`<span class="text-xs font-bold text-gray-400">Lunas</span>`;return `<div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100"><div class="flex justify-between gap-3"><div class="flex items-center gap-2 min-w-0"><div class="w-9 h-9 rounded-full bg-green-50 text-green-600 flex items-center justify-center"><i class="ph-bold ph-user-circle text-xl"></i></div><div class="min-w-0"><h3 class="font-bold text-gray-800 text-base leading-tight truncate">${escapeHtml(g.name)}</h3><p class="text-[11px] text-gray-400">${g.items.length} transaksi</p></div></div>${status}</div><div class="flex flex-wrap items-center justify-end gap-1.5 pt-3"><button onclick="openPayModalByContact(${jsArg(key)})" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold"><i class="ph-bold ph-hand-coins"></i> Bayar</button><button onclick="openDetailModalByContact(${jsArg(key)})" class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold"><i class="ph-bold ph-eye"></i> Detail</button><button onclick="openTransactionModal('',${jsArg(g.name)})" class="px-3 py-1.5 border border-green-200 text-green-700 rounded-lg text-xs font-bold"><i class="ph-bold ph-plus"></i> Tambah</button><button onclick="downloadContactStatement(${jsArg(key)})" class="w-8 h-8 text-blue-600 bg-blue-50 rounded-lg"><i class="ph-bold ph-download-simple"></i></button><button onclick="confirmDeleteContact(${jsArg(key)})" class="w-8 h-8 text-red-500 bg-red-50 rounded-lg"><i class="ph-bold ph-trash"></i></button></div></div>`}).join('')+`</div>`;
     return html;
 }
@@ -515,13 +590,20 @@ function buildKebutuhan(){
     return html;
 }
 
+function openSettings(){ refreshPhotoStorageStatus(); openModal('modal-settings'); }
+function downloadBackup(){ const payload={app:'Catatan Ayah',version:2,exportedAt:new Date().toISOString(),data:normalizeData(data)}; const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`catatan-ayah-backup-${todayStr()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); showToast('Backup berhasil dibuat.'); }
+async function restoreBackup(e){ const file=e.target.files?.[0]; e.target.value=''; if(!file) return; try{ const raw=await file.text(); const parsed=JSON.parse(raw); const restored=normalizeData(parsed?.data||parsed); if(!confirm(`Restore backup? ${restored.transactions.length} transaksi dan ${restored.needs.length} tagihan akan menggantikan data saat ini.`)) return; data=restored; await saveData(); renderApp(); refreshPhotoStorageStatus(); showToast('Restore berhasil.'); }catch(err){ console.error(err); showToast('File backup tidak valid.'); } }
+async function migrateLegacyPhotos(){ const jobs=[]; data.transactions.forEach(tx=>{ if(String(tx.image||'').startsWith('data:image/')) jobs.push({kind:'tx',tx,old:tx.image,folder:tx.contact||'transaksi',id:tx.id}); (tx.payments||[]).forEach(p=>{ if(String(p.image||'').startsWith('data:image/')) jobs.push({kind:'payment',tx,p,old:p.image,folder:tx.contact||'pembayaran',id:p.id}); }); }); if(!jobs.length){ refreshPhotoStorageStatus(); showToast('Tidak ada foto lama yang perlu dimigrasikan.'); return; } if(!confirm(`Ada ${jobs.length} foto lama. Migrasikan ke Firebase Storage sekarang?`)) return; let success=0,failed=0; for(let i=0;i<jobs.length;i++){ const job=jobs[i]; try{ const url=await uploadDataUrlToStorage(job.old,job.folder,job.id); if(job.kind==='tx') job.tx.image=url; else job.p.image=url; success++; }catch(err){ console.warn('Migrasi gagal',job.id,err); failed++; } if((i+1)%2===0) showToast(`Migrasi foto ${i+1}/${jobs.length}...`); } if(success) await saveData(); refreshPhotoStorageStatus(); showToast(`Migrasi selesai: ${success} berhasil, ${failed} gagal.`); }
+
 function renderApp(){ const c=document.getElementById('app-container'); if(!c) return; c.innerHTML=currentTab==='beranda'?buildBeranda():currentTab==='transaksi'?buildTransaksi():buildKebutuhan(); }
 
 function initApp(){
     const dateEl=document.getElementById('current-date'); if(dateEl) dateEl.textContent=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-    loadLocalData(); updatePinScreens();
+    loadLocalData(); updatePinScreens(); refreshPhotoStorageStatus();
 }
 
+window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup; window.migrateLegacyPhotos=migrateLegacyPhotos;
+window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch;
 window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.viewPhoto=viewPhoto; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.downloadAttachment=downloadAttachment; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
 document.addEventListener('DOMContentLoaded', initApp);
