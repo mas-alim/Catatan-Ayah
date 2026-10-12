@@ -753,6 +753,15 @@ async function saveTransaction(e){
     const editId=document.getElementById('tx_edit_id').value;
     const imageFile=document.getElementById('tx_image').files?.[0];
     if(!contact || !Number.isFinite(amount) || amount<=0){ showToast('Lengkapi nama dan nominal transaksi.'); return; }
+    if(editId){
+        const existing=data.transactions.find(t=>t.id===editId);
+        if(!existing){ showToast('Transaksi tidak ditemukan. Muat ulang data lalu coba kembali.'); return; }
+        const alreadyPaid=getTxPaidAmount(existing);
+        if(amount < alreadyPaid){
+            showToast(`Nominal transaksi tidak boleh lebih kecil dari pembayaran yang sudah tercatat (${formatRupiah(alreadyPaid)}).`);
+            return;
+        }
+    }
     const btn=document.getElementById('btn-save-tx'); btn.disabled=true; btn.classList.add('disabled');
     try{
         let tx;
@@ -803,20 +812,73 @@ function openPayModalByTransaction(txId){
 function togglePayMode(mode){ if(!activePayTx) return; const remaining=getTxRemaining(activePayTx); const input=document.getElementById('pay_amount'); if(mode==='lunas'){ input.value=remaining; input.readOnly=true; } else { input.value=''; input.readOnly=false; } }
 
 async function savePayment(e){
-    e.preventDefault(); if(!requireUnlockedApp() || !activePayTx) return;
+    e.preventDefault();
+    if(!requireUnlockedApp() || !activePayTx) return;
+
+    // Resolve the transaction from current app data by ID. Do not rely on a stale object
+    // reference, which may be detached when a Firebase write fails and restores the snapshot.
+    const txId = activePayTx.id;
+    const tx = data.transactions.find(item => item.id === txId);
+    if(!tx){
+        activePayTx = null;
+        closeModal('modal-pay-transaction');
+        showToast('Transaksi tidak ditemukan. Buka kembali detail transaksi.');
+        return;
+    }
+
     const mode=document.querySelector('input[name="pay_mode"]:checked')?.value || 'cicil';
-    const amount=Number(document.getElementById('pay_amount').value); const date=document.getElementById('pay_date').value||todayStr(); const note=document.getElementById('pay_note').value.trim() || (mode==='lunas'?'Pelunasan Total':'Cicilan'); const imageFile=document.getElementById('pay_image').files?.[0];
-    const remaining=getTxRemaining(activePayTx); if(amount<=0 || amount>remaining){ showToast(`Nominal pembayaran maksimal ${formatRupiah(remaining)}.`); return; } if(mode==='lunas' && amount!==remaining){ showToast(`Pelunasan harus sama dengan sisa ${formatRupiah(remaining)}.`); return; }
-    const btn=document.getElementById('btn-save-pay'); btn.disabled=true; btn.classList.add('disabled');
+    const amount=Number(document.getElementById('pay_amount').value);
+    const date=document.getElementById('pay_date').value||todayStr();
+    const note=document.getElementById('pay_note').value.trim() || (mode==='lunas'?'Pelunasan Total':'Cicilan');
+    const imageFile=document.getElementById('pay_image').files?.[0];
+    const remaining=getTxRemaining(tx);
+    if(remaining<=0){ showToast('Transaksi sudah lunas.'); return; }
+    if(!Number.isFinite(amount) || amount<=0 || amount>remaining){ showToast(`Nominal pembayaran maksimal ${formatRupiah(remaining)}.`); return; }
+    if(mode==='lunas' && amount!==remaining){ showToast(`Pelunasan harus sama dengan sisa ${formatRupiah(remaining)}.`); return; }
+
+    const btn=document.getElementById('btn-save-pay');
+    btn.disabled=true;
+    btn.classList.add('disabled');
     try{
         const payment={id:generateId(),date,amount,mode,note,image:null};
-        if(imageFile){ try{ payment.image=await uploadImageToStorage(imageFile,activePayTx.contact||'pembayaran',payment.id); } catch(err){ console.warn('Upload foto pembayaran gagal',err); showToast('Pembayaran tetap dicatat, tetapi foto tidak disimpan. Aktifkan Storage terlebih dahulu.'); } }
-        if(!Array.isArray(activePayTx.payments)) activePayTx.payments=[]; activePayTx.payments.push(payment); activePayTx.status=deriveStatus(activePayTx);
-        const contactKey=(activePayTx.contact||'').trim().toLowerCase(); await saveData(); closeModal('modal-pay-transaction'); renderApp();
+        if(imageFile){
+            try{ payment.image=await uploadImageToStorage(imageFile,tx.contact||'pembayaran',payment.id); }
+            catch(err){ console.warn('Upload foto pembayaran gagal',err); showToast('Pembayaran tetap dicatat, tetapi foto tidak disimpan. Aktifkan Storage terlebih dahulu.'); }
+        }
+
+        // Re-resolve after optional upload so a stale object is never mutated.
+        const currentTx=data.transactions.find(item => item.id === txId);
+        if(!currentTx) throw new Error('TRANSACTION_NOT_FOUND');
+        const currentRemaining=getTxRemaining(currentTx);
+        if(amount<=0 || amount>currentRemaining) throw new Error('PAYMENT_EXCEEDS_REMAINING');
+        if(!Array.isArray(currentTx.payments)) currentTx.payments=[];
+        currentTx.payments.push(payment);
+        currentTx.status=deriveStatus(currentTx);
+
+        const contactKey=(currentTx.contact||'').trim().toLowerCase();
+        await saveData();
+        const committedTx=data.transactions.find(item => item.id === txId);
+        activePayTx=committedTx || null;
+        closeModal('modal-pay-transaction');
+        renderApp();
         if(document.getElementById('modal-detail-transaction') && !document.getElementById('modal-detail-transaction').classList.contains('hidden')) openDetailModalByContact(contactKey);
-        showToast(activePayTx.status===TX_STATUS.LUNAS?'Pembayaran lunas berhasil dicatat.':'Cicilan berhasil dicatat.');
-    }catch(err){ console.error(err); showToast('Pembayaran gagal disimpan.'); }
-    finally{ btn.disabled=false; btn.classList.remove('disabled'); }
+        showToast(committedTx?.status===TX_STATUS.LUNAS?'Pembayaran lunas berhasil dicatat.':'Cicilan berhasil dicatat.');
+    }catch(err){
+        console.error(err);
+        // saveData restores the last stable dataset on failure. Refresh the reference
+        // and the remaining-balance display before allowing another attempt.
+        activePayTx=data.transactions.find(item => item.id === txId) || null;
+        if(activePayTx){
+            document.getElementById('pay-remaining-text').textContent=formatRupiah(getTxRemaining(activePayTx));
+            document.getElementById('pay_amount').max=getTxRemaining(activePayTx);
+        }
+        showToast(err?.message==='PAYMENT_EXCEEDS_REMAINING'
+            ? 'Sisa pembayaran berubah. Periksa nominal lalu coba kembali.'
+            : 'Pembayaran gagal disimpan. Data lokal dikembalikan ke kondisi terakhir yang tersinkron.');
+    }finally{
+        btn.disabled=false;
+        btn.classList.remove('disabled');
+    }
 }
 
 function confirmDeleteContact(contactKey){ if(!requireUnlockedApp()) return; deleteTarget={type:'contact',key:contactKey}; showConfirm('Hapus semua transaksi pihak ini?','Semua transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
