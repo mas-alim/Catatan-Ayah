@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Buku Catatan Ayah V2.1 Fix</title>
+    <title>Catatan Ayah — Rekonstruksi 2026</title>
     <meta name="theme-color" content="#16a34a">
     <meta name="application-name" content="Catatan Ayah">
+    <meta name="description" content="Catatan pribadi utang-piutang dan tagihan dengan akses Firebase Authentication.">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Catatan Ayah">
@@ -32,6 +33,41 @@
 </head>
 <body class="text-gray-800 font-sans selection:bg-green-200">
 <div class="app-wrapper">
+    <!-- FIREBASE AUTH LOGIN: SERVER-SIDE IDENTITY BEFORE LOCAL PIN -->
+    <div id="screen-auth" class="fixed inset-0 bg-green-700 z-[120] flex flex-col justify-center items-center px-4 hidden safe-top safe-bottom">
+        <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-sm text-center slide-up">
+            <div class="w-16 h-16 bg-green-100 text-green-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="ph ph-shield-check text-3xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Login Catatan Ayah</h2>
+            <p class="text-sm text-gray-500 mb-6">Masuk dengan akun pemilik untuk mengakses data yang tersimpan di Firebase.</p>
+            <form id="form-auth-login" onsubmit="authLogin(event)" class="text-left space-y-3">
+                <div>
+                    <label for="auth-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="auth-email" required autocomplete="username" inputmode="email" placeholder="email@contoh.com" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                </div>
+                <div>
+                    <label for="auth-password" class="block text-sm font-medium text-gray-700 mb-1">Password akun</label>
+                    <input type="password" id="auth-password" required autocomplete="current-password" placeholder="Password Firebase Authentication" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                </div>
+                <p id="auth-error" role="alert" class="text-red-600 text-xs font-medium hidden bg-red-50 p-3 rounded-lg"></p>
+                <button id="btn-auth-login" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3 active:scale-[.99] transition shadow-lg shadow-green-200">Masuk</button>
+            </form>
+            <p class="text-[11px] text-gray-400 mt-4">Akses dibatasi ke UID pemilik yang diizinkan oleh Firebase Rules.</p>
+        </div>
+    </div>
+
+    <!-- WAIT FOR INITIAL FIREBASE SNAPSHOT BEFORE ENABLED EDITING -->
+    <div id="screen-data-loading" class="fixed inset-0 bg-green-700 z-[115] flex flex-col justify-center items-center px-4 hidden safe-top safe-bottom">
+        <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-sm text-center">
+            <div class="w-14 h-14 rounded-full bg-green-50 text-green-700 flex items-center justify-center mx-auto mb-4">
+                <i class="ph-bold ph-cloud-arrow-down text-3xl animate-pulse"></i>
+            </div>
+            <h2 class="text-lg font-bold text-gray-800 mb-2">Memuat Data</h2>
+            <p class="text-sm text-gray-500">Menunggu konfirmasi data dari Firebase sebelum membuka catatan.</p>
+        </div>
+    </div>
+
     <!-- SETUP PIN -->
     <div id="screen-setup" class="fixed inset-0 bg-green-600 z-[100] flex flex-col justify-center items-center px-4 hidden safe-top safe-bottom">
         <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-sm text-center slide-up">
@@ -130,7 +166,8 @@
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Keterangan / Catatan <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><textarea id="tx_note" rows="2" placeholder="Cth: Jajanan, Beras, Modal Usaha, dll." class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none resize-none"></textarea></div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Bukti Foto Transaksi <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label>
-                    <input type="file" id="tx_image" accept="image/*" capture="environment" class="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700">
+                    <input type="file" id="tx_image" accept="image/*" capture="environment" disabled title="Unggah foto dinonaktifkan sampai Firebase Storage disiapkan" class="w-full text-sm text-gray-400 opacity-60">
+                    <p class="text-[10px] text-amber-700 mt-1">Unggah foto baru sementara dinonaktifkan. Lampiran lama tetap dipertahankan.</p>
                     <p id="tx-existing-image" class="text-[10px] text-gray-400 mt-1 hidden">Bukti lama tetap dipertahankan jika tidak memilih foto baru.</p>
                 </div>
                 <button id="btn-save-tx" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3.5 active:scale-[.99] transition shadow-lg shadow-green-200">Simpan Transaksi</button>
@@ -163,7 +200,7 @@
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Nominal Yang Dibayar (Rp)</label><input type="number" id="pay_amount" required min="1" inputmode="numeric" placeholder="0" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Pembayaran</label><input type="date" id="pay_date" required class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Keterangan <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="text" id="pay_note" placeholder="Cth: Cicil minggu pertama" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
-                <div><label class="block text-sm font-medium text-gray-700 mb-1">Bukti Pembayaran <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="file" id="pay_image" accept="image/*" capture="environment" class="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700"></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Bukti Pembayaran <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="file" id="pay_image" accept="image/*" capture="environment" disabled title="Unggah foto dinonaktifkan sampai Firebase Storage disiapkan" class="w-full text-sm text-gray-400 opacity-60"><p class="text-[10px] text-amber-700 mt-1">Unggah foto baru sementara dinonaktifkan. Lampiran lama tetap dipertahankan.</p></div>
                 <button id="btn-save-pay" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3.5 active:scale-[.99] transition shadow-lg shadow-green-200 flex items-center justify-center gap-2"><i class="ph-bold ph-check-square"></i> Simpan Pembayaran</button>
             </form>
         </div>
@@ -195,10 +232,11 @@
                 <button onclick="downloadBackup()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-download-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Backup Data</p><p class="text-[11px] text-gray-500">Simpan transaksi dan tagihan ke file JSON.</p></div></button>
                 <button onclick="document.getElementById('restore-file').click()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><i class="ph-bold ph-upload-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Restore Data</p><p class="text-[11px] text-gray-500">Impor backup JSON dan mengganti data saat ini.</p></div></button>
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
-                <button onclick="migrateLegacyPhotos()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center"><i class="ph-bold ph-images-square text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Migrasi Foto Lama</p><p class="text-[11px] text-gray-500">Pindahkan foto Base64 lama ke Firebase Storage.</p></div></button>
-                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4"><div class="flex justify-between items-center mb-1 gap-2"><p class="text-xs font-bold text-gray-700">Penyimpanan foto</p><span id="photo-storage-status" class="text-[10px] font-bold text-gray-500 text-right">Foto baru → Firebase Storage</span></div><p id="photo-legacy-count" class="text-[10px] text-gray-500">Memeriksa lampiran lama...</p></div>
-                <button onclick="lockApp(); closeModal('modal-settings')" class="w-full flex items-center justify-center gap-2 p-3.5 bg-gray-900 text-white rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-lock-key"></i> Kunci Aplikasi</button>
-                <p class="text-center text-[10px] text-gray-400 pt-1">Catatan Ayah V2 • Backup/Restore bekerja dengan Firebase dan cache perangkat.</p>
+                <button onclick="migrateLegacyPhotos()" class="w-full flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-gray-200 text-gray-500 flex items-center justify-center"><i class="ph-bold ph-images-square text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-600">Migrasi Foto Lama (ditangguhkan)</p><p class="text-[11px] text-gray-500">Aktifkan setelah Firebase Storage dan aturan akses disiapkan.</p></div></button>
+                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4"><div class="flex justify-between items-center mb-1 gap-2"><p class="text-xs font-bold text-gray-700">Penyimpanan foto</p><span id="photo-storage-status" class="text-[10px] font-bold text-amber-700 text-right">Upload sementara nonaktif</span></div><p id="photo-legacy-count" class="text-[10px] text-gray-500">Memeriksa lampiran lama...</p></div>
+                <button onclick="lockApp(); closeModal('modal-settings')" class="w-full flex items-center justify-center gap-2 p-3.5 bg-gray-900 text-white rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-lock-key"></i> Kunci Aplikasi (PIN)</button>
+                <button onclick="logoutFirebaseAccount()" class="w-full flex items-center justify-center gap-2 p-3.5 bg-red-50 text-red-700 border border-red-100 rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-sign-out"></i> Keluar dari Akun</button>
+                <p class="text-center text-[10px] text-gray-400 pt-1">Catatan Ayah • Rekonstruksi 2026 • Firebase Auth + PIN lokal.</p>
             </div>
         </div>
     </div>
@@ -209,8 +247,8 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyCIjl-mXei1es5yj_sQLW6Cq4EzTqkrw_A",
@@ -223,10 +261,10 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const OWNER_UID = 'ZlWZFhPLbHbOtIDPYsK4yxiLrGC2';
 const db = getDatabase(app);
 const dbRef = ref(db, 'catatan_keuangan_v1');
-const storage = getStorage(app);
-const STORAGE_ROOT = 'catatan-ayah/attachments';
 const LOCAL_DATA_KEY = 'catatanKeuanganApp';
 const PIN_KEY = 'app_pin';
 
@@ -238,15 +276,35 @@ let data = { transactions: [], needs: [] };
 let deleteTarget = null;
 let activePayTx = null;
 let firebaseListening = false;
+let firebaseUnsubscribe = null;
+let firebaseInitialLoadPromise = null;
+let firebaseDataReady = false;
+let lastStableData = null;
+let currentAuthUser = null;
+let authReady = false;
+let appUnlocked = false;
+let saveInProgress = false;
 
 const TX_STATUS = { BELUM:'Belum Lunas', CICIL:'Dicicil', LUNAS:'Lunas' };
 
-function todayStr() { return new Date().toISOString().split('T')[0]; }
+function todayStr() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+function parseLocalDate(dateStr) {
+    if (!dateStr) return null;
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr));
+    const d = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : new Date(dateStr);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 function formatRupiah(num) { return 'Rp ' + Number(num || 0).toLocaleString('id-ID'); }
-function formatDateShort(dateStr) { if(!dateStr) return '-'; const d=new Date(dateStr); if(Number.isNaN(d.getTime())) return dateStr; const m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; return `${d.getDate()} ${m[d.getMonth()]} ${d.getFullYear()}`; }
-function formatDate(dateStr) { if(!dateStr) return 'Tanpa Tenggat'; const d=new Date(dateStr); if(Number.isNaN(d.getTime())) return dateStr; return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}); }
-function daysDiff(dateStr) { if(!dateStr) return 999; const a=new Date(); a.setHours(0,0,0,0); const b=new Date(dateStr); b.setHours(0,0,0,0); return Math.ceil((b-a)/86400000); }
+function formatDateShort(dateStr) { if(!dateStr) return '-'; const d=parseLocalDate(dateStr); if(!d) return dateStr; const m=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; return `${d.getDate()} ${m[d.getMonth()]} ${d.getFullYear()}`; }
+function formatDate(dateStr) { if(!dateStr) return 'Tanpa Tenggat'; const d=parseLocalDate(dateStr); if(!d) return dateStr; return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}); }
+function daysDiff(dateStr) { if(!dateStr) return 999; const a=parseLocalDate(todayStr()); const b=parseLocalDate(dateStr); if(!a||!b) return 999; return Math.round((b-a)/86400000); }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function jsArg(value) {
     const s = String(value ?? '');
@@ -259,14 +317,26 @@ function jsArg(value) {
         .replace(/>/g, '\\x3E')
         .replace(/&/g, '\\x26') + "'";
 }
-function getTxPaidAmount(tx) { return Array.isArray(tx?.payments) ? tx.payments.reduce((s,p)=>s+Number(p?.amount||0),0) : (tx?.status===TX_STATUS.LUNAS ? Number(tx.amount||0) : 0); }
+function getTxPaidAmount(tx) { if(Array.isArray(tx?.payments) && tx.payments.length) return tx.payments.reduce((s,p)=>s+Number(p?.amount||0),0); return tx?.status===TX_STATUS.LUNAS ? Number(tx.amount||0) : 0; }
 function getTxRemaining(tx) { return Math.max(0, Number(tx?.amount||0)-getTxPaidAmount(tx)); }
 function deriveStatus(tx) { const paid=getTxPaidAmount(tx); const amount=Number(tx?.amount||0); return paid>=amount && amount>0 ? TX_STATUS.LUNAS : paid>0 ? TX_STATUS.CICIL : TX_STATUS.BELUM; }
+function collectionToArray(value, prefix) {
+    if (Array.isArray(value)) return value.map((item, index) => item && typeof item === 'object' ? ({ ...item, id: item.id || `legacy-${prefix}-${index + 1}` }) : item).filter(item => item && typeof item === 'object');
+    if (value && typeof value === 'object') return Object.entries(value).map(([key, item], index) => item && typeof item === 'object' ? ({ ...item, id: item.id || key || `legacy-${prefix}-${index + 1}` }) : null).filter(Boolean);
+    return [];
+}
 function normalizeData(input) {
-    const next = { transactions:Array.isArray(input?.transactions) ? input.transactions : [], needs:Array.isArray(input?.needs) ? input.needs : [] };
-    next.transactions.forEach(tx => { if(!tx.id) tx.id=generateId(); if(!Array.isArray(tx.payments)) tx.payments=[]; tx.payments.forEach(p=>{ if(!p.id) p.id=generateId(); }); tx.status=deriveStatus(tx); });
-    next.needs.forEach(n => { if(!n.id) n.id=generateId(); if(!n.status) n.status='Belum Lunas'; });
+    const next = {
+        transactions: collectionToArray(input?.transactions, 'tx').map(tx => ({ ...tx, payments: Array.isArray(tx.payments) ? tx.payments.map((p, i) => ({ ...p, id: p?.id || `legacy-payment-${tx.id}-${i + 1}` })) : [] })),
+        needs: collectionToArray(input?.needs, 'need').map(n => ({ ...n }))
+    };
+    next.transactions.forEach(tx => { tx.status = deriveStatus(tx); });
+    next.needs.forEach(n => { if(!n.status) n.status='Belum Lunas'; });
     return next;
+}
+function cloneData(input) {
+    const source = input && typeof input === 'object' ? input : { transactions: [], needs: [] };
+    return normalizeData(JSON.parse(JSON.stringify(source)));
 }
 
 async function hashPin(pin) {
@@ -300,66 +370,318 @@ function setSyncState(mode) {
 }
 
 function loadLocalData() {
-    try { const raw=localStorage.getItem(LOCAL_DATA_KEY); if(raw) data=normalizeData(JSON.parse(raw)); }
-    catch(e){ console.warn('Local data error',e); }
+    try {
+        const raw = localStorage.getItem(LOCAL_DATA_KEY);
+        if (raw) data = normalizeData(JSON.parse(raw));
+        else data = { transactions: [], needs: [] };
+        lastStableData = cloneData(data);
+    } catch (e) {
+        console.warn('Local data error', e);
+        data = { transactions: [], needs: [] };
+        lastStableData = cloneData(data);
+    }
 }
 
-function saveData() {
-    data=normalizeData(data);
-    localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(data));
+function isOwnerAuthenticated() {
+    return authReady && !!currentAuthUser && currentAuthUser.uid === OWNER_UID;
+}
+
+function isAppUnlocked() {
+    return isOwnerAuthenticated() && appUnlocked && firebaseDataReady;
+}
+
+function requireUnlockedApp() {
+    if (isAppUnlocked()) return true;
+    showToast('Silakan login Firebase dan buka PIN aplikasi terlebih dahulu.');
+    return false;
+}
+
+function hideProtectedScreens() {
+    ['screen-setup','screen-login','screen-data-loading','app-content'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+}
+
+function setAuthError(message) {
+    const el = document.getElementById('auth-error');
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.toggle('hidden', !message);
+}
+
+function authErrorMessage(error) {
+    const code = String(error?.code || '');
+    if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found') || code.includes('invalid-login-credentials')) return 'Email atau password tidak sesuai.';
+    if (code.includes('invalid-email')) return 'Format email tidak valid.';
+    if (code.includes('too-many-requests')) return 'Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.';
+    if (code.includes('network-request-failed')) return 'Jaringan bermasalah. Periksa koneksi internet.';
+    if (code.includes('operation-not-allowed')) return 'Metode Email/Password belum aktif di Firebase Authentication.';
+    return 'Login gagal. Periksa akun, konfigurasi Firebase, dan koneksi internet.';
+}
+
+async function authLogin(e) {
+    e.preventDefault();
+    const emailEl = document.getElementById('auth-email');
+    const passwordEl = document.getElementById('auth-password');
+    const button = document.getElementById('btn-auth-login');
+    const email = (emailEl?.value || '').trim();
+    const password = passwordEl?.value || '';
+    if (!email || !password) { setAuthError('Masukkan email dan password.'); return; }
+    setAuthError('');
+    if (button) { button.disabled = true; button.textContent = 'Memeriksa akun...'; }
+    try {
+        const credential = await signInWithEmailAndPassword(auth, email, password);
+        if (credential.user.uid !== OWNER_UID) {
+            await signOut(auth).catch(() => {});
+            setAuthError('Akun ini tidak diizinkan mengakses Catatan-Ayah.');
+            return;
+        }
+        if (passwordEl) passwordEl.value = '';
+    } catch (error) {
+        console.warn('Firebase Authentication login failed:', error);
+        setAuthError(authErrorMessage(error));
+    } finally {
+        if (button) { button.disabled = false; button.textContent = 'Masuk'; }
+    }
+}
+
+async function handleAuthStateChanged(user) {
+    if (!user) {
+        currentAuthUser = null;
+        authReady = false;
+        appUnlocked = false;
+        data = { transactions: [], needs: [] };
+        lastStableData = null;
+        stopFirebaseListener();
+        hideProtectedScreens();
+        document.getElementById('screen-auth').classList.remove('hidden');
+        return;
+    }
+
+    if (user.uid !== OWNER_UID) {
+        currentAuthUser = null;
+        authReady = false;
+        appUnlocked = false;
+        data = { transactions: [], needs: [] };
+        lastStableData = null;
+        stopFirebaseListener();
+        hideProtectedScreens();
+        document.getElementById('screen-auth').classList.remove('hidden');
+        setAuthError('Akun ini tidak diizinkan mengakses Catatan-Ayah. Gunakan akun pemilik yang terdaftar.');
+        await signOut(auth).catch(() => {});
+        return;
+    }
+
+    currentAuthUser = user;
+    authReady = true;
+    document.getElementById('screen-auth').classList.add('hidden');
+    updatePinScreens();
+}
+
+function jsonEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+function mergeCollectionById(remoteList, baselineList, desiredList) {
+    const remote = new Map((remoteList || []).map(item => [String(item.id), JSON.parse(JSON.stringify(item))]));
+    const before = new Map((baselineList || []).map(item => [String(item.id), item]));
+    const after = new Map((desiredList || []).map(item => [String(item.id), item]));
+    const ids = new Set([...before.keys(), ...after.keys()]);
+    for (const id of ids) {
+        const hadBefore = before.has(id);
+        const hasAfter = after.has(id);
+        if (hadBefore && !hasAfter) {
+            remote.delete(id);
+        } else if (hasAfter && (!hadBefore || !jsonEqual(before.get(id), after.get(id)))) {
+            // If two devices edit the same record, the last committed edit wins for that record.
+            // Changes to other records from the other device are retained.
+            remote.set(id, JSON.parse(JSON.stringify(after.get(id))));
+        }
+    }
+    return [...remote.values()];
+}
+function mergeLocalChanges(remoteValue, baseline, desired) {
+    const remoteObject = remoteValue && typeof remoteValue === 'object' ? remoteValue : {};
+    const remote = normalizeData(remoteObject);
+    const merged = {
+        ...remoteObject,
+        transactions: mergeCollectionById(remote.transactions, baseline.transactions, desired.transactions),
+        needs: mergeCollectionById(remote.needs, baseline.needs, desired.needs)
+    };
+    return merged;
+}
+
+async function saveData({ replaceAll = false } = {}) {
+    if (!isAppUnlocked()) throw new Error('Login Firebase, PIN aplikasi, dan pemuatan data diperlukan sebelum menyimpan.');
+
+    const candidate = cloneData(data);
+    const baseline = cloneData(lastStableData || { transactions: [], needs: [] });
+    saveInProgress = true;
     setSyncState('saving');
-    return set(dbRef, data).then(()=>{ setSyncState('online'); }).catch(err=>{ console.warn('Firebase save error',err); setSyncState('offline'); });
+    try {
+        const result = await runTransaction(dbRef, current => {
+            if (replaceAll) return candidate;
+            return mergeLocalChanges(current, baseline, candidate);
+        }, { applyLocally: false });
+        if (!result.committed) throw new Error('TRANSACTION_NOT_COMMITTED');
+        data = normalizeData(result.snapshot.val() || { transactions: [], needs: [] });
+        localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(data));
+        lastStableData = cloneData(data);
+        setSyncState('online');
+    } catch (err) {
+        if (lastStableData) data = cloneData(lastStableData);
+        else data = { transactions: [], needs: [] };
+        try { localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(data)); } catch {}
+        setSyncState('offline');
+        throw err;
+    } finally {
+        saveInProgress = false;
+    }
+}
+function setupFirebaseListener() {
+    if (!isOwnerAuthenticated()) return Promise.reject(new Error('AUTH_REQUIRED'));
+    if (firebaseListening && firebaseInitialLoadPromise) return firebaseInitialLoadPromise;
+
+    firebaseListening = true;
+    firebaseDataReady = false;
+    firebaseInitialLoadPromise = new Promise((resolve, reject) => {
+        let firstSnapshotHandled = false;
+        firebaseUnsubscribe = onValue(dbRef, snapshot => {
+            const cloud = snapshot.val();
+            if (saveInProgress && firstSnapshotHandled) return;
+            if (cloud && typeof cloud === 'object') {
+                data = normalizeData(cloud);
+            } else {
+                // Cloud is the source of truth. If empty, start empty rather than silently resurrecting stale browser cache.
+                data = { transactions: [], needs: [] };
+            }
+            try { localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(data)); } catch (storageError) { console.warn('Local cache unavailable', storageError); }
+            lastStableData = cloneData(data);
+            firebaseDataReady = true;
+            setSyncState('online');
+
+            if (!firstSnapshotHandled) {
+                firstSnapshotHandled = true;
+                resolve(true);
+            }
+            if (isAppUnlocked()) renderApp();
+        }, error => {
+            console.warn('Firebase listener error', error);
+            firebaseListening = false;
+            firebaseDataReady = false;
+            const unsubscribe = firebaseUnsubscribe;
+            firebaseUnsubscribe = null;
+            if (typeof unsubscribe === 'function') unsubscribe();
+            setSyncState('offline');
+            if (!firstSnapshotHandled) {
+                firstSnapshotHandled = true;
+                reject(error);
+            } else {
+                appUnlocked = false;
+                document.getElementById('app-content').classList.add('hidden');
+                if (isOwnerAuthenticated()) document.getElementById('screen-login').classList.remove('hidden');
+                else document.getElementById('screen-auth').classList.remove('hidden');
+                showToast('Akses database terputus. Catatan dikunci untuk melindungi data.');
+            }
+        });
+    });
+    return firebaseInitialLoadPromise;
 }
 
-function setupFirebaseListener() {
-    if(firebaseListening) return;
-    firebaseListening=true;
-    onValue(dbRef, snapshot=>{
-        const cloud=snapshot.val();
-        if(cloud) { data=normalizeData(cloud); localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(data)); }
-        setSyncState('online');
-        renderApp();
-    }, error=>{ console.warn('Firebase listener error',error); setSyncState('offline'); });
+function stopFirebaseListener() {
+    if (typeof firebaseUnsubscribe === 'function') firebaseUnsubscribe();
+    firebaseUnsubscribe = null;
+    firebaseListening = false;
+    firebaseDataReady = false;
+    firebaseInitialLoadPromise = null;
 }
 
 function updatePinScreens() {
-    const stored=localStorage.getItem(PIN_KEY);
+    if (!isOwnerAuthenticated()) {
+        hideProtectedScreens();
+        document.getElementById('screen-auth').classList.remove('hidden');
+        return;
+    }
+    document.getElementById('screen-auth').classList.add('hidden');
+    const stored = localStorage.getItem(PIN_KEY);
     document.getElementById('screen-setup').classList.toggle('hidden', !!stored);
-    document.getElementById('screen-login').classList.add('hidden');
+    document.getElementById('screen-login').classList.toggle('hidden', !stored);
     document.getElementById('app-content').classList.add('hidden');
-    if(!stored) document.getElementById('screen-setup').classList.remove('hidden');
-    else document.getElementById('screen-login').classList.remove('hidden');
 }
 
 async function savePin(e) {
     e.preventDefault();
-    const input=document.getElementById('setup-pin'); const pin=input.value.trim();
-    if(!/^\d{6}$/.test(pin)){ showToast('PIN harus 6 digit angka.'); return; }
+    if (!isOwnerAuthenticated()) { updatePinScreens(); return; }
+    const input = document.getElementById('setup-pin'); const pin = input.value.trim();
+    if (!/^\d{6}$/.test(pin)) { showToast('PIN harus 6 digit angka.'); return; }
     localStorage.setItem(PIN_KEY, await hashPin(pin));
-    input.value='';
+    input.value = '';
     unlockApp();
     showToast('PIN berhasil dibuat.');
 }
 
 async function login(e) {
     e.preventDefault();
-    const input=document.getElementById('login-pin'); const pin=input.value.trim();
-    const stored=localStorage.getItem(PIN_KEY); const error=document.getElementById('login-error');
-    if(!stored){ updatePinScreens(); return; }
-    let ok=false;
-    if(stored.startsWith('sha256:') || stored.startsWith('fallback:')) ok=await verifyPin(pin,stored);
-    else { ok = pin === stored; if(ok) localStorage.setItem(PIN_KEY, await hashPin(pin)); }
-    if(ok){ error.classList.add('hidden'); input.value=''; unlockApp(); }
-    else { error.classList.remove('hidden'); input.value=''; input.focus(); }
+    if (!isOwnerAuthenticated()) { updatePinScreens(); return; }
+    const input = document.getElementById('login-pin'); const pin = input.value.trim();
+    const stored = localStorage.getItem(PIN_KEY); const error = document.getElementById('login-error');
+    if (!stored) { updatePinScreens(); return; }
+    let ok = false;
+    if (stored.startsWith('sha256:') || stored.startsWith('fallback:')) ok = await verifyPin(pin, stored);
+    else { ok = pin === stored; if (ok) localStorage.setItem(PIN_KEY, await hashPin(pin)); }
+    if (ok) { error.classList.add('hidden'); input.value = ''; unlockApp(); }
+    else { error.classList.remove('hidden'); input.value = ''; input.focus(); }
 }
 
-function unlockApp() {
-    document.getElementById('screen-setup').classList.add('hidden');
-    document.getElementById('screen-login').classList.add('hidden');
-    document.getElementById('app-content').classList.remove('hidden');
-    loadLocalData(); setupFirebaseListener(); renderApp();
+async function unlockApp() {
+    if (!isOwnerAuthenticated()) { updatePinScreens(); return; }
+    appUnlocked = false;
+    firebaseDataReady = false;
+    hideProtectedScreens();
+    document.getElementById('screen-auth').classList.add('hidden');
+    document.getElementById('screen-data-loading').classList.remove('hidden');
+
+    try {
+        await setupFirebaseListener();
+        if (!isOwnerAuthenticated() || !firebaseDataReady) throw new Error('DATA_NOT_READY');
+        appUnlocked = true;
+        document.getElementById('screen-data-loading').classList.add('hidden');
+        document.getElementById('screen-setup').classList.add('hidden');
+        document.getElementById('screen-login').classList.add('hidden');
+        document.getElementById('app-content').classList.remove('hidden');
+        renderApp();
+    } catch (error) {
+        console.error('Initial Firebase data load failed:', error);
+        appUnlocked = false;
+        stopFirebaseListener();
+        document.getElementById('screen-data-loading').classList.add('hidden');
+        if (isOwnerAuthenticated()) document.getElementById('screen-login').classList.remove('hidden');
+        else document.getElementById('screen-auth').classList.remove('hidden');
+        showToast('Data Firebase tidak bisa dimuat. Periksa koneksi, UID akun, dan Rules.');
+    }
 }
-function lockApp(){ document.getElementById('app-content').classList.add('hidden'); document.getElementById('screen-login').classList.remove('hidden'); document.getElementById('login-error').classList.add('hidden'); }
+
+function lockApp() {
+    appUnlocked = false;
+    stopFirebaseListener();
+    document.getElementById('app-content').classList.add('hidden');
+    document.getElementById('screen-data-loading').classList.add('hidden');
+    if (isOwnerAuthenticated()) document.getElementById('screen-login').classList.remove('hidden');
+    else document.getElementById('screen-auth').classList.remove('hidden');
+    document.getElementById('login-error').classList.add('hidden');
+}
+
+async function logoutFirebaseAccount() {
+    stopFirebaseListener();
+    document.getElementById('app-content').classList.add('hidden');
+    closeModal('modal-settings');
+    try {
+        await signOut(auth);
+        data = { transactions: [], needs: [] };
+        lastStableData = null;
+    } catch (error) {
+        console.error('Firebase sign-out failed:', error);
+        showToast('Tidak dapat keluar dari akun. Coba lagi.');
+    }
+}
 
 function switchTab(tab){
     currentTab=tab;
@@ -381,6 +703,7 @@ function openModal(id){ const el=document.getElementById(id); if(!el) return; do
 function closeModal(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('hidden'); el.classList.remove('flex'); document.body.classList.remove('modal-open'); if(id==='modal-add-transaction'){ document.getElementById('form-transaction').reset(); document.getElementById('tx_edit_id').value=''; document.getElementById('tx-existing-image').classList.add('hidden'); } if(id==='modal-add-need'){ document.getElementById('form-need').reset(); document.getElementById('nd_edit_id').value=''; } if(id==='modal-pay-transaction'){ document.getElementById('form-pay').reset(); activePayTx=null; } }
 
 function openTransactionModal(txId='', contactName='') {
+    if (!requireUnlockedApp()) return;
     const form=document.getElementById('form-transaction'); form.reset();
     document.getElementById('tx_edit_id').value=txId || '';
     document.getElementById('tx_txdate').value=todayStr();
@@ -402,44 +725,25 @@ function openTransactionModal(txId='', contactName='') {
 }
 
 function openNeedModal(needId=''){
+    if (!requireUnlockedApp()) return;
     const form=document.getElementById('form-need'); form.reset(); document.getElementById('nd_edit_id').value=needId;
     document.getElementById('btn-save-need').textContent=needId?'Simpan Perubahan':'Simpan Tagihan';
     if(needId){ const n=data.needs.find(x=>x.id===needId); if(!n) return; document.getElementById('nd_desc').value=n.description||''; document.getElementById('nd_amount').value=Number(n.amount||0); document.getElementById('nd_date').value=n.dueDate||''; }
     openModal('modal-add-need');
 }
 
-async function compressImage(file){
-    if(!file) return null;
-    const maxSize=1600;
-    const bitmap=await createImageBitmap(file);
-    const scale=Math.min(1,maxSize/Math.max(bitmap.width,bitmap.height));
-    const canvas=document.createElement('canvas');
-    canvas.width=Math.max(1,Math.round(bitmap.width*scale));
-    canvas.height=Math.max(1,Math.round(bitmap.height*scale));
-    const ctx=canvas.getContext('2d',{alpha:false});
-    ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
-    bitmap.close?.();
-    return await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Gagal memproses gambar')), 'image/jpeg', 0.78));
-}
-function safeStorageName(value){ return String(value||'item').replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,60); }
 async function uploadImageToStorage(file, folder, itemId){
-    const blob=await compressImage(file); if(!blob) return null;
-    const target=storageRef(storage,`${STORAGE_ROOT}/${safeStorageName(folder)}/${safeStorageName(itemId)}.jpg`);
-    await uploadBytes(target,blob,{contentType:'image/jpeg',cacheControl:'public,max-age=31536000'});
-    return await getDownloadURL(target);
+    throw new Error('PHOTO_STORAGE_DISABLED: Firebase Storage belum disiapkan untuk project ini.');
 }
 async function uploadDataUrlToStorage(dataUrl, folder, itemId){
-    if(!String(dataUrl||'').startsWith('data:image/')) return dataUrl;
-    const res=await fetch(dataUrl); const blob=await res.blob();
-    const target=storageRef(storage,`${STORAGE_ROOT}/${safeStorageName(folder)}/${safeStorageName(itemId)}.jpg`);
-    await uploadBytes(target,blob,{contentType:blob.type||'image/jpeg',cacheControl:'public,max-age=31536000'});
-    return await getDownloadURL(target);
+    throw new Error('PHOTO_STORAGE_DISABLED: Firebase Storage belum disiapkan untuk project ini.');
 }
 function countLegacyPhotos(){ let count=0; data.transactions.forEach(tx=>{ if(String(tx.image||'').startsWith('data:image/')) count++; (tx.payments||[]).forEach(p=>{ if(String(p.image||'').startsWith('data:image/')) count++; }); }); return count; }
-function refreshPhotoStorageStatus(){ const el=document.getElementById('photo-legacy-count'); if(el){ const n=countLegacyPhotos(); el.textContent=n?`${n} lampiran lama masih tersimpan sebagai Base64.`:'Tidak ada lampiran Base64 lama yang terdeteksi.'; } }
+function refreshPhotoStorageStatus(){ const el=document.getElementById('photo-legacy-count'); if(el){ const n=countLegacyPhotos(); el.textContent=(n?`${n} lampiran lama masih tersimpan sebagai Base64. `:'Tidak ada lampiran Base64 lama yang terdeteksi. ')+'Upload/migrasi foto baru dinonaktifkan sementara.'; } }
 
 async function saveTransaction(e){
     e.preventDefault();
+    if (!requireUnlockedApp()) return;
     const type=document.querySelector('input[name="tx_type"]:checked')?.value || 'hutang';
     const contact=document.getElementById('tx_name').value.trim();
     const amount=Number(document.getElementById('tx_amount').value);
@@ -454,7 +758,7 @@ async function saveTransaction(e){
         let tx;
         if(editId){ tx=data.transactions.find(t=>t.id===editId); if(!tx) throw new Error('Transaksi tidak ditemukan'); tx.type=type; tx.contact=contact; tx.amount=amount; tx.txDate=txDate; tx.dueDate=dueDate; tx.note=note; }
         else { tx={id:generateId(),type,contact,amount,txDate,dueDate,note,image:null,status:TX_STATUS.BELUM,payments:[],createdAt:new Date().toISOString()}; data.transactions.push(tx); }
-        if(imageFile){ try{ tx.image=await uploadImageToStorage(imageFile,contact,tx.id); } catch(err){ console.warn('Upload foto transaksi gagal',err); showToast('Transaksi disimpan, tetapi foto gagal diunggah. Periksa Firebase Storage.'); } }
+        if(imageFile){ try{ tx.image=await uploadImageToStorage(imageFile,contact,tx.id); } catch(err){ console.warn('Upload foto transaksi gagal',err); showToast('Transaksi tetap dicatat, tetapi foto tidak disimpan. Aktifkan Storage terlebih dahulu.'); } }
         tx.status=deriveStatus(tx); await saveData(); closeModal('modal-add-transaction'); renderApp(); showToast(editId?'Transaksi berhasil diperbarui.':'Transaksi berhasil disimpan.');
     }catch(err){ console.error(err); showToast('Transaksi gagal disimpan.'); }
     finally{ btn.disabled=false; btn.classList.remove('disabled'); }
@@ -462,6 +766,7 @@ async function saveTransaction(e){
 
 async function saveNeed(e){
     e.preventDefault();
+    if (!requireUnlockedApp()) return;
     const editId=document.getElementById('nd_edit_id').value;
     const description=document.getElementById('nd_desc').value.trim(); const amount=Number(document.getElementById('nd_amount').value); const dueDate=document.getElementById('nd_date').value;
     if(!description || !Number.isFinite(amount) || amount<=0 || !dueDate){ showToast('Lengkapi tagihan terlebih dahulu.'); return; }
@@ -474,11 +779,22 @@ async function saveNeed(e){
     finally{ btn.disabled=false; btn.classList.remove('disabled'); }
 }
 
-async function toggleNeedStatus(needId){ const n=data.needs.find(x=>x.id===needId); if(!n) return; n.status=n.status==='Lunas'?'Belum Lunas':'Lunas'; await saveData(); renderApp(); }
+async function toggleNeedStatus(needId){ if(!requireUnlockedApp()) return; const n=data.needs.find(x=>x.id===needId); if(!n) return; const oldStatus=n.status; n.status=n.status==='Lunas'?'Belum Lunas':'Lunas'; try{ await saveData(); renderApp(); }catch(err){ console.error(err); n.status=oldStatus; showToast('Status tagihan gagal disimpan.'); renderApp(); } }
 
 function openPayModalByContact(contactKey){
-    const txs=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey);
-    let tx=txs.find(t=>getTxRemaining(t)>0) || txs[txs.length-1];
+    if (!requireUnlockedApp()) return;
+    const outstanding=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey && getTxRemaining(t)>0);
+    if(!outstanding.length){ showToast('Tidak ada transaksi yang masih memiliki sisa pembayaran.'); return; }
+    if(outstanding.length>1){
+        openDetailModalByContact(contactKey);
+        showToast('Pihak ini memiliki beberapa transaksi aktif. Pilih tombol Bayar pada transaksi yang tepat.');
+        return;
+    }
+    openPayModalByTransaction(outstanding[0].id);
+}
+function openPayModalByTransaction(txId){
+    if (!requireUnlockedApp()) return;
+    const tx=data.transactions.find(t=>t.id===txId);
     if(!tx){ showToast('Transaksi tidak ditemukan.'); return; }
     const remaining=getTxRemaining(tx);
     if(remaining<=0){ showToast('Transaksi sudah lunas.'); return; }
@@ -487,14 +803,14 @@ function openPayModalByContact(contactKey){
 function togglePayMode(mode){ if(!activePayTx) return; const remaining=getTxRemaining(activePayTx); const input=document.getElementById('pay_amount'); if(mode==='lunas'){ input.value=remaining; input.readOnly=true; } else { input.value=''; input.readOnly=false; } }
 
 async function savePayment(e){
-    e.preventDefault(); if(!activePayTx) return;
+    e.preventDefault(); if(!requireUnlockedApp() || !activePayTx) return;
     const mode=document.querySelector('input[name="pay_mode"]:checked')?.value || 'cicil';
     const amount=Number(document.getElementById('pay_amount').value); const date=document.getElementById('pay_date').value||todayStr(); const note=document.getElementById('pay_note').value.trim() || (mode==='lunas'?'Pelunasan Total':'Cicilan'); const imageFile=document.getElementById('pay_image').files?.[0];
-    const remaining=getTxRemaining(activePayTx); if(amount<=0 || amount>remaining){ showToast(`Nominal pembayaran maksimal ${formatRupiah(remaining)}.`); return; }
+    const remaining=getTxRemaining(activePayTx); if(amount<=0 || amount>remaining){ showToast(`Nominal pembayaran maksimal ${formatRupiah(remaining)}.`); return; } if(mode==='lunas' && amount!==remaining){ showToast(`Pelunasan harus sama dengan sisa ${formatRupiah(remaining)}.`); return; }
     const btn=document.getElementById('btn-save-pay'); btn.disabled=true; btn.classList.add('disabled');
     try{
         const payment={id:generateId(),date,amount,mode,note,image:null};
-        if(imageFile){ try{ payment.image=await uploadImageToStorage(imageFile,activePayTx.contact||'pembayaran',payment.id); } catch(err){ console.warn('Upload foto pembayaran gagal',err); showToast('Pembayaran disimpan, tetapi foto gagal diunggah.'); } }
+        if(imageFile){ try{ payment.image=await uploadImageToStorage(imageFile,activePayTx.contact||'pembayaran',payment.id); } catch(err){ console.warn('Upload foto pembayaran gagal',err); showToast('Pembayaran tetap dicatat, tetapi foto tidak disimpan. Aktifkan Storage terlebih dahulu.'); } }
         if(!Array.isArray(activePayTx.payments)) activePayTx.payments=[]; activePayTx.payments.push(payment); activePayTx.status=deriveStatus(activePayTx);
         const contactKey=(activePayTx.contact||'').trim().toLowerCase(); await saveData(); closeModal('modal-pay-transaction'); renderApp();
         if(document.getElementById('modal-detail-transaction') && !document.getElementById('modal-detail-transaction').classList.contains('hidden')) openDetailModalByContact(contactKey);
@@ -503,13 +819,13 @@ async function savePayment(e){
     finally{ btn.disabled=false; btn.classList.remove('disabled'); }
 }
 
-function confirmDeleteContact(contactKey){ deleteTarget={type:'contact',key:contactKey}; showConfirm('Hapus semua transaksi pihak ini?','Semua transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
-function confirmDeleteTransaction(txId){ const tx=data.transactions.find(t=>t.id===txId); if(!tx) return; deleteTarget={type:'transaction',id:txId}; showConfirm('Hapus transaksi ini?','Transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
-function confirmDeleteNeed(needId){ deleteTarget={type:'need',id:needId}; showConfirm('Hapus tagihan ini?','Rencana tagihan ini akan dihapus permanen.'); }
+function confirmDeleteContact(contactKey){ if(!requireUnlockedApp()) return; deleteTarget={type:'contact',key:contactKey}; showConfirm('Hapus semua transaksi pihak ini?','Semua transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
+function confirmDeleteTransaction(txId){ if(!requireUnlockedApp()) return; const tx=data.transactions.find(t=>t.id===txId); if(!tx) return; deleteTarget={type:'transaction',id:txId}; showConfirm('Hapus transaksi ini?','Transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
+function confirmDeleteNeed(needId){ if(!requireUnlockedApp()) return; deleteTarget={type:'need',id:needId}; showConfirm('Hapus tagihan ini?','Rencana tagihan ini akan dihapus permanen.'); }
 function showConfirm(title,text){ document.getElementById('confirm-title').textContent=title; document.getElementById('confirm-text').textContent=text; document.getElementById('btn-confirm-delete').onclick=executeDelete; openModal('modal-confirm'); }
 function closeConfirmModal(){ deleteTarget=null; closeModal('modal-confirm'); }
 async function executeDelete(){
-    if(!deleteTarget) return;
+    if(!requireUnlockedApp() || !deleteTarget) return;
     try{
         if(deleteTarget.type==='contact') data.transactions=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()!==deleteTarget.key);
         else if(deleteTarget.type==='transaction') data.transactions=data.transactions.filter(t=>t.id!==deleteTarget.id);
@@ -521,6 +837,7 @@ async function executeDelete(){
 function viewPhoto(src){ document.getElementById('photo-preview-img').src=src; openModal('modal-photo'); }
 
 function openDetailModalByContact(contactKey){
+    if (!requireUnlockedApp()) return;
     const contactTxs=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey);
     if(!contactTxs.length) return;
     const contactName=contactTxs[0].contact || 'Tanpa Nama';
@@ -539,7 +856,7 @@ function openDetailModalByContact(contactKey){
     const timeline=items.map(item=>{
         const isOrigin=item.kind==='tx'; let amountColor=isOrigin?(item.type==='hutang'?'text-rose-600':'text-teal-600'):'text-emerald-600'; let prefix=isOrigin?'+':'-'; let icon=isOrigin?(item.type==='hutang'?'ph-trend-down text-rose-500 bg-rose-100':'ph-trend-up text-teal-600 bg-teal-100'):'ph-check text-emerald-600 bg-emerald-100';
         const photo=item.image?`<button onclick="viewPhoto(${jsArg(item.image)})" class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 text-gray-700 text-[11px] font-semibold rounded-lg"><i class="ph-bold ph-image text-green-600"></i>Lihat Foto</button>`:'';
-        const action=isOrigin?`<div class="flex flex-wrap gap-1.5 mt-2"><button onclick="openTransactionModal(${jsArg(item.id)})" class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-bold"><i class="ph-bold ph-pencil"></i> Edit</button><button onclick="confirmDeleteTransaction(${jsArg(item.id)})" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 text-[10px] font-bold"><i class="ph-bold ph-trash"></i> Hapus</button><span class="px-2.5 py-1 rounded-lg bg-gray-50 text-gray-500 text-[10px] font-semibold">Sisa ${formatRupiah(item.remaining)}</span></div>`:'';
+        const action=isOrigin?`<div class="flex flex-wrap gap-1.5 mt-2"><button onclick="openTransactionModal(${jsArg(item.id)})" class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-bold"><i class="ph-bold ph-pencil"></i> Edit</button>${item.remaining>0?`<button onclick="openPayModalByTransaction(${jsArg(item.id)})" class="px-2.5 py-1 rounded-lg bg-green-600 text-white text-[10px] font-bold"><i class="ph-bold ph-hand-coins"></i> Bayar</button>`:''}<button onclick="confirmDeleteTransaction(${jsArg(item.id)})" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 text-[10px] font-bold"><i class="ph-bold ph-trash"></i> Hapus</button><span class="px-2.5 py-1 rounded-lg bg-gray-50 text-gray-500 text-[10px] font-semibold">Sisa ${formatRupiah(item.remaining)}</span></div>`:'';
         return `<div class="relative pl-6 pb-4 border-l-2 border-gray-200 last:border-l-0 last:pb-0"><div class="absolute -left-[13px] top-0 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm ${icon}"><i class="ph-bold ${icon.split(' ').slice(0,2).join(' ')}"></i></div><div class="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm"><div class="flex justify-between items-start gap-2"><div><span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase block">${formatDateShort(item.date)}</span><h4 class="font-bold text-gray-800 text-xs mt-0.5">${escapeHtml(item.title)}</h4></div><span class="font-black text-sm ${amountColor} whitespace-nowrap">${prefix}${formatRupiah(item.amount)}</span></div><p class="text-xs text-gray-500 leading-relaxed bg-gray-50/80 p-2 rounded-xl mt-1.5 border border-gray-100">${escapeHtml(item.note)}</p>${photo}${action}</div></div>`;
     }).join('');
     document.getElementById('detail-content').innerHTML=`<div class="bg-gradient-to-br from-green-50 via-white to-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3"><div class="flex items-center justify-between gap-3"><div class="flex items-center gap-3 min-w-0"><div class="w-11 h-11 rounded-2xl bg-white text-green-700 shadow-sm border border-green-100 flex items-center justify-center font-black text-lg">${escapeHtml(contactName.charAt(0).toUpperCase())}</div><div class="min-w-0"><h3 class="text-base font-black text-gray-900 leading-tight truncate">${escapeHtml(contactName)}</h3><p class="text-[11px] text-gray-500 font-medium">${contactTxs.length} transaksi</p></div></div>${status}</div><div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm"><div class="flex justify-between text-[11px] font-bold"><span class="text-gray-500">Kemajuan pembayaran</span><span class="text-green-600">${progress}%</span></div><div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mt-2"><div class="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full" style="width:${progress}%"></div></div></div><div class="grid grid-cols-2 gap-2"><div class="bg-white p-2.5 rounded-xl border border-gray-100"><span class="text-[10px] text-gray-400 font-bold uppercase block">Total Akumulasi</span><span class="font-extrabold text-gray-800 text-sm">${formatRupiah(totalPokok)}</span></div><div class="bg-white p-2.5 rounded-xl border border-gray-100"><span class="text-[10px] text-gray-400 font-bold uppercase block">Total Dibayar</span><span class="font-extrabold text-green-600 text-sm">${formatRupiah(totalBayar)}</span></div></div></div><div class="flex justify-between items-center px-1 pt-1"><h3 class="text-xs font-black text-gray-700 uppercase tracking-wider">Riwayat Transaksi</h3><button onclick="openTransactionModal('',${jsArg(contactName)})" class="text-[11px] font-bold text-green-600"><i class="ph-bold ph-plus-circle"></i> Tambah</button></div><div class="py-1">${timeline}</div><div class="pt-3 border-t border-gray-100"><div class="grid grid-cols-2 gap-2"><button onclick="downloadContactStatement(${jsArg(contactKey)})" class="bg-blue-50 text-blue-700 border border-blue-200 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-download-simple"></i> Download Nota</button><button onclick="downloadAttachment(${jsArg(contactKey)})" class="bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-paperclip"></i> Lampiran Foto</button><button onclick="confirmDeleteContact(${jsArg(contactKey)})" class="col-span-2 bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-trash"></i> Hapus Semua Transaksi Pihak Ini</button></div></div>`;
@@ -553,6 +870,7 @@ function downloadAttachment(contactKey){
     attachments.forEach((a,i)=>setTimeout(()=>{ const link=document.createElement('a'); link.download=a.name.replace(/[^a-z0-9_.-]/gi,'_'); link.href=a.src; link.click(); },i*250));
 }
 function downloadContactStatement(contactKey){
+    if (!requireUnlockedApp()) return;
     const txs=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey); if(!txs.length) return; const name=txs[0].contact||'Kontak';
     const canvas=document.createElement('canvas'); canvas.width=760; canvas.height=Math.max(900,280+txs.length*70); const ctx=canvas.getContext('2d');
     ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#16a34a'; ctx.fillRect(0,0,canvas.width,110); ctx.fillStyle='#fff'; ctx.font='bold 28px sans-serif'; ctx.fillText('BUKU CATATAN AYAH',30,45); ctx.font='18px sans-serif'; ctx.fillText('Laporan: '+name,30,78); ctx.fillStyle='#374151'; ctx.font='bold 20px sans-serif'; ctx.fillText('Ringkasan Transaksi',30,155); let y=195,totalH=0,totalP=0;
@@ -600,21 +918,25 @@ function buildKebutuhan(){
     return html;
 }
 
-function openSettings(){ refreshPhotoStorageStatus(); openModal('modal-settings'); }
-function downloadBackup(){ const payload={app:'Catatan Ayah',version:2,exportedAt:new Date().toISOString(),data:normalizeData(data)}; const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`catatan-ayah-backup-${todayStr()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); showToast('Backup berhasil dibuat.'); }
-async function restoreBackup(e){ const file=e.target.files?.[0]; e.target.value=''; if(!file) return; try{ const raw=await file.text(); const parsed=JSON.parse(raw); const restored=normalizeData(parsed?.data||parsed); if(!confirm(`Restore backup? ${restored.transactions.length} transaksi dan ${restored.needs.length} tagihan akan menggantikan data saat ini.`)) return; data=restored; await saveData(); renderApp(); refreshPhotoStorageStatus(); showToast('Restore berhasil.'); }catch(err){ console.error(err); showToast('File backup tidak valid.'); } }
-async function migrateLegacyPhotos(){ const jobs=[]; data.transactions.forEach(tx=>{ if(String(tx.image||'').startsWith('data:image/')) jobs.push({kind:'tx',tx,old:tx.image,folder:tx.contact||'transaksi',id:tx.id}); (tx.payments||[]).forEach(p=>{ if(String(p.image||'').startsWith('data:image/')) jobs.push({kind:'payment',tx,p,old:p.image,folder:tx.contact||'pembayaran',id:p.id}); }); }); if(!jobs.length){ refreshPhotoStorageStatus(); showToast('Tidak ada foto lama yang perlu dimigrasikan.'); return; } if(!confirm(`Ada ${jobs.length} foto lama. Migrasikan ke Firebase Storage sekarang?`)) return; let success=0,failed=0; for(let i=0;i<jobs.length;i++){ const job=jobs[i]; try{ const url=await uploadDataUrlToStorage(job.old,job.folder,job.id); if(job.kind==='tx') job.tx.image=url; else job.p.image=url; success++; }catch(err){ console.warn('Migrasi gagal',job.id,err); failed++; } if((i+1)%2===0) showToast(`Migrasi foto ${i+1}/${jobs.length}...`); } if(success) await saveData(); refreshPhotoStorageStatus(); showToast(`Migrasi selesai: ${success} berhasil, ${failed} gagal.`); }
+function openSettings(){ if(!requireUnlockedApp()) return; refreshPhotoStorageStatus(); openModal('modal-settings'); }
+function downloadBackup(){ if(!requireUnlockedApp()) return; const payload={app:'Catatan Ayah',version:2,exportedAt:new Date().toISOString(),data:normalizeData(data)}; const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`catatan-ayah-backup-${todayStr()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); showToast('Backup berhasil dibuat.'); }
+async function restoreBackup(e){ if(!requireUnlockedApp()) { if(e?.target) e.target.value=''; return; } const file=e.target.files?.[0]; e.target.value=''; if(!file) return; let parsedSuccessfully=false; try{ const raw=await file.text(); const parsed=JSON.parse(raw); const restored=normalizeData(parsed?.data||parsed); if(!confirm(`Restore backup? ${restored.transactions.length} transaksi dan ${restored.needs.length} tagihan akan menggantikan data saat ini.`)) return; parsedSuccessfully=true; data=restored; await saveData({replaceAll:true}); renderApp(); refreshPhotoStorageStatus(); showToast('Restore berhasil.'); }catch(err){ console.error(err); showToast(parsedSuccessfully?'Restore gagal disimpan ke Firebase. Data sebelumnya dipulihkan.':'File backup tidak valid atau formatnya tidak didukung.'); } }
+async function migrateLegacyPhotos(){ if(!requireUnlockedApp()) return; showToast('Migrasi foto ditangguhkan sampai Firebase Storage, billing, dan Storage Rules dikonfigurasi. Lampiran lama tidak diubah.'); }
 
-function renderApp(){ const c=document.getElementById('app-container'); if(!c) return; c.innerHTML=currentTab==='beranda'?buildBeranda():currentTab==='transaksi'?buildTransaksi():buildKebutuhan(); }
+function renderApp(){ if(!isAppUnlocked()) return; const c=document.getElementById('app-container'); if(!c) return; c.innerHTML=currentTab==='beranda'?buildBeranda():currentTab==='transaksi'?buildTransaksi():buildKebutuhan(); }
 
 function initApp(){
-    const dateEl=document.getElementById('current-date'); if(dateEl) dateEl.textContent=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-    loadLocalData(); updatePinScreens(); refreshPhotoStorageStatus();
+    const dateEl=document.getElementById('current-date');
+    if(dateEl) dateEl.textContent=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    refreshPhotoStorageStatus();
+    document.getElementById('screen-auth').classList.remove('hidden');
+    hideProtectedScreens();
+    onAuthStateChanged(auth, user => { void handleAuthStateChanged(user); });
 }
 
 window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup; window.migrateLegacyPhotos=migrateLegacyPhotos;
 window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch;
-window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.viewPhoto=viewPhoto; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.downloadAttachment=downloadAttachment; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
+window.authLogin=authLogin; window.logoutFirebaseAccount=logoutFirebaseAccount; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.viewPhoto=viewPhoto; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.downloadAttachment=downloadAttachment; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
 document.addEventListener('DOMContentLoaded', initApp);
 </script>
