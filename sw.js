@@ -1,10 +1,10 @@
 /*
- * Catatan Ayah PWA service worker.
+ * Catatan Utang Piutang PWA service worker.
  * Only same-origin static app assets are cached. Firebase/Auth/API responses,
  * transaction data, and cross-origin requests are deliberately never cached.
  */
 const CACHE_PREFIX = 'catatan-ayah-static-';
-const CACHE_NAME = `${CACHE_PREFIX}v3`;
+const CACHE_NAME = `${CACHE_PREFIX}v4`;
 const SCOPE_URL = new URL(self.registration.scope);
 const OFFLINE_URL = new URL('offline.html', SCOPE_URL).href;
 const STATIC_URLS = [
@@ -48,7 +48,7 @@ self.addEventListener('fetch', event => {
         return await fetch(request, { cache: 'no-store' });
       } catch {
         const cachedOffline = await caches.match(OFFLINE_URL);
-        return cachedOffline || new Response('Koneksi internet diperlukan untuk membuka Catatan Ayah.', {
+        return cachedOffline || new Response('Koneksi internet diperlukan untuk membuka Catatan Utang Piutang.', {
           status: 503,
           headers: { 'Content-Type': 'text/plain; charset=utf-8' }
         });
