@@ -1642,7 +1642,7 @@ async function migrateLegacyPhotos(){
     if(saveInProgress){showToast('Tunggu proses penyimpanan yang sedang berjalan.');return;}
     const targets=[];
     data.transactions.forEach(tx=>{if(String(tx.image||'').startsWith('data:image/'))targets.push({txId:tx.id,paymentId:null});(tx.payments||[]).forEach(p=>{if(String(p.image||'').startsWith('data:image/'))targets.push({txId:tx.id,paymentId:p.id});});});
-    if(!targets.length){refreshPhotoStorageStatus();showToast('Tidak ada foto Base64 lama yang perlu dimigrasikan. Referensi ImageKit lama tidak dihapus.');return;}
+    if(!targets.length){refreshPhotoStorageStatus();showToast('Tidak ada foto Base64 lama yang perlu dimigrasikan.');return;}
     if(!googleDriveAccessToken||googleDriveTokenExpiresAt<Date.now()+15000){showToast('Hubungkan Google Drive terlebih dahulu.');return;}
     if(!confirm(`Migrasi ${targets.length} foto Base64 lama ke Google Drive? Setiap foto akan dikompres maksimal 100 KB. Referensi di Firebase hanya diganti setelah upload berhasil. Unduh backup JSON sebelum melanjutkan.`))return;
     const button=document.getElementById('btn-migrate-photos');if(button){button.disabled=true;button.classList.add('opacity-60');}
