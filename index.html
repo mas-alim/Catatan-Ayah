@@ -306,7 +306,6 @@
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
                 <button id="btn-connect-google-drive" onclick="connectGoogleDrive()" class="w-full flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center"><i class="ph-bold ph-google-drive-logo text-lg"></i></div><div class="min-w-0"><p id="google-drive-connect-title" class="font-bold text-sm text-gray-800">Hubungkan Google Drive</p><p id="google-drive-connect-caption" class="text-[11px] text-gray-500">Foto privat disimpan di Drive pemilik, dengan target maksimal 100 KB per foto.</p></div></button>
                 <button id="btn-migrate-photos" onclick="migrateLegacyPhotos()" class="w-full flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-gray-200 text-gray-600 flex items-center justify-center"><i class="ph-bold ph-images-square text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Migrasi Foto Lama</p><p class="text-[11px] text-gray-500">Kompres foto Base64 lama hingga maksimal 100 KB lalu pindahkan ke Google Drive.</p></div></button>
-                <button type="button" id="btn-cleanup-imagekit" onclick="removeLegacyImageKitReferences()" style="position:relative;z-index:5;pointer-events:auto;cursor:pointer;touch-action:manipulation" class="w-full flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center"><i class="ph-bold ph-trash text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-red-800">Hapus Referensi Foto ImageKit</p><p class="text-[11px] text-red-700">Hapus hanya referensi foto ImageKit dari database. Transaksi dan riwayat pembayaran tetap dipertahankan.</p></div></button>
                 <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4"><div class="flex justify-between items-center mb-1 gap-2"><p class="text-xs font-bold text-gray-700">Penyimpanan foto</p><span id="photo-storage-status" class="text-[10px] font-bold text-amber-700 text-right">Belum diperiksa</span></div><p id="photo-legacy-count" class="text-[10px] text-gray-500">Memeriksa lampiran lama...</p></div>
                 <button onclick="lockApp(); closeModal('modal-settings')" class="w-full flex items-center justify-center gap-2 p-3.5 bg-gray-900 text-white rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-lock-key"></i> Kunci Aplikasi (PIN)</button>
                 <button onclick="logoutFirebaseAccount()" class="w-full flex items-center justify-center gap-2 p-3.5 bg-red-50 text-red-700 border border-red-100 rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-sign-out"></i> Keluar dari Akun</button>
@@ -931,7 +930,6 @@ function photoUserMessage(error){
     if(code==='PHOTO_UNSUPPORTED') return 'Foto tidak dapat dibaca. Gunakan JPEG, PNG, atau WebP.';
     if(code==='PHOTO_INPUT_TOO_LARGE') return 'Foto asli maksimal 15 MB sebelum kompresi.';
     if(code==='PHOTO_FILE_INVALID') return 'Referensi foto Google Drive tidak valid.';
-    if(code==='LEGACY_IMAGEKIT_REFERENCE') return 'Foto ini masih merujuk ke ImageKit lama. Integrasi ImageKit sudah dihentikan; referensi tidak dihapus, tetapi foto ini belum dimigrasikan ke Google Drive.';
     if(code==='LEGACY_DRIVE_REFERENCE') return 'Lampiran ini menggunakan format referensi Drive versi lama yang belum dikenali. Referensi asli dipertahankan.';
     return `Operasi foto gagal. Kode diagnostik: ${code || 'UNKNOWN'}.`;
 }
@@ -1058,7 +1056,6 @@ function makeDriveFileName(itemId,extension){
     const safeId=String(itemId||'foto').replace(/[^a-z0-9_-]/gi,'').slice(0,40)||'foto';
     return `catatan-ayah-${safeId}-${Date.now().toString(36)}.${extension}`;
 }
-function isLegacyImageKitPhoto(reference){return typeof reference==='string'&&reference.startsWith('imagekit:');}
 function isGoogleDrivePhoto(reference){return typeof reference==='string'&&reference.startsWith('gdrive:')&&reference.slice(7).length>0;}
 function parseGoogleDriveFileId(reference){
     if(!isGoogleDrivePhoto(reference)) return null;
@@ -1104,45 +1101,6 @@ async function getGoogleDrivePhotoBlob(reference){
     if(!String(blob.type||'').startsWith('image/')||blob.size===0) throw new Error('GOOGLE_DRIVE_READ_FAILED');
     return blob;
 }
-async function removeLegacyImageKitReferences(){
-    console.info('[Catatan Ayah] Tombol pembersihan ImageKit ditekan.');
-    if(!requireUnlockedApp()){showToast('Silakan buka kunci aplikasi terlebih dahulu.');return;}
-    if(saveInProgress){showToast('Tunggu proses penyimpanan yang sedang berjalan.');return;}
-    const total=countLegacyImageKitPhotos();
-    if(!total){refreshPhotoStorageStatus();showToast('Tidak ada referensi foto ImageKit yang perlu dihapus.');return;}
-    const backupConfirmed=confirm('PENTING: Sebelum penghapusan permanen, buat backup JSON dari menu Pengaturan. Apakah backup terbaru sudah berhasil diunduh dan disimpan?');
-    if(!backupConfirmed)return;
-    const proceed=confirm(`HAPUS PERMANEN ${total} referensi foto ImageKit dari database? Yang dihapus hanya field foto pada transaksi/pembayaran yang memakai awalan "imagekit:". Data transaksi, nominal, tanggal, status, dan seluruh riwayat pembayaran tidak akan dihapus. File fisik di ImageKit tidak ikut dihapus.`);
-    if(!proceed)return;
-    const button=document.getElementById('btn-cleanup-imagekit');
-    if(button){button.disabled=true;button.classList.add('opacity-60');}
-    const before=cloneData(data);
-    let removed=0;
-    try{
-        data.transactions.forEach(tx=>{
-            if(isLegacyImageKitPhoto(tx.image)){delete tx.image;removed++;}
-            (tx.payments||[]).forEach(payment=>{
-                if(isLegacyImageKitPhoto(payment.image)){delete payment.image;removed++;}
-            });
-        });
-        await saveData();
-        refreshPhotoStorageStatus();
-        renderApp();
-        showToast(`Selesai: ${removed} referensi ImageKit dihapus. Transaksi dan riwayat pembayaran dipertahankan.`);
-    }catch(error){
-        data=before;
-        console.error('Penghapusan referensi ImageKit gagal:',error);
-        showToast('Gagal menyimpan penghapusan ke Firebase. Data lokal dipulihkan; periksa koneksi lalu coba lagi.');
-    }finally{
-        if(button){button.disabled=false;button.classList.remove('opacity-60');}
-    }
-}
-
-function countLegacyImageKitPhotos(){
-    let count=0;
-    data.transactions.forEach(tx=>{if(isLegacyImageKitPhoto(tx.image))count++;(tx.payments||[]).forEach(p=>{if(isLegacyImageKitPhoto(p.image))count++;});});
-    return count;
-}
 function countLegacyPhotos(){
     let count=0;
     data.transactions.forEach(tx=>{if(String(tx.image||'').startsWith('data:image/'))count++;(tx.payments||[]).forEach(p=>{if(String(p.image||'').startsWith('data:image/'))count++;});});
@@ -1158,11 +1116,8 @@ function refreshPhotoStorageStatus(){
     if(title)title.textContent=connected?'Google Drive Terhubung':'Hubungkan Google Drive';
     if(caption)caption.textContent=connected?'Foto disimpan privat di Drive pemilik. Batas ukuran foto 100 KB.':'Hubungkan akun Google pemilik untuk menyimpan dan membaca foto privat.';
     if(legacy){
-        const base64=countLegacyPhotos(),oldImageKit=countLegacyImageKitPhotos();
-        const parts=[];
-        if(base64)parts.push(`${base64} foto Base64 lama`);
-        if(oldImageKit)parts.push(`${oldImageKit} foto ImageKit lama yang belum dimigrasikan`);
-        legacy.textContent=parts.length?parts.join('; ')+'. Unduh backup JSON sebelum migrasi.':'Tidak ada foto Base64 atau referensi ImageKit lama yang terdeteksi.';
+        const base64=countLegacyPhotos();
+        legacy.textContent=base64?`${base64} foto Base64 lama terdeteksi. Buat backup sebelum migrasi ke Google Drive.`:'Tidak ada foto Base64 lama yang perlu dimigrasikan.';
     }
 }
 
@@ -1329,8 +1284,6 @@ async function viewPhoto(src){
             img.src=photoObjectUrl;img.alt='Bukti Foto';
         }else if(typeof src==='string'&&src.startsWith('data:image/')){
             img.src=src;img.alt='Bukti Foto';
-        }else if(isLegacyImageKitPhoto(src)){
-            throw new Error('LEGACY_IMAGEKIT_REFERENCE');
         }else if(typeof src==='string'&&src.startsWith('drive:')){
             throw new Error('LEGACY_DRIVE_REFERENCE');
         }else{
@@ -1383,7 +1336,7 @@ async function downloadAttachment(contactKey){
             }else if(typeof item.src==='string'&&item.src.startsWith('data:image/')){
                 const blob=await dataUrlToBlob(item.src);const url=URL.createObjectURL(blob);const ext=blob.type==='image/webp'?'webp':blob.type==='image/png'?'png':'jpg';
                 const link=document.createElement('a');link.download=`${item.name.replace(/[^a-z0-9_.-]/gi,'_')}.${ext}`;link.href=url;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);opened++;
-            }else if(isLegacyImageKitPhoto(item.src)|| (typeof item.src==='string'&&item.src.startsWith('drive:'))){
+            }else if(typeof item.src==='string'&&item.src.startsWith('drive:')){
                 unavailable++;
             }
             await new Promise(resolve=>setTimeout(resolve,180));
@@ -1740,7 +1693,7 @@ function initApp(){
 
 window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.updateTxImageSelection=updateTxImageSelection; window.restoreBackup=restoreBackup; window.migrateLegacyPhotos=migrateLegacyPhotos; window.connectGoogleDrive=connectGoogleDrive;
 window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
-window.authLogin=authLogin; window.logoutFirebaseAccount=logoutFirebaseAccount; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.viewPhoto=viewPhoto; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.removeLegacyImageKitReferences=removeLegacyImageKitReferences; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.downloadAttachment=downloadAttachment; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
+window.authLogin=authLogin; window.logoutFirebaseAccount=logoutFirebaseAccount; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.viewPhoto=viewPhoto; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.downloadAttachment=downloadAttachment; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
 document.addEventListener('DOMContentLoaded', initApp);
 </script>
