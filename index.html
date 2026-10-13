@@ -481,8 +481,9 @@ function clearSensitiveInMemoryData() {
     data = { transactions: [], needs: [] };
     lastStableData = null;
     activePayTx = null;
-    imageKitBackendReady = false;
-    imageKitSignedUrlCache.clear();
+    googleDriveAccessToken = '';
+    googleDriveTokenExpiresAt = 0;
+    googleDriveFolderId = '';
     clearSensitiveLocalCache();
 
     // Hide and clear protected DOM too; hidden markup should not retain contact names,
