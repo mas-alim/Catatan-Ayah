@@ -305,7 +305,8 @@
                 <button onclick="document.getElementById('restore-file').click()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><i class="ph-bold ph-upload-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Restore Data</p><p class="text-[11px] text-gray-500">Impor backup JSON dan mengganti data saat ini.</p></div></button>
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
                 <button id="btn-connect-google-drive" onclick="connectGoogleDrive()" class="w-full flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center"><i class="ph-bold ph-google-drive-logo text-lg"></i></div><div class="min-w-0"><p id="google-drive-connect-title" class="font-bold text-sm text-gray-800">Hubungkan Google Drive</p><p id="google-drive-connect-caption" class="text-[11px] text-gray-500">Foto privat disimpan di Drive pemilik, dengan target maksimal 100 KB per foto.</p></div></button>
-                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4"><div class="flex justify-between items-center gap-2"><p class="text-xs font-bold text-gray-700">Status Google Drive</p><span id="photo-storage-status" class="text-[10px] font-bold text-amber-700 text-right">Belum diperiksa</span></div><p class="text-[10px] text-gray-500 mt-1">Foto baru disimpan privat di Google Drive. Lampiran lama tetap dipertahankan apa adanya.</p></div>
+                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4"><div class="flex justify-between items-center gap-2"><p class="text-xs font-bold text-gray-700">Status Google Drive</p><span id="photo-storage-status" class="text-[10px] font-bold text-amber-700 text-right">Belum diperiksa</span></div><p class="text-[10px] text-gray-500 mt-1">Foto baru disimpan privat di Google Drive. Lampiran lama tetap dipertahankan sampai migrasi berhasil.</p></div>
+                 <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4"><div class="flex items-center gap-2"><i class="ph-bold ph-hard-drives text-amber-700"></i><p class="text-xs font-bold text-gray-800">Optimasi Foto Lama</p></div><p id="photo-legacy-count" class="text-[10px] text-gray-600 mt-1">Jumlah lampiran Base64 akan diperiksa saat menu ini dibuka.</p><p id="photo-migration-progress" class="text-[10px] text-gray-500 mt-1">Belum ada proses migrasi.</p><button id="btn-migrate-legacy-photos" onclick="migrateLegacyPhotos()" class="w-full mt-3 rounded-xl border border-amber-200 bg-white text-amber-800 px-3 py-2.5 text-xs font-bold">Pindahkan Foto Lama ke Drive</button><p class="text-[10px] text-gray-500 mt-2">Proses meminta konfirmasi backup. Referensi Firebase baru diganti setelah unggahan foto ke Drive berhasil.</p></div>
                 <button onclick="lockApp(); closeModal('modal-settings')" class="w-full flex items-center justify-center gap-2 p-3.5 bg-gray-900 text-white rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-lock-key"></i> Kunci Aplikasi (PIN)</button>
                 <button onclick="logoutFirebaseAccount()" class="w-full flex items-center justify-center gap-2 p-3.5 bg-red-50 text-red-700 border border-red-100 rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-sign-out"></i> Keluar dari Akun</button>
                 <p class="text-center text-[10px] text-gray-400 pt-1">Catatan Ayah • Rekonstruksi 2026 • Firebase Auth + PIN lokal.</p>
@@ -370,6 +371,7 @@ let saveInProgress = false;
 let txSearchRenderTimer = null;
 let remoteRenderScheduled = false;
 let photoObjectUrl = null;
+let photoMigrationRunning = false;
 let googleDriveAccessToken = '';
 let googleDriveTokenExpiresAt = 0;
 let googleDriveTokenClient = null;
@@ -1255,7 +1257,7 @@ async function uploadCompressedPhoto(blobInfo,itemId){
     if(!file.id) throw new Error('GOOGLE_DRIVE_UPLOAD_FAILED');
     return `gdrive:${file.id}`;
 }
-async function uploadImageToStorage(file,folder,itemId){
+async function uploadImageToStorage(file,itemId){
     if(!file)return null;
     const compressed=await compressPhotoBlob(file);
     return uploadCompressedPhoto(compressed,itemId);
@@ -1268,6 +1270,34 @@ async function getGoogleDrivePhotoBlob(reference){
     if(!String(blob.type||'').startsWith('image/')||blob.size===0) throw new Error('GOOGLE_DRIVE_READ_FAILED');
     return blob;
 }
+function collectLegacyPhotoTargets(){
+    const targets=[];
+    data.transactions.forEach(tx=>{
+        if(typeof tx.image==='string'&&tx.image.startsWith('data:image/')){
+            targets.push({kind:'transaction',transactionId:tx.id,paymentId:null,image:tx.image,itemId:tx.id||'transaksi'});
+        }
+        (Array.isArray(tx.payments)?tx.payments:[]).forEach(payment=>{
+            if(typeof payment.image==='string'&&payment.image.startsWith('data:image/')){
+                targets.push({kind:'payment',transactionId:tx.id,paymentId:payment.id,image:payment.image,itemId:payment.id||tx.id||'pembayaran'});
+            }
+        });
+    });
+    return targets;
+}
+function findLegacyPhotoRecord(target){
+    const tx=data.transactions.find(item=>item.id===target.transactionId);
+    if(!tx)return null;
+    if(target.kind==='transaction')return tx;
+    return (Array.isArray(tx.payments)?tx.payments:[]).find(payment=>payment.id===target.paymentId)||null;
+}
+function updateLegacyPhotoCount(){
+    const output=document.getElementById('photo-legacy-count');
+    if(!output)return;
+    const count=collectLegacyPhotoTargets().length;
+    output.textContent=count
+        ? count+' lampiran Base64 masih berada di data Firebase. Foto akan dipadatkan dan dipindahkan ke Google Drive.'
+        : 'Tidak ditemukan lampiran Base64 pada foto transaksi atau riwayat pembayaran.';
+}
 function refreshPhotoStorageStatus(){
     const status=document.getElementById('photo-storage-status');
     const title=document.getElementById('google-drive-connect-title');
@@ -1276,6 +1306,81 @@ function refreshPhotoStorageStatus(){
     if(status){status.textContent=connected?'Google Drive terhubung':'Belum terhubung';status.className=`text-[10px] font-bold text-right ${connected?'text-green-700':'text-amber-700'}`;}
     if(title)title.textContent=connected?'Google Drive Terhubung':'Hubungkan Google Drive';
     if(caption)caption.textContent=connected?'Foto baru disimpan privat di Drive pemilik. Batas ukuran foto 100 KB.':'Hubungkan akun Google pemilik untuk menyimpan dan membaca foto baru secara privat.';
+}
+async function migrateLegacyPhotos(){
+    if(!requireUnlockedApp())return;
+    if(photoMigrationRunning)return;
+    const targets=collectLegacyPhotoTargets();
+    if(!targets.length){
+        updateLegacyPhotoCount();
+        showToast('Tidak ada lampiran Base64 lama yang perlu dipindahkan.');
+        return;
+    }
+    try{requireGoogleDriveToken();}catch(error){showToast(photoUserMessage(error));return;}
+    if(!confirm('OPTIMASI FOTO LAMA\n\nSebelum melanjutkan, buka Pengaturan lalu unduh Backup Data terbaru. Backup JSON adalah salinan pemulihan jika diperlukan.\n\nProses ini memadatkan foto lama, mengunggahnya ke Google Drive, lalu mengganti referensi Base64 di Firebase hanya setelah setiap batch berhasil disimpan. Lanjutkan?'))return;
+    if(prompt('Konfirmasi terakhir: ketik PINDAHKAN FOTO untuk memulai migrasi.')!=='PINDAHKAN FOTO'){
+        showToast('Migrasi dibatalkan. Data Firebase tidak diubah.');
+        return;
+    }
+    photoMigrationRunning=true;
+    const button=document.getElementById('btn-migrate-legacy-photos');
+    const progress=document.getElementById('photo-migration-progress');
+    if(button){button.disabled=true;button.classList.add('opacity-60');button.textContent='Migrasi sedang berjalan...';}
+    const setProgress=message=>{if(progress)progress.textContent=message;};
+    let migrated=0;
+    let skipped=0;
+    const cachedReferences=new Map();
+    try{
+        await ensureGoogleDriveFolder();
+        const batchSize=3;
+        for(let start=0;start<targets.length;start+=batchSize){
+            const batch=targets.slice(start,start+batchSize);
+            const pending=[];
+            for(let index=0;index<batch.length;index++){
+                const target=batch[index];
+                const record=findLegacyPhotoRecord(target);
+                if(!record||record.image!==target.image){skipped++;continue;}
+                let driveReference=cachedReferences.get(target.image);
+                if(!driveReference){
+                    setProgress('Mengunggah foto '+(start+index+1)+' dari '+targets.length+'...');
+                    const originalBlob=await dataUrlToBlob(target.image);
+                    const compressed=await compressPhotoBlob(originalBlob);
+                    driveReference=await uploadCompressedPhoto(compressed,target.itemId);
+                    cachedReferences.set(target.image,driveReference);
+                }
+                pending.push({target,driveReference});
+            }
+            let changed=0;
+            for(const item of pending){
+                const record=findLegacyPhotoRecord(item.target);
+                if(record&&record.image===item.target.image){
+                    record.image=item.driveReference;
+                    changed++;
+                }else skipped++;
+            }
+            if(changed){
+                // Commit per batch. If Firebase rejects it, saveData restores the last
+                // stable snapshot, leaving the original Base64 references in Firebase.
+                await saveData();
+                migrated+=changed;
+            }
+            setProgress('Tersimpan '+migrated+' dari '+targets.length+' foto lama...');
+        }
+        const remaining=collectLegacyPhotoTargets().length;
+        setProgress('Selesai: '+migrated+' foto dipindahkan; '+remaining+' lampiran Base64 tersisa.');
+        showToast(migrated
+            ? migrated+' foto lama berhasil dipindahkan ke Google Drive. '+remaining+' lampiran Base64 tersisa.'
+            : 'Tidak ada foto yang perlu diperbarui. Referensi asli tetap dipertahankan.');
+    }catch(error){
+        console.error('Legacy photo migration stopped:',error);
+        setProgress('Dihentikan setelah '+migrated+' foto tersimpan. Lampiran yang belum berhasil tetap memakai referensi lama.');
+        showToast('Migrasi dihentikan. '+photoUserMessage(error)+' Foto yang belum tersimpan tetap dipertahankan di Firebase.');
+    }finally{
+        photoMigrationRunning=false;
+        if(button){button.disabled=false;button.classList.remove('opacity-60');button.textContent='Pindahkan Foto Lama ke Drive';}
+        refreshPhotoStorageStatus();
+        updateLegacyPhotoCount();
+    }
 }
 
 async function saveTransaction(e){
@@ -1304,7 +1409,7 @@ async function saveTransaction(e){
         if(imageFile){
             try{
                 // Foto opsional. Kegagalan upload tidak boleh menggagalkan penyimpanan transaksi.
-                uploadedImage=await uploadImageToStorage(imageFile,contact,itemId);
+                uploadedImage=await uploadImageToStorage(imageFile,itemId);
             }catch(uploadError){
                 photoError=uploadError;
                 console.warn('Foto gagal diunggah; transaksi tetap akan disimpan.',uploadError);
@@ -1396,7 +1501,7 @@ async function savePayment(e){
     const btn=document.getElementById('btn-save-pay'); btn.disabled=true; btn.classList.add('disabled');
     try{
         const paymentId=generateId();
-        const paymentImage=imageFile?await uploadImageToStorage(imageFile,tx.contact||'pembayaran',paymentId):null;
+        const paymentImage=imageFile?await uploadImageToStorage(imageFile,paymentId):null;
         const currentTx=data.transactions.find(item=>item.id===txId);
         if(!currentTx) throw new Error('TRANSACTION_NOT_FOUND');
         const currentRemaining=getTxRemaining(currentTx);
@@ -1661,6 +1766,7 @@ function openSettings() {
     if (!requireUnlockedApp()) return;
     refreshPhotoStorageStatus();
     openModal('modal-settings');
+    updateLegacyPhotoCount();
     // Load the Google OAuth client only when settings/Drive features are requested.
     void loadGoogleIdentityServices().catch(error => console.warn('Google Identity Services not ready yet:', error));
 }
