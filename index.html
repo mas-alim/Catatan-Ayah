@@ -431,18 +431,83 @@ function cloneData(input) {
     return normalizeData(JSON.parse(JSON.stringify(source)));
 }
 
-async function hashPin(pin) {
-    try {
-        const encoded = new TextEncoder().encode(pin);
-        const buffer = await crypto.subtle.digest('SHA-256', encoded);
-        return 'sha256:' + [...new Uint8Array(buffer)].map(b=>b.toString(16).padStart(2,'0')).join('');
-    } catch {
-        let h=2166136261;
-        for(let i=0;i<pin.length;i++){ h^=pin.charCodeAt(i); h=Math.imul(h,16777619); }
-        return 'fallback:' + (h>>>0).toString(16);
-    }
+const PIN_PBKDF2_ITERATIONS = 210000;
+
+function bytesToHex(bytes) {
+    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 }
-async function verifyPin(pin, stored) { return stored === await hashPin(pin); }
+
+function fallbackPinHash(pin) {
+    let h = 2166136261;
+    for (let i = 0; i < pin.length; i++) { h ^= pin.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return 'fallback:' + (h >>> 0).toString(16);
+}
+
+async function legacySha256Pin(pin) {
+    if (!globalThis.crypto?.subtle) return null;
+    const encoded = new TextEncoder().encode(pin);
+    const buffer = await crypto.subtle.digest('SHA-256', encoded);
+    return 'sha256:' + bytesToHex(new Uint8Array(buffer));
+}
+
+async function derivePinDigest(pin, salt, iterations) {
+    const material = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(pin),
+        'PBKDF2',
+        false,
+        ['deriveBits']
+    );
+    const bits = await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+        material,
+        256
+    );
+    return bytesToHex(new Uint8Array(bits));
+}
+
+async function hashPin(pin) {
+    if (!globalThis.crypto?.subtle || !globalThis.crypto?.getRandomValues) {
+        throw new Error('PIN_CRYPTO_UNAVAILABLE');
+    }
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const digest = await derivePinDigest(pin, salt, PIN_PBKDF2_ITERATIONS);
+    return 'pbkdf2-sha256$' + PIN_PBKDF2_ITERATIONS + '$' + bytesToHex(salt) + '$' + digest;
+}
+
+function constantTimeHexEqual(left, right) {
+    if (typeof left !== 'string' || typeof right !== 'string' || left.length !== right.length) return false;
+    let difference = 0;
+    for (let i = 0; i < left.length; i++) difference |= left.charCodeAt(i) ^ right.charCodeAt(i);
+    return difference === 0;
+}
+
+async function verifyPin(pin, stored) {
+    if (typeof stored !== 'string' || !stored) return false;
+
+    if (stored.startsWith('pbkdf2-sha256$')) {
+        const parts = stored.split('$');
+        if (parts.length !== 4) return false;
+        const iterations = Number(parts[1]);
+        const saltHex = parts[2];
+        const expectedHex = parts[3];
+        if (!Number.isInteger(iterations) || iterations < 100000 || iterations > 500000) return false;
+        if (!/^[a-f0-9]{32}$/i.test(saltHex) || !/^[a-f0-9]{64}$/i.test(expectedHex)) return false;
+        if (!globalThis.crypto?.subtle) throw new Error('PIN_CRYPTO_UNAVAILABLE');
+        const salt = new Uint8Array(saltHex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+        const actualHex = await derivePinDigest(pin, salt, iterations);
+        return constantTimeHexEqual(actualHex, expectedHex.toLowerCase());
+    }
+
+    // Backward compatibility: verify old SHA-256, fallback-hash, or plain legacy PIN.
+    if (stored.startsWith('sha256:')) {
+        const oldDigest = await legacySha256Pin(pin);
+        return oldDigest !== null && constantTimeHexEqual(oldDigest, stored);
+    }
+    if (stored.startsWith('fallback:')) return constantTimeHexEqual(fallbackPinHash(pin), stored);
+    return pin === stored;
+}
+
 
 function showToast(message) {
     const toast=document.getElementById('toast');
@@ -734,26 +799,53 @@ function updatePinScreens() {
 async function savePin(e) {
     e.preventDefault();
     if (!isOwnerAuthenticated()) { updatePinScreens(); return; }
-    const input = document.getElementById('setup-pin'); const pin = input.value.trim();
+    const input = document.getElementById('setup-pin');
+    const pin = input.value.trim();
     if (!/^\d{6}$/.test(pin)) { showToast('PIN harus 6 digit angka.'); return; }
-    localStorage.setItem(PIN_KEY, await hashPin(pin));
-    input.value = '';
-    unlockApp();
-    showToast('PIN berhasil dibuat.');
+    try {
+        const verifier = await hashPin(pin);
+        localStorage.setItem(PIN_KEY, verifier);
+        input.value = '';
+        unlockApp();
+        showToast('PIN berhasil dibuat.');
+    } catch (error) {
+        console.error('PIN setup failed:', error);
+        showToast('PIN tidak dapat disimpan. Pastikan aplikasi dibuka melalui HTTPS dan browser mendukung Web Crypto.');
+    }
 }
 
 async function login(e) {
     e.preventDefault();
     if (!isOwnerAuthenticated()) { updatePinScreens(); return; }
-    const input = document.getElementById('login-pin'); const pin = input.value.trim();
-    const stored = localStorage.getItem(PIN_KEY); const error = document.getElementById('login-error');
+    const input = document.getElementById('login-pin');
+    const pin = input.value.trim();
+    const stored = localStorage.getItem(PIN_KEY);
+    const error = document.getElementById('login-error');
     if (!stored) { updatePinScreens(); return; }
+
     let ok = false;
-    if (stored.startsWith('sha256:') || stored.startsWith('fallback:')) ok = await verifyPin(pin, stored);
-    else { ok = pin === stored; if (ok) localStorage.setItem(PIN_KEY, await hashPin(pin)); }
+    try {
+        ok = await verifyPin(pin, stored);
+        // Upgrade older PIN records after successful verification, without blocking login
+        // if browser storage or Web Crypto prevents the migration.
+        if (ok && !stored.startsWith('pbkdf2-sha256$')) {
+            try {
+                localStorage.setItem(PIN_KEY, await hashPin(pin));
+            } catch (migrationError) {
+                console.warn('Legacy PIN verifier migration skipped:', migrationError);
+            }
+        }
+    } catch (verificationError) {
+        console.error('PIN verification failed:', verificationError);
+        input.value = '';
+        showToast('Verifikasi PIN gagal karena fitur keamanan browser tidak tersedia. Buka aplikasi melalui HTTPS.');
+        return;
+    }
+
     if (ok) { error.classList.add('hidden'); input.value = ''; unlockApp(); }
     else { error.classList.remove('hidden'); input.value = ''; input.focus(); }
 }
+
 
 async function unlockApp() {
     if (!isOwnerAuthenticated()) { updatePinScreens(); return; }
@@ -933,20 +1025,33 @@ function photoUserMessage(error){
     if(code==='LEGACY_DRIVE_REFERENCE') return 'Lampiran ini menggunakan format referensi Drive versi lama yang belum dikenali. Referensi asli dipertahankan.';
     return `Operasi foto gagal. Kode diagnostik: ${code || 'UNKNOWN'}.`;
 }
-function loadGoogleIdentityServices(){
-    if(window.google?.accounts?.oauth2) return Promise.resolve();
-    if(googleIdentityScriptPromise) return googleIdentityScriptPromise;
-    googleIdentityScriptPromise=new Promise((resolve,reject)=>{
-        const script=document.createElement('script');
-        script.src='https://accounts.google.com/gsi/client';
-        script.async=true;
-        script.defer=true;
-        script.onload=()=>window.google?.accounts?.oauth2?resolve():reject(new Error('GOOGLE_IDENTITY_NOT_READY'));
-        script.onerror=()=>reject(new Error('GOOGLE_IDENTITY_NOT_READY'));
+function loadGoogleIdentityServices() {
+    if (window.google?.accounts?.oauth2) return Promise.resolve();
+    if (googleIdentityScriptPromise) return googleIdentityScriptPromise;
+
+    googleIdentityScriptPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+            if (window.google?.accounts?.oauth2) resolve();
+            else {
+                script.remove();
+                googleIdentityScriptPromise = null;
+                reject(new Error('GOOGLE_IDENTITY_NOT_READY'));
+            }
+        };
+        script.onerror = () => {
+            script.remove();
+            googleIdentityScriptPromise = null;
+            reject(new Error('GOOGLE_IDENTITY_NOT_READY'));
+        };
         document.head.appendChild(script);
     });
     return googleIdentityScriptPromise;
 }
+
 function requestGoogleDriveToken(prompt=''){
     if(!GOOGLE_DRIVE_CLIENT_ID||GOOGLE_DRIVE_CLIENT_ID.startsWith('GANTI_')) throw new Error('GOOGLE_DRIVE_CLIENT_ID_MISSING');
     if(!window.google?.accounts?.oauth2) throw new Error('GOOGLE_IDENTITY_NOT_READY');
@@ -1478,7 +1583,13 @@ function buildKebutuhan(){
     return html;
 }
 
-function openSettings(){ if(!requireUnlockedApp()) return; refreshPhotoStorageStatus(); openModal('modal-settings'); }
+function openSettings() {
+    if (!requireUnlockedApp()) return;
+    refreshPhotoStorageStatus();
+    openModal('modal-settings');
+    // Load the Google OAuth client only when settings/Drive features are requested.
+    void loadGoogleIdentityServices().catch(error => console.warn('Google Identity Services not ready yet:', error));
+}
 const MAX_BACKUP_FILE_BYTES = 100 * 1024 * 1024;
 const MAX_BACKUP_RECORDS = 50000;
 const MAX_BACKUP_AMOUNT = 1e15;
@@ -1685,7 +1796,6 @@ function initApp(){
     const dateEl=document.getElementById('current-date');
     if(dateEl) dateEl.textContent=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
     refreshPhotoStorageStatus();
-    void loadGoogleIdentityServices().catch(error=>console.warn('Google Identity Services not ready yet:',error));
     document.getElementById('screen-auth').classList.remove('hidden');
     hideProtectedScreens();
     onAuthStateChanged(auth, user => { void handleAuthStateChanged(user); });
