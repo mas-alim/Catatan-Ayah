@@ -232,8 +232,8 @@
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Keterangan / Catatan <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><textarea id="tx_note" rows="2" placeholder="Cth: Jajanan, Beras, Modal Usaha, dll." class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none resize-none"></textarea></div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Bukti Foto Transaksi <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label>
-                    <input type="file" id="tx_image" accept="image/*" capture="environment" disabled title="Unggah foto dinonaktifkan sampai Firebase Storage disiapkan" class="w-full text-sm text-gray-400 opacity-60">
-                    <p class="text-[10px] text-amber-700 mt-1">Unggah foto baru sementara dinonaktifkan. Lampiran lama tetap dipertahankan.</p>
+                    <input type="file" id="tx_image" accept="image/jpeg,image/png,image/webp,image/*" capture="environment" class="w-full text-sm text-gray-600">
+                    <p class="text-[10px] text-gray-500 mt-1">Foto dikompres di perangkat menjadi maksimal 300 KB, lalu diunggah sebagai file privat ImageKit. Backend Vercel harus dikonfigurasi terlebih dahulu.</p>
                     <p id="tx-existing-image" class="text-[10px] text-gray-400 mt-1 hidden">Bukti lama tetap dipertahankan jika tidak memilih foto baru.</p>
                 </div>
                 <button id="btn-save-tx" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3.5 active:scale-[.99] transition shadow-lg shadow-green-200">Simpan Transaksi</button>
@@ -266,7 +266,7 @@
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Nominal Yang Dibayar (Rp)</label><input type="number" id="pay_amount" required min="1" inputmode="numeric" placeholder="0" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Pembayaran</label><input type="date" id="pay_date" required class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Keterangan <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="text" id="pay_note" placeholder="Cth: Cicil minggu pertama" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
-                <div><label class="block text-sm font-medium text-gray-700 mb-1">Bukti Pembayaran <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="file" id="pay_image" accept="image/*" capture="environment" disabled title="Unggah foto dinonaktifkan sampai Firebase Storage disiapkan" class="w-full text-sm text-gray-400 opacity-60"><p class="text-[10px] text-amber-700 mt-1">Unggah foto baru sementara dinonaktifkan. Lampiran lama tetap dipertahankan.</p></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Bukti Pembayaran <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="file" id="pay_image" accept="image/jpeg,image/png,image/webp,image/*" capture="environment" class="w-full text-sm text-gray-600"><p class="text-[10px] text-gray-500 mt-1">Foto dikompres di perangkat menjadi maksimal 300 KB sebelum diunggah sebagai file privat ImageKit.</p></div>
                 <button id="btn-save-pay" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3.5 active:scale-[.99] transition shadow-lg shadow-green-200 flex items-center justify-center gap-2"><i class="ph-bold ph-check-square"></i> Simpan Pembayaran</button>
             </form>
         </div>
@@ -298,8 +298,9 @@
                 <button onclick="downloadBackup()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-download-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Backup Data</p><p class="text-[11px] text-gray-500">Simpan transaksi dan tagihan ke file JSON.</p></div></button>
                 <button onclick="document.getElementById('restore-file').click()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><i class="ph-bold ph-upload-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Restore Data</p><p class="text-[11px] text-gray-500">Impor backup JSON dan mengganti data saat ini.</p></div></button>
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
-                <button onclick="migrateLegacyPhotos()" class="w-full flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-gray-200 text-gray-500 flex items-center justify-center"><i class="ph-bold ph-images-square text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-600">Migrasi Foto Lama (ditangguhkan)</p><p class="text-[11px] text-gray-500">Aktifkan setelah Firebase Storage dan aturan akses disiapkan.</p></div></button>
-                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4"><div class="flex justify-between items-center mb-1 gap-2"><p class="text-xs font-bold text-gray-700">Penyimpanan foto</p><span id="photo-storage-status" class="text-[10px] font-bold text-amber-700 text-right">Upload sementara nonaktif</span></div><p id="photo-legacy-count" class="text-[10px] text-gray-500">Memeriksa lampiran lama...</p></div>
+                <button id="btn-check-imagekit" onclick="connectImageKit()" class="w-full flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center"><i class="ph-bold ph-image-square text-lg"></i></div><div class="min-w-0"><p id="imagekit-connect-title" class="font-bold text-sm text-gray-800">Periksa koneksi ImageKit</p><p id="imagekit-connect-caption" class="text-[11px] text-gray-500">Foto dikompres di perangkat dan disimpan privat di ImageKit.</p></div></button>
+                <button id="btn-migrate-photos" onclick="migrateLegacyPhotos()" class="w-full flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-gray-200 text-gray-600 flex items-center justify-center"><i class="ph-bold ph-images-square text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Migrasi Foto Lama</p><p class="text-[11px] text-gray-500">Kompres foto Base64 lama dan pindahkan ke ImageKit.</p></div></button>
+                <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4"><div class="flex justify-between items-center mb-1 gap-2"><p class="text-xs font-bold text-gray-700">Penyimpanan foto</p><span id="photo-storage-status" class="text-[10px] font-bold text-amber-700 text-right">Belum diperiksa</span></div><p id="photo-legacy-count" class="text-[10px] text-gray-500">Memeriksa lampiran lama...</p></div>
                 <button onclick="lockApp(); closeModal('modal-settings')" class="w-full flex items-center justify-center gap-2 p-3.5 bg-gray-900 text-white rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-lock-key"></i> Kunci Aplikasi (PIN)</button>
                 <button onclick="logoutFirebaseAccount()" class="w-full flex items-center justify-center gap-2 p-3.5 bg-red-50 text-red-700 border border-red-100 rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-sign-out"></i> Keluar dari Akun</button>
                 <p class="text-center text-[10px] text-gray-400 pt-1">Catatan Ayah • Rekonstruksi 2026 • Firebase Auth + PIN lokal.</p>
@@ -329,6 +330,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const OWNER_UID = 'ZlWZFhPLbHbOtIDPYsK4yxiLrGC2';
+// Isi setelah deploy backend Vercel. Ini URL publik, bukan rahasia.
+const IMAGE_API_BASE_URL = 'https://GANTI-DENGAN-DOMAIN-VERCEL-ANDA.vercel.app';
+const IMAGEKIT_UPLOAD_FOLDER = '/catatan-ayah';
+const MAX_PHOTO_INPUT_BYTES = 15 * 1024 * 1024;
+const MAX_COMPRESSED_PHOTO_BYTES = 300 * 1024; // target <= 300 KB setelah kompresi
 const db = getDatabase(app);
 const dbRef = ref(db, 'catatan_keuangan_v1');
 const LEGACY_LOCAL_DATA_KEY = 'catatanKeuanganApp'; // old cache key; dataset is no longer persisted in browser storage
@@ -354,6 +360,9 @@ let appUnlocked = false;
 let saveInProgress = false;
 let txSearchRenderTimer = null;
 let remoteRenderScheduled = false;
+let photoObjectUrl = null;
+let imageKitBackendReady = false;
+const imageKitSignedUrlCache = new Map();
 
 const TX_STATUS = { BELUM:'Belum Lunas', CICIL:'Dicicil', LUNAS:'Lunas' };
 
@@ -396,9 +405,11 @@ function collectionToArray(value, prefix) {
     return [];
 }
 function normalizeData(input) {
+    const root = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
     const next = {
-        transactions: collectionToArray(input?.transactions, 'tx').map(tx => ({ ...tx, payments: Array.isArray(tx.payments) ? tx.payments.map((p, i) => ({ ...p, id: p?.id || `legacy-payment-${tx.id}-${i + 1}` })) : [] })),
-        needs: collectionToArray(input?.needs, 'need').map(n => ({ ...n }))
+        ...root, // pertahankan metadata root lain yang tidak termasuk koleksi
+        transactions: collectionToArray(root.transactions, 'tx').map(tx => ({ ...tx, payments: Array.isArray(tx.payments) ? tx.payments.map((p, i) => ({ ...p, id: p?.id || `legacy-payment-${tx.id}-${i + 1}` })) : [] })),
+        needs: collectionToArray(root.needs, 'need').map(n => ({ ...n }))
     };
     next.transactions.forEach(tx => { tx.status = deriveStatus(tx); });
     next.needs.forEach(n => { if(!n.status) n.status='Belum Lunas'; });
@@ -459,6 +470,8 @@ function clearSensitiveInMemoryData() {
     data = { transactions: [], needs: [] };
     lastStableData = null;
     activePayTx = null;
+    imageKitBackendReady = false;
+    imageKitSignedUrlCache.clear();
     clearSensitiveLocalCache();
 
     // Hide and clear protected DOM too; hidden markup should not retain contact names,
@@ -469,6 +482,7 @@ function clearSensitiveInMemoryData() {
     if (detailContent) detailContent.replaceChildren();
     const photoPreview = document.getElementById('photo-preview-img');
     if (photoPreview) photoPreview.removeAttribute('src');
+    if (photoObjectUrl) { URL.revokeObjectURL(photoObjectUrl); photoObjectUrl = null; }
     document.querySelectorAll('form').forEach(form => { try { form.reset(); } catch {} });
     document.querySelectorAll('[id^="modal-"]').forEach(modal => {
         modal.classList.add('hidden');
@@ -653,6 +667,7 @@ function setupFirebaseListener() {
             }
             firebaseDataReady = true;
             setSyncState('online');
+            refreshPhotoStorageStatus();
 
             if (!firstSnapshotHandled) {
                 firstSnapshotHandled = true;
@@ -843,7 +858,7 @@ function clearTxSearch(){
 }
 
 function openModal(id){ const el=document.getElementById(id); if(!el) return; document.body.classList.add('modal-open'); el.classList.remove('hidden'); el.classList.add('flex'); }
-function closeModal(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('hidden'); el.classList.remove('flex'); document.body.classList.remove('modal-open'); if(id==='modal-add-transaction'){ document.getElementById('form-transaction').reset(); document.getElementById('tx_edit_id').value=''; document.getElementById('tx-existing-image').classList.add('hidden'); } if(id==='modal-add-need'){ document.getElementById('form-need').reset(); document.getElementById('nd_edit_id').value=''; } if(id==='modal-pay-transaction'){ document.getElementById('form-pay').reset(); activePayTx=null; } }
+function closeModal(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('hidden'); el.classList.remove('flex'); document.body.classList.remove('modal-open'); if(id==='modal-photo'){ const img=document.getElementById('photo-preview-img'); if(img) img.removeAttribute('src'); if(photoObjectUrl){URL.revokeObjectURL(photoObjectUrl);photoObjectUrl=null;} } if(id==='modal-add-transaction'){ document.getElementById('form-transaction').reset(); document.getElementById('tx_edit_id').value=''; document.getElementById('tx-existing-image').classList.add('hidden'); } if(id==='modal-add-need'){ document.getElementById('form-need').reset(); document.getElementById('nd_edit_id').value=''; } if(id==='modal-pay-transaction'){ document.getElementById('form-pay').reset(); activePayTx=null; } }
 
 function openTransactionModal(txId='', contactName='') {
     if (!requireUnlockedApp()) return;
@@ -875,14 +890,171 @@ function openNeedModal(needId=''){
     openModal('modal-add-need');
 }
 
-async function uploadImageToStorage(file, folder, itemId){
-    throw new Error('PHOTO_STORAGE_DISABLED: Firebase Storage belum disiapkan untuk project ini.');
+function isImageKitConfigured(){
+    return /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(IMAGE_API_BASE_URL) && !IMAGE_API_BASE_URL.includes('GANTI-DENGAN');
 }
-async function uploadDataUrlToStorage(dataUrl, folder, itemId){
-    throw new Error('PHOTO_STORAGE_DISABLED: Firebase Storage belum disiapkan untuk project ini.');
+function photoUserMessage(error){
+    const code=String(error?.message||'');
+    if(code==='IMAGE_API_NOT_CONFIGURED') return 'Backend foto Vercel belum dikonfigurasi pada source aplikasi.';
+    if(code==='AUTH_REQUIRED'||code==='OWNER_ONLY') return 'Sesi Firebase pemilik tidak valid. Login kembali lalu coba lagi.';
+    if(code==='IMAGEKIT_PRIVATE_KEY_MISSING'||code==='IMAGEKIT_PUBLIC_KEY_MISSING'||code==='IMAGEKIT_URL_ENDPOINT_MISSING'||code==='FIREBASE_ADMIN_CONFIG_MISSING') return 'Konfigurasi rahasia backend Vercel belum lengkap. Periksa Environment Variables.';
+    if(code==='IMAGEKIT_AUTH_FAILED'||code==='IMAGEKIT_URL_FAILED') return 'Backend gagal menyiapkan otorisasi foto. Periksa konfigurasi ImageKit dan Vercel.';
+    if(code==='IMAGEKIT_UPLOAD_FAILED') return 'Unggah foto gagal. Periksa kuota ImageKit, format gambar, dan koneksi internet.';
+    if(code==='IMAGEKIT_FILE_RESPONSE_INVALID') return 'ImageKit tidak mengembalikan referensi file yang valid. Foto belum disimpan pada transaksi.';
+    if(code==='PHOTO_PATH_INVALID') return 'Referensi foto tidak valid atau berada di luar folder Catatan Ayah.';
+    if(code==='PHOTO_TOO_LARGE') return 'Foto tetap melebihi 300 KB setelah kompresi. Pilih foto lain dengan resolusi lebih rendah.';
+    if(code==='PHOTO_UNSUPPORTED') return 'Foto tidak dapat dibaca. Gunakan JPEG, PNG, atau WebP.';
+    if(code==='PHOTO_INPUT_TOO_LARGE') return 'Foto asli maksimal 15 MB sebelum kompresi.';
+    if(code==='IMAGE_API_FAILED'||code==='IMAGE_API_NETWORK_FAILED') return 'Backend Vercel tidak dapat dihubungi. Periksa URL API dan deployment.';
+    if(code==='LEGACY_DRIVE_REFERENCE') return 'Lampiran ini memakai referensi Google Drive versi percobaan. Migrasikan atau pulihkan file lama sebelum mengganti referensinya.';
+    return 'Operasi foto gagal. Periksa deployment Vercel, konfigurasi ImageKit, dan koneksi internet.';
 }
-function countLegacyPhotos(){ let count=0; data.transactions.forEach(tx=>{ if(String(tx.image||'').startsWith('data:image/')) count++; (tx.payments||[]).forEach(p=>{ if(String(p.image||'').startsWith('data:image/')) count++; }); }); return count; }
-function refreshPhotoStorageStatus(){ const el=document.getElementById('photo-legacy-count'); if(el){ const n=countLegacyPhotos(); el.textContent=(n?`${n} lampiran lama masih tersimpan sebagai Base64. `:'Tidak ada lampiran Base64 lama yang terdeteksi. ')+'Upload/migrasi foto baru dinonaktifkan sementara.'; } }
+async function imageKitApiRequest(endpoint, payload={}){
+    if(!isImageKitConfigured()) throw new Error('IMAGE_API_NOT_CONFIGURED');
+    const user=auth.currentUser;
+    if(!user || user.uid!==OWNER_UID) throw new Error('AUTH_REQUIRED');
+    let idToken;
+    try{idToken=await user.getIdToken();}catch{throw new Error('AUTH_REQUIRED');}
+    let response;
+    try{
+        response=await fetch(`${IMAGE_API_BASE_URL}${endpoint}`,{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
+            body:JSON.stringify(payload),
+            cache:'no-store'
+        });
+    }catch{throw new Error('IMAGE_API_NETWORK_FAILED');}
+    let result={};
+    try{result=await response.json();}catch{}
+    if(!response.ok) throw new Error(String(result.error||'IMAGE_API_FAILED'));
+    return result;
+}
+async function connectImageKit(){
+    if(!requireUnlockedApp()) return;
+    const button=document.getElementById('btn-check-imagekit');
+    if(button){button.disabled=true;button.classList.add('opacity-60');}
+    try{
+        // Request short-lived upload credentials to verify Vercel, Firebase Admin and ImageKit secrets.
+        const result=await imageKitApiRequest('/api/imagekit-auth',{});
+        if(!result.publicKey||!result.token||!result.signature||!result.expire) throw new Error('IMAGEKIT_AUTH_FAILED');
+        imageKitBackendReady=true;
+        refreshPhotoStorageStatus();
+        showToast('Backend foto siap. File baru akan disimpan privat di ImageKit.');
+    }catch(error){
+        imageKitBackendReady=false;
+        refreshPhotoStorageStatus();
+        console.error('ImageKit connection check failed:',error);
+        showToast(photoUserMessage(error));
+    }finally{if(button){button.disabled=false;button.classList.remove('opacity-60');}}
+}
+function canvasBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('PHOTO_UNSUPPORTED')),type,quality));}
+async function compressPhotoBlob(inputBlob){
+    if(!inputBlob||!String(inputBlob.type||'').startsWith('image/')||/image\/svg\+xml/i.test(inputBlob.type)) throw new Error('PHOTO_UNSUPPORTED');
+    if(inputBlob.size>MAX_PHOTO_INPUT_BYTES) throw new Error('PHOTO_INPUT_TOO_LARGE');
+    let bitmap;
+    try{bitmap=await createImageBitmap(inputBlob);}catch{throw new Error('PHOTO_UNSUPPORTED');}
+    try{
+        const dimensions=[1280,1100,960,840,720];
+        const qualities=[0.82,0.74,0.66,0.58,0.50,0.42];
+        for(const maxEdge of dimensions){
+            const scale=Math.min(1,maxEdge/Math.max(bitmap.width,bitmap.height));
+            const width=Math.max(1,Math.round(bitmap.width*scale));
+            const height=Math.max(1,Math.round(bitmap.height*scale));
+            const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+            const ctx=canvas.getContext('2d',{alpha:false});
+            if(!ctx) throw new Error('PHOTO_UNSUPPORTED');
+            ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);ctx.drawImage(bitmap,0,0,width,height);
+            for(const quality of qualities){
+                let output=await canvasBlob(canvas,'image/webp',quality);
+                if(output.type!=='image/webp') output=await canvasBlob(canvas,'image/jpeg',quality);
+                if(output.size<=MAX_COMPRESSED_PHOTO_BYTES){
+                    return {blob:output,extension:output.type==='image/webp'?'webp':'jpg',mimeType:output.type,width,height,originalBytes:inputBlob.size};
+                }
+            }
+        }
+        throw new Error('PHOTO_TOO_LARGE');
+    }finally{bitmap.close?.();}
+}
+async function dataUrlToBlob(dataUrl){
+    if(typeof dataUrl!=='string'||!dataUrl.startsWith('data:image/')) throw new Error('PHOTO_UNSUPPORTED');
+    const response=await fetch(dataUrl);return response.blob();
+}
+function makeImageKitFileName(itemId,extension){
+    const safeId=String(itemId||'foto').replace(/[^a-z0-9_-]/gi,'').slice(0,40)||'foto';
+    return `ca-${safeId}-${Date.now().toString(36)}.${extension}`;
+}
+function makeImageKitReference(file){
+    if(!file||!file.fileId||!file.filePath) throw new Error('IMAGEKIT_FILE_RESPONSE_INVALID');
+    const path=String(file.filePath);
+    if(!path.startsWith(`${IMAGEKIT_UPLOAD_FOLDER}/`)) throw new Error('PHOTO_PATH_INVALID');
+    return `imagekit:${encodeURIComponent(String(file.fileId))}|${encodeURIComponent(path)}`;
+}
+function parseImageKitReference(reference){
+    if(typeof reference!=='string'||!reference.startsWith('imagekit:')) return null;
+    const separator=reference.indexOf('|',8);
+    if(separator<0) return null;
+    try{
+        const fileId=decodeURIComponent(reference.slice(8,separator));
+        const filePath=decodeURIComponent(reference.slice(separator+1));
+        if(!fileId||!filePath.startsWith(`${IMAGEKIT_UPLOAD_FOLDER}/`)) return null;
+        return {fileId,filePath};
+    }catch{return null;}
+}
+function isImageKitPhoto(reference){return !!parseImageKitReference(reference);}
+async function uploadCompressedPhoto(blobInfo,itemId){
+    const authParams=await imageKitApiRequest('/api/imagekit-auth',{});
+    const fileName=makeImageKitFileName(itemId,blobInfo.extension);
+    const form=new FormData();
+    form.append('file',blobInfo.blob,fileName);
+    form.append('fileName',fileName);
+    form.append('publicKey',authParams.publicKey);
+    form.append('token',authParams.token);
+    form.append('signature',authParams.signature);
+    form.append('expire',String(authParams.expire));
+    form.append('folder',IMAGEKIT_UPLOAD_FOLDER);
+    form.append('isPrivateFile','true');
+    form.append('useUniqueFileName','false');
+    let response;
+    try{response=await fetch('https://upload.imagekit.io/api/v1/files',{method:'POST',body:form,cache:'no-store'});}catch{throw new Error('IMAGEKIT_UPLOAD_FAILED');}
+    let file={};try{file=await response.json();}catch{}
+    if(!response.ok){const err=new Error('IMAGEKIT_UPLOAD_FAILED');err.status=response.status;throw err;}
+    return makeImageKitReference(file);
+}
+async function uploadImageToStorage(file,folder,itemId){
+    if(!file)return null;
+    const compressed=await compressPhotoBlob(file);
+    return uploadCompressedPhoto(compressed,itemId);
+}
+async function uploadDataUrlToStorage(dataUrl,folder,itemId){
+    const original=await dataUrlToBlob(dataUrl);
+    const compressed=await compressPhotoBlob(original);
+    return uploadCompressedPhoto(compressed,itemId);
+}
+async function getImageKitSignedUrl(reference){
+    const parsed=parseImageKitReference(reference);
+    if(!parsed) throw new Error('PHOTO_PATH_INVALID');
+    const cached=imageKitSignedUrlCache.get(parsed.filePath);
+    if(cached&&cached.expiresAt>Date.now()+15000) return cached.url;
+    const result=await imageKitApiRequest('/api/photo-url',{filePath:parsed.filePath});
+    if(!result.url||!result.expiresAt) throw new Error('IMAGEKIT_URL_FAILED');
+    imageKitSignedUrlCache.set(parsed.filePath,{url:result.url,expiresAt:Number(result.expiresAt)*1000});
+    return result.url;
+}
+function countLegacyPhotos(){
+    let count=0;
+    data.transactions.forEach(tx=>{if(String(tx.image||'').startsWith('data:image/'))count++;(tx.payments||[]).forEach(p=>{if(String(p.image||'').startsWith('data:image/'))count++;});});
+    return count;
+}
+function refreshPhotoStorageStatus(){
+    const legacy=document.getElementById('photo-legacy-count');
+    const status=document.getElementById('photo-storage-status');
+    const title=document.getElementById('imagekit-connect-title');
+    const caption=document.getElementById('imagekit-connect-caption');
+    if(status){status.textContent=imageKitBackendReady?'Backend siap':'Belum diperiksa';status.className=`text-[10px] font-bold text-right ${imageKitBackendReady?'text-green-700':'text-amber-700'}`;}
+    if(title)title.textContent=imageKitBackendReady?'ImageKit Terhubung':'Periksa koneksi ImageKit';
+    if(caption)caption.textContent=imageKitBackendReady?'Vercel dan ImageKit merespons. Foto tetap privat dan URL akses bersifat sementara.':'Foto dikompres di perangkat; kunci rahasia disimpan di Vercel, bukan di browser.';
+    if(legacy){const n=countLegacyPhotos();legacy.textContent=n?`${n} foto lama masih berupa Base64. Unduh backup sebelum menjalankan migrasi.`:'Tidak ada foto Base64 lama yang terdeteksi.';}
+}
 
 async function saveTransaction(e){
     e.preventDefault();
@@ -900,19 +1072,18 @@ async function saveTransaction(e){
         const existing=data.transactions.find(t=>t.id===editId);
         if(!existing){ showToast('Transaksi tidak ditemukan. Muat ulang data lalu coba kembali.'); return; }
         const alreadyPaid=getTxPaidAmount(existing);
-        if(amount < alreadyPaid){
-            showToast(`Nominal transaksi tidak boleh lebih kecil dari pembayaran yang sudah tercatat (${formatRupiah(alreadyPaid)}).`);
-            return;
-        }
+        if(amount < alreadyPaid){ showToast(`Nominal transaksi tidak boleh lebih kecil dari pembayaran yang sudah tercatat (${formatRupiah(alreadyPaid)}).`); return; }
     }
     const btn=document.getElementById('btn-save-tx'); btn.disabled=true; btn.classList.add('disabled');
     try{
+        const itemId=editId || generateId();
+        // Foto dikompres dan diunggah privat ke ImageKit sebelum perubahan transaksi dimutasi ke Firebase.
+        const uploadedImage=imageFile?await uploadImageToStorage(imageFile,contact,itemId):null;
         let tx;
-        if(editId){ tx=data.transactions.find(t=>t.id===editId); if(!tx) throw new Error('Transaksi tidak ditemukan'); tx.type=type; tx.contact=contact; tx.amount=amount; tx.txDate=txDate; tx.dueDate=dueDate; tx.note=note; }
-        else { tx={id:generateId(),type,contact,amount,txDate,dueDate,note,image:null,status:TX_STATUS.BELUM,payments:[],createdAt:new Date().toISOString()}; data.transactions.push(tx); }
-        if(imageFile){ try{ tx.image=await uploadImageToStorage(imageFile,contact,tx.id); } catch(err){ console.warn('Upload foto transaksi gagal',err); showToast('Transaksi tetap dicatat, tetapi foto tidak disimpan. Aktifkan Storage terlebih dahulu.'); } }
-        tx.status=deriveStatus(tx); await saveData(); closeModal('modal-add-transaction'); renderApp(); showToast(editId?'Transaksi berhasil diperbarui.':'Transaksi berhasil disimpan.');
-    }catch(err){ console.error(err); showToast('Transaksi gagal disimpan.'); }
+        if(editId){ tx=data.transactions.find(t=>t.id===editId); if(!tx) throw new Error('TRANSACTION_NOT_FOUND'); tx.type=type; tx.contact=contact; tx.amount=amount; tx.txDate=txDate; tx.dueDate=dueDate; tx.note=note; if(uploadedImage) tx.image=uploadedImage; }
+        else { tx={id:itemId,type,contact,amount,txDate,dueDate,note,image:uploadedImage,status:TX_STATUS.BELUM,payments:[],createdAt:new Date().toISOString()}; data.transactions.push(tx); }
+        tx.status=deriveStatus(tx); await saveData(); closeModal('modal-add-transaction'); renderApp(); refreshPhotoStorageStatus(); showToast(editId?'Transaksi berhasil diperbarui.':'Transaksi berhasil disimpan.');
+    }catch(err){ console.error('Transaksi atau foto gagal disimpan:',err); showToast(imageFile?`${photoUserMessage(err)} Transaksi tidak disimpan.`:'Transaksi gagal disimpan.'); }
     finally{ btn.disabled=false; btn.classList.remove('disabled'); }
 }
 
@@ -957,18 +1128,9 @@ function togglePayMode(mode){ if(!activePayTx) return; const remaining=getTxRema
 async function savePayment(e){
     e.preventDefault();
     if(!requireUnlockedApp() || !activePayTx) return;
-
-    // Resolve the transaction from current app data by ID. Do not rely on a stale object
-    // reference, which may be detached when a Firebase write fails and restores the snapshot.
-    const txId = activePayTx.id;
-    const tx = data.transactions.find(item => item.id === txId);
-    if(!tx){
-        activePayTx = null;
-        closeModal('modal-pay-transaction');
-        showToast('Transaksi tidak ditemukan. Buka kembali detail transaksi.');
-        return;
-    }
-
+    const txId=activePayTx.id;
+    const tx=data.transactions.find(item=>item.id===txId);
+    if(!tx){ activePayTx=null; closeModal('modal-pay-transaction'); showToast('Transaksi tidak ditemukan. Buka kembali detail transaksi.'); return; }
     const mode=document.querySelector('input[name="pay_mode"]:checked')?.value || 'cicil';
     const amount=Number(document.getElementById('pay_amount').value);
     const date=document.getElementById('pay_date').value||todayStr();
@@ -976,52 +1138,27 @@ async function savePayment(e){
     const imageFile=document.getElementById('pay_image').files?.[0];
     const remaining=getTxRemaining(tx);
     if(remaining<=0){ showToast('Transaksi sudah lunas.'); return; }
-    if(!Number.isFinite(amount) || amount<=0 || amount>remaining){ showToast(`Nominal pembayaran maksimal ${formatRupiah(remaining)}.`); return; }
-    if(mode==='lunas' && amount!==remaining){ showToast(`Pelunasan harus sama dengan sisa ${formatRupiah(remaining)}.`); return; }
-
-    const btn=document.getElementById('btn-save-pay');
-    btn.disabled=true;
-    btn.classList.add('disabled');
+    if(!Number.isFinite(amount)||amount<=0||amount>remaining){ showToast(`Nominal pembayaran maksimal ${formatRupiah(remaining)}.`); return; }
+    if(mode==='lunas'&&amount!==remaining){ showToast(`Pelunasan harus sama dengan sisa ${formatRupiah(remaining)}.`); return; }
+    const btn=document.getElementById('btn-save-pay'); btn.disabled=true; btn.classList.add('disabled');
     try{
-        const payment={id:generateId(),date,amount,mode,note,image:null};
-        if(imageFile){
-            try{ payment.image=await uploadImageToStorage(imageFile,tx.contact||'pembayaran',payment.id); }
-            catch(err){ console.warn('Upload foto pembayaran gagal',err); showToast('Pembayaran tetap dicatat, tetapi foto tidak disimpan. Aktifkan Storage terlebih dahulu.'); }
-        }
-
-        // Re-resolve after optional upload so a stale object is never mutated.
-        const currentTx=data.transactions.find(item => item.id === txId);
+        const paymentId=generateId();
+        const paymentImage=imageFile?await uploadImageToStorage(imageFile,tx.contact||'pembayaran',paymentId):null;
+        const currentTx=data.transactions.find(item=>item.id===txId);
         if(!currentTx) throw new Error('TRANSACTION_NOT_FOUND');
         const currentRemaining=getTxRemaining(currentTx);
-        if(amount<=0 || amount>currentRemaining) throw new Error('PAYMENT_EXCEEDS_REMAINING');
+        if(amount<=0||amount>currentRemaining) throw new Error('PAYMENT_EXCEEDS_REMAINING');
+        const payment={id:paymentId,date,amount,mode,note,image:paymentImage};
         if(!Array.isArray(currentTx.payments)) currentTx.payments=[];
-        currentTx.payments.push(payment);
-        currentTx.status=deriveStatus(currentTx);
-
+        currentTx.payments.push(payment); currentTx.status=deriveStatus(currentTx);
         const contactKey=(currentTx.contact||'').trim().toLowerCase();
         await saveData();
-        const committedTx=data.transactions.find(item => item.id === txId);
-        activePayTx=committedTx || null;
-        closeModal('modal-pay-transaction');
-        renderApp();
-        if(document.getElementById('modal-detail-transaction') && !document.getElementById('modal-detail-transaction').classList.contains('hidden')) openDetailModalByContact(contactKey);
+        const committedTx=data.transactions.find(item=>item.id===txId); activePayTx=committedTx||null;
+        closeModal('modal-pay-transaction'); renderApp(); refreshPhotoStorageStatus();
+        if(document.getElementById('modal-detail-transaction')&&!document.getElementById('modal-detail-transaction').classList.contains('hidden')) openDetailModalByContact(contactKey);
         showToast(committedTx?.status===TX_STATUS.LUNAS?'Pembayaran lunas berhasil dicatat.':'Cicilan berhasil dicatat.');
-    }catch(err){
-        console.error(err);
-        // saveData restores the last stable dataset on failure. Refresh the reference
-        // and the remaining-balance display before allowing another attempt.
-        activePayTx=data.transactions.find(item => item.id === txId) || null;
-        if(activePayTx){
-            document.getElementById('pay-remaining-text').textContent=formatRupiah(getTxRemaining(activePayTx));
-            document.getElementById('pay_amount').max=getTxRemaining(activePayTx);
-        }
-        showToast(err?.message==='PAYMENT_EXCEEDS_REMAINING'
-            ? 'Sisa pembayaran berubah. Periksa nominal lalu coba kembali.'
-            : 'Pembayaran gagal disimpan. Data lokal dikembalikan ke kondisi terakhir yang tersinkron.');
-    }finally{
-        btn.disabled=false;
-        btn.classList.remove('disabled');
-    }
+    }catch(err){ console.error('Pembayaran atau foto gagal disimpan:',err); showToast(imageFile?`${photoUserMessage(err)} Pembayaran tidak disimpan.`:'Pembayaran gagal disimpan.'); }
+    finally{ btn.disabled=false; btn.classList.remove('disabled'); }
 }
 
 function confirmDeleteContact(contactKey){ if(!requireUnlockedApp()) return; deleteTarget={type:'contact',key:contactKey}; showConfirm('Hapus semua transaksi pihak ini?','Semua transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
@@ -1039,7 +1176,23 @@ async function executeDelete(){
     } catch(err){ console.error(err); showToast('Data gagal dihapus.'); }
 }
 
-function viewPhoto(src){ document.getElementById('photo-preview-img').src=src; openModal('modal-photo'); }
+async function viewPhoto(src){
+    if(!requireUnlockedApp())return;
+    const img=document.getElementById('photo-preview-img');
+    if(photoObjectUrl){URL.revokeObjectURL(photoObjectUrl);photoObjectUrl=null;}
+    img.removeAttribute('src');img.alt='Memuat foto...';openModal('modal-photo');
+    try{
+        if(isImageKitPhoto(src)){
+            img.src=await getImageKitSignedUrl(src);img.alt='Bukti Foto';
+        }else if(typeof src==='string'&&src.startsWith('data:image/')){
+            img.src=src;img.alt='Bukti Foto';
+        }else if(typeof src==='string'&&src.startsWith('drive:')){
+            throw new Error('LEGACY_DRIVE_REFERENCE');
+        }else{
+            throw new Error('PHOTO_PATH_INVALID');
+        }
+    }catch(error){closeModal('modal-photo');console.error('Photo view failed:',error);showToast(photoUserMessage(error));}
+}
 
 function openDetailModalByContact(contactKey){
     if (!requireUnlockedApp()) return;
@@ -1068,12 +1221,30 @@ function openDetailModalByContact(contactKey){
     openModal('modal-detail-transaction');
 }
 
-function downloadAttachment(contactKey){
-    const contactTxs=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey); const attachments=[];
-    contactTxs.forEach(tx=>{ if(tx.image) attachments.push({name:`${tx.contact}_${tx.txDate||'lampiran'}.png`,src:tx.image}); (tx.payments||[]).forEach((p,i)=>{if(p.image) attachments.push({name:`${tx.contact}_pembayaran_${i+1}.png`,src:p.image});}); });
-    if(!attachments.length){ showToast('Tidak ada lampiran foto.'); return; }
-    attachments.forEach((a,i)=>setTimeout(()=>{ const link=document.createElement('a'); link.download=a.name.replace(/[^a-z0-9_.-]/gi,'_'); link.href=a.src; link.click(); },i*250));
+async function downloadAttachment(contactKey){
+    if(!requireUnlockedApp())return;
+    const contactTxs=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey);
+    const attachments=[];
+    contactTxs.forEach(tx=>{if(tx.image)attachments.push({src:tx.image,name:`${tx.contact||'kontak'}_${tx.id}`});(tx.payments||[]).forEach(p=>{if(p.image)attachments.push({src:p.image,name:`${tx.contact||'kontak'}_pembayaran_${p.id||tx.id}`});});});
+    if(!attachments.length){showToast('Tidak ada lampiran foto.');return;}
+    try{
+        let opened=0;
+        for(const item of attachments){
+            if(isImageKitPhoto(item.src)){
+                const url=await getImageKitSignedUrl(item.src);
+                const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.title='Buka foto privat';document.body.appendChild(link);link.click();link.remove();opened++;
+            }else if(typeof item.src==='string'&&item.src.startsWith('data:image/')){
+                const blob=await dataUrlToBlob(item.src);const url=URL.createObjectURL(blob);const ext=blob.type==='image/webp'?'webp':blob.type==='image/png'?'png':'jpg';
+                const link=document.createElement('a');link.download=`${item.name.replace(/[^a-z0-9_.-]/gi,'_')}.${ext}`;link.href=url;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);opened++;
+            }else if(typeof item.src==='string'&&item.src.startsWith('drive:')){
+                throw new Error('LEGACY_DRIVE_REFERENCE');
+            }
+            await new Promise(resolve=>setTimeout(resolve,180));
+        }
+        showToast(`${opened} lampiran diproses. Foto privat ImageKit terbuka di tab baru.`);
+    }catch(error){console.error('Attachment download failed:',error);showToast(photoUserMessage(error));}
 }
+
 function downloadContactStatement(contactKey){
     if (!requireUnlockedApp()) return;
     const txs=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey); if(!txs.length) return; const name=txs[0].contact||'Kontak';
@@ -1356,7 +1527,7 @@ async function restoreBackup(e) {
             BACKUP_MISSING_COLLECTIONS: 'Backup harus memuat koleksi transaksi dan tagihan.',
             BACKUP_CHECKSUM_MISMATCH: 'Checksum tidak cocok. File berubah atau rusak; restore dibatalkan.',
             BACKUP_INTEGRITY_FIELD_INVALID: 'Metadata integritas backup tidak valid.',
-            CRYPTO_UNAVAILABLE: 'Browser tidak mendukung pemeriksaan integritas SHA-256.'
+            CRYPTO_UNAVAILABLE: 'Browser tidak mendukung pemeriksaan integritas SHA-256.',
         };
         const code = String(err?.message || '');
         if (code.startsWith('TRANSACTION_') || code.startsWith('PAYMENT_') || code.startsWith('NEED_') || code.endsWith('_INVALID') || code.endsWith('_MISSING') || code.includes('TOO_MANY')) {
@@ -1366,7 +1537,37 @@ async function restoreBackup(e) {
         }
     }
 }
-async function migrateLegacyPhotos(){ if(!requireUnlockedApp()) return; showToast('Migrasi foto ditangguhkan sampai Firebase Storage, billing, dan Storage Rules dikonfigurasi. Lampiran lama tidak diubah.'); }
+async function migrateLegacyPhotos(){
+    if(!requireUnlockedApp())return;
+    if(saveInProgress){showToast('Tunggu proses penyimpanan yang sedang berjalan.');return;}
+    const targets=[];
+    data.transactions.forEach(tx=>{if(String(tx.image||'').startsWith('data:image/'))targets.push({txId:tx.id,paymentId:null});(tx.payments||[]).forEach(p=>{if(String(p.image||'').startsWith('data:image/'))targets.push({txId:tx.id,paymentId:p.id});});});
+    if(!targets.length){refreshPhotoStorageStatus();showToast('Tidak ada foto Base64 lama yang perlu dimigrasikan.');return;}
+    if(!confirm(`Migrasi ${targets.length} foto lama ke ImageKit? Setiap foto dikompres hingga maksimal 300 KB. Referensi Base64 di Firebase hanya diganti setelah upload berhasil. Unduh backup JSON sebelum melanjutkan.`))return;
+    const button=document.getElementById('btn-migrate-photos');if(button){button.disabled=true;button.classList.add('opacity-60');}
+    let migrated=0;
+    try{
+        // Satu foto per transaksi Firebase: jika satu gagal, foto belum termigrasi tetap menggunakan Base64.
+        for(const target of targets){
+            const tx=data.transactions.find(item=>item.id===target.txId);if(!tx)continue;
+            const holder=target.paymentId?(tx.payments||[]).find(item=>item.id===target.paymentId):tx;
+            if(!holder||!String(holder.image||'').startsWith('data:image/'))continue;
+            const originalReference=holder.image;
+            const newReference=await uploadDataUrlToStorage(originalReference,'legacy',target.paymentId||target.txId);
+            holder.image=newReference;
+            try{await saveData();}
+            catch(saveError){
+                // saveData restores lastStableData on failure. Best-effort orphan cleanup is deliberately deferred.
+                throw saveError;
+            }
+            migrated++;refreshPhotoStorageStatus();showToast(`Migrasi foto: ${migrated}/${targets.length}`);
+        }
+        refreshPhotoStorageStatus();showToast(`Migrasi selesai: ${migrated} foto berhasil dipindahkan ke ImageKit.`);
+    }catch(error){
+        console.error('Legacy photo migration stopped:',error);refreshPhotoStorageStatus();
+        showToast(`Migrasi berhenti setelah ${migrated} foto. Foto lainnya belum diubah. ${photoUserMessage(error)}`);
+    }finally{if(button){button.disabled=false;button.classList.remove('opacity-60');}}
+}
 
 function scheduleRemoteRender() {
     if (remoteRenderScheduled) return;
@@ -1388,7 +1589,7 @@ function initApp(){
     onAuthStateChanged(auth, user => { void handleAuthStateChanged(user); });
 }
 
-window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup; window.migrateLegacyPhotos=migrateLegacyPhotos;
+window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup; window.migrateLegacyPhotos=migrateLegacyPhotos; window.connectImageKit=connectImageKit;
 window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
 window.authLogin=authLogin; window.logoutFirebaseAccount=logoutFirebaseAccount; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.viewPhoto=viewPhoto; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.downloadAttachment=downloadAttachment; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
