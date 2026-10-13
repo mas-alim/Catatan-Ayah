@@ -231,9 +231,15 @@
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Estimasi / Jatuh Tempo <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="date" id="tx_date" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Keterangan / Catatan <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><textarea id="tx_note" rows="2" placeholder="Cth: Jajanan, Beras, Modal Usaha, dll." class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none resize-none"></textarea></div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Bukti Foto Transaksi <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label>
-                    <input type="file" id="tx_image" accept="image/jpeg,image/png,image/webp,image/*" capture="environment" class="w-full text-sm text-gray-600">
-                    <p class="text-[10px] text-gray-500 mt-1">Foto dikompres di perangkat menjadi maksimal 300 KB, lalu diunggah sebagai file privat ImageKit. Backend Vercel harus dikonfigurasi terlebih dahulu.</p>
+                    <label for="tx_image" class="block text-sm font-medium text-gray-700 mb-2">Bukti Foto Transaksi <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label>
+                    <div class="flex items-center gap-3">
+                        <input type="file" id="tx_image" accept="image/jpeg,image/png,image/webp,image/*" capture="environment" class="sr-only" aria-label="Pilih foto bukti transaksi" onchange="updateTxImageSelection(this)">
+                        <button type="button" id="btn-pick-tx-image" onclick="document.getElementById('tx_image').click()" class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-green-200 bg-green-50 text-green-800 text-sm font-bold active:scale-[.99] transition">
+                            <i class="ph ph-camera text-lg"></i><span>Pilih Foto Bukti</span>
+                        </button>
+                        <span id="tx-image-selection" class="min-w-0 flex-1 text-xs text-gray-500 break-words">Belum ada foto dipilih</span>
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-2">Foto dikompres di perangkat menjadi maksimal 300 KB, lalu diunggah sebagai file privat ImageKit.</p>
                     <p id="tx-existing-image" class="text-[10px] text-gray-400 mt-1 hidden">Bukti lama tetap dipertahankan jika tidak memilih foto baru.</p>
                 </div>
                 <button id="btn-save-tx" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3.5 active:scale-[.99] transition shadow-lg shadow-green-200">Simpan Transaksi</button>
@@ -860,9 +866,19 @@ function clearTxSearch(){
 function openModal(id){ const el=document.getElementById(id); if(!el) return; document.body.classList.add('modal-open'); el.classList.remove('hidden'); el.classList.add('flex'); }
 function closeModal(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('hidden'); el.classList.remove('flex'); document.body.classList.remove('modal-open'); if(id==='modal-photo'){ const img=document.getElementById('photo-preview-img'); if(img) img.removeAttribute('src'); if(photoObjectUrl){URL.revokeObjectURL(photoObjectUrl);photoObjectUrl=null;} } if(id==='modal-add-transaction'){ document.getElementById('form-transaction').reset(); document.getElementById('tx_edit_id').value=''; document.getElementById('tx-existing-image').classList.add('hidden'); } if(id==='modal-add-need'){ document.getElementById('form-need').reset(); document.getElementById('nd_edit_id').value=''; } if(id==='modal-pay-transaction'){ document.getElementById('form-pay').reset(); activePayTx=null; } }
 
+function updateTxImageSelection(input=document.getElementById('tx_image')){
+    const output=document.getElementById('tx-image-selection');
+    if(!output)return;
+    const file=input?.files?.[0];
+    if(!file){output.textContent='Belum ada foto dipilih';return;}
+    const sizeKb=Math.max(1,Math.round(file.size/1024));
+    output.textContent=`${file.name} · ${sizeKb} KB`;
+}
+
 function openTransactionModal(txId='', contactName='') {
     if (!requireUnlockedApp()) return;
     const form=document.getElementById('form-transaction'); form.reset();
+    updateTxImageSelection();
     document.getElementById('tx_edit_id').value=txId || '';
     document.getElementById('tx_txdate').value=todayStr();
     document.getElementById('modal-tx-title').textContent=txId ? 'Edit Transaksi' : 'Catat Transaksi';
@@ -899,7 +915,14 @@ function photoUserMessage(error){
     if(code==='AUTH_REQUIRED'||code==='OWNER_ONLY') return 'Sesi Firebase pemilik tidak valid. Login kembali lalu coba lagi.';
     if(code==='IMAGEKIT_PRIVATE_KEY_MISSING'||code==='IMAGEKIT_PUBLIC_KEY_MISSING'||code==='IMAGEKIT_URL_ENDPOINT_MISSING'||code==='FIREBASE_ADMIN_CONFIG_MISSING') return 'Konfigurasi rahasia backend Vercel belum lengkap. Periksa Environment Variables.';
     if(code==='IMAGEKIT_AUTH_FAILED'||code==='IMAGEKIT_URL_FAILED') return 'Backend gagal menyiapkan otorisasi foto. Periksa konfigurasi ImageKit dan Vercel.';
-    if(code==='IMAGEKIT_UPLOAD_FAILED') return 'Unggah foto gagal. Periksa kuota ImageKit, format gambar, dan koneksi internet.';
+    if(code==='IMAGEKIT_UPLOAD_NETWORK_FAILED') return 'Koneksi ke layanan unggah ImageKit gagal. Periksa koneksi internet lalu coba lagi.';
+    if(code==='IMAGEKIT_UPLOAD_HTTP_400') return 'ImageKit menolak parameter atau file foto (HTTP 400). Pastikan format foto valid.';
+    if(code==='IMAGEKIT_UPLOAD_HTTP_401') return 'ImageKit menolak autentikasi unggah (HTTP 401). Periksa Public Key dan signature yang dibuat backend.';
+    if(code==='IMAGEKIT_UPLOAD_HTTP_403') return 'ImageKit menolak izin unggah (HTTP 403). Periksa pengaturan kunci, izin unggah, dan paket ImageKit.';
+    if(code==='IMAGEKIT_UPLOAD_HTTP_413') return 'Ukuran foto ditolak oleh ImageKit (HTTP 413). Pilih foto yang lebih kecil.';
+    if(code==='IMAGEKIT_UPLOAD_HTTP_429') return 'Permintaan ImageKit dibatasi (HTTP 429). Periksa kuota atau batas pemakaian ImageKit.';
+    if(/^IMAGEKIT_UPLOAD_HTTP_5\\d{2}$/.test(code)) return 'Layanan ImageKit sedang bermasalah (HTTP 5xx). Coba lagi beberapa saat.';
+    if(code==='IMAGEKIT_UPLOAD_FAILED') return 'Unggah foto gagal tanpa kode HTTP. Coba lagi dan periksa log koneksi.';
     if(code==='IMAGEKIT_FILE_RESPONSE_INVALID') return 'ImageKit tidak mengembalikan referensi file yang valid. Foto belum disimpan pada transaksi.';
     if(code==='PHOTO_PATH_INVALID') return 'Referensi foto tidak valid atau berada di luar folder Catatan Ayah.';
     if(code==='PHOTO_TOO_LARGE') return 'Foto tetap melebihi 300 KB setelah kompresi. Pilih foto lain dengan resolusi lebih rendah.';
@@ -1015,9 +1038,20 @@ async function uploadCompressedPhoto(blobInfo,itemId){
     form.append('isPrivateFile','true');
     form.append('useUniqueFileName','false');
     let response;
-    try{response=await fetch('https://upload.imagekit.io/api/v1/files',{method:'POST',body:form,cache:'no-store'});}catch{throw new Error('IMAGEKIT_UPLOAD_FAILED');}
+    try{
+        response=await fetch('https://upload.imagekit.io/api/v1/files',{method:'POST',body:form,cache:'no-store'});
+    }catch(networkError){
+        const err=new Error('IMAGEKIT_UPLOAD_NETWORK_FAILED');
+        err.cause=networkError;
+        throw err;
+    }
     let file={};try{file=await response.json();}catch{}
-    if(!response.ok){const err=new Error('IMAGEKIT_UPLOAD_FAILED');err.status=response.status;throw err;}
+    if(!response.ok){
+        // Simpan hanya status HTTP untuk diagnosis; jangan tampilkan respons mentah ImageKit ke pengguna.
+        const err=new Error(`IMAGEKIT_UPLOAD_HTTP_${response.status}`);
+        err.status=response.status;
+        throw err;
+    }
     return makeImageKitReference(file);
 }
 async function uploadImageToStorage(file,folder,itemId){
@@ -1075,16 +1109,47 @@ async function saveTransaction(e){
         if(amount < alreadyPaid){ showToast(`Nominal transaksi tidak boleh lebih kecil dari pembayaran yang sudah tercatat (${formatRupiah(alreadyPaid)}).`); return; }
     }
     const btn=document.getElementById('btn-save-tx'); btn.disabled=true; btn.classList.add('disabled');
+    let photoError=null;
     try{
         const itemId=editId || generateId();
-        // Foto dikompres dan diunggah privat ke ImageKit sebelum perubahan transaksi dimutasi ke Firebase.
-        const uploadedImage=imageFile?await uploadImageToStorage(imageFile,contact,itemId):null;
+        let uploadedImage=null;
+        if(imageFile){
+            try{
+                // Foto opsional. Kegagalan upload tidak boleh menggagalkan penyimpanan transaksi.
+                uploadedImage=await uploadImageToStorage(imageFile,contact,itemId);
+            }catch(uploadError){
+                photoError=uploadError;
+                console.warn('Foto gagal diunggah; transaksi tetap akan disimpan.',uploadError);
+            }
+        }
         let tx;
-        if(editId){ tx=data.transactions.find(t=>t.id===editId); if(!tx) throw new Error('TRANSACTION_NOT_FOUND'); tx.type=type; tx.contact=contact; tx.amount=amount; tx.txDate=txDate; tx.dueDate=dueDate; tx.note=note; if(uploadedImage) tx.image=uploadedImage; }
-        else { tx={id:itemId,type,contact,amount,txDate,dueDate,note,image:uploadedImage,status:TX_STATUS.BELUM,payments:[],createdAt:new Date().toISOString()}; data.transactions.push(tx); }
-        tx.status=deriveStatus(tx); await saveData(); closeModal('modal-add-transaction'); renderApp(); refreshPhotoStorageStatus(); showToast(editId?'Transaksi berhasil diperbarui.':'Transaksi berhasil disimpan.');
-    }catch(err){ console.error('Transaksi atau foto gagal disimpan:',err); showToast(imageFile?`${photoUserMessage(err)} Transaksi tidak disimpan.`:'Transaksi gagal disimpan.'); }
-    finally{ btn.disabled=false; btn.classList.remove('disabled'); }
+        if(editId){
+            tx=data.transactions.find(t=>t.id===editId);
+            if(!tx) throw new Error('TRANSACTION_NOT_FOUND');
+            tx.type=type; tx.contact=contact; tx.amount=amount; tx.txDate=txDate; tx.dueDate=dueDate; tx.note=note;
+            // Jika upload gagal, referensi foto lama tetap dipertahankan.
+            if(uploadedImage) tx.image=uploadedImage;
+        }else{
+            tx={id:itemId,type,contact,amount,txDate,dueDate,note,image:uploadedImage,status:TX_STATUS.BELUM,payments:[],createdAt:new Date().toISOString()};
+            data.transactions.push(tx);
+        }
+        tx.status=deriveStatus(tx);
+        await saveData();
+        closeModal('modal-add-transaction');
+        renderApp();
+        refreshPhotoStorageStatus();
+        if(photoError){
+            showToast(`Transaksi berhasil disimpan, tetapi foto gagal diunggah. ${photoUserMessage(photoError)}`);
+        }else{
+            showToast(editId?'Transaksi berhasil diperbarui.':'Transaksi berhasil disimpan.');
+        }
+    }catch(err){
+        console.error('Transaction save failed:',err);
+        showToast('Transaksi gagal disimpan ke Firebase. Data sebelumnya dipertahankan; periksa koneksi lalu coba lagi.');
+    }finally{
+        btn.disabled=false;
+        btn.classList.remove('disabled');
+    }
 }
 
 async function saveNeed(e){
