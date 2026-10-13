@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Catatan Ayah",
-  "short_name": "Catatan Ayah",
-  "description": "Catatan pribadi utang-piutang dan tagihan.",
+  "name": "Catatan Utang Piutang",
+  "short_name": "Catatan Utang Piutang",
+  "description": "Catatan utang-piutang, pembayaran, dan tagihan.",
   "lang": "id-ID",
   "start_url": "./",
   "scope": "./",
