@@ -239,7 +239,7 @@
                         </button>
                         <span id="tx-image-selection" class="min-w-0 flex-1 text-xs text-gray-500 break-words">Belum ada foto dipilih</span>
                     </div>
-                    <p class="text-[10px] text-gray-500 mt-2">Foto dikompres di perangkat menjadi maksimal 300 KB, lalu diunggah sebagai file privat ImageKit.</p>
+                    <p class="text-[10px] text-gray-500 mt-2">Foto dikompres di perangkat hingga maksimal 100 KB, lalu disimpan privat di Google Drive pemilik.</p>
                     <p id="tx-existing-image" class="text-[10px] text-gray-400 mt-1 hidden">Bukti lama tetap dipertahankan jika tidak memilih foto baru.</p>
                 </div>
                 <button id="btn-save-tx" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3.5 active:scale-[.99] transition shadow-lg shadow-green-200">Simpan Transaksi</button>
@@ -272,7 +272,7 @@
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Nominal Yang Dibayar (Rp)</label><input type="number" id="pay_amount" required min="1" inputmode="numeric" placeholder="0" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Pembayaran</label><input type="date" id="pay_date" required class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Keterangan <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="text" id="pay_note" placeholder="Cth: Cicil minggu pertama" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
-                <div><label class="block text-sm font-medium text-gray-700 mb-1">Bukti Pembayaran <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="file" id="pay_image" accept="image/jpeg,image/png,image/webp,image/*" class="w-full text-sm text-gray-600"><p class="text-[10px] text-gray-500 mt-1">Foto dikompres di perangkat menjadi maksimal 300 KB sebelum diunggah sebagai file privat ImageKit.</p></div>
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Bukti Pembayaran <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="file" id="pay_image" accept="image/jpeg,image/png,image/webp,image/*" class="w-full text-sm text-gray-600"><p class="text-[10px] text-gray-500 mt-1">Foto dikompres di perangkat hingga maksimal 100 KB sebelum disimpan privat di Google Drive pemilik.</p></div>
                 <button id="btn-save-pay" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3.5 active:scale-[.99] transition shadow-lg shadow-green-200 flex items-center justify-center gap-2"><i class="ph-bold ph-check-square"></i> Simpan Pembayaran</button>
             </form>
         </div>
