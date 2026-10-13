@@ -433,7 +433,20 @@ function normalizeData(input) {
 }
 function cloneData(input) {
     const source = input && typeof input === 'object' ? input : { transactions: [], needs: [] };
-    return normalizeData(JSON.parse(JSON.stringify(source)));
+    // structuredClone avoids the large stringification/parse round-trip on modern
+    // browsers, especially costly when legacy records still contain Base64 images.
+    // Keep a JSON fallback for older supported browsers and plain JSON payloads.
+    let copy;
+    if (typeof structuredClone === 'function') {
+        try {
+            copy = structuredClone(source);
+        } catch {
+            copy = JSON.parse(JSON.stringify(source));
+        }
+    } else {
+        copy = JSON.parse(JSON.stringify(source));
+    }
+    return normalizeData(copy);
 }
 
 const PIN_PBKDF2_ITERATIONS = 210000;
