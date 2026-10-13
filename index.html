@@ -14,8 +14,12 @@
     <meta name="apple-mobile-web-app-title" content="Catatan Ayah">
     <meta name="format-detection" content="telephone=no">
     <link id="app-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%2316a34a'/%3E%3Ccircle cx='50' cy='50' r='36' fill='white' opacity='.16'/%3E%3Ctext x='50' y='61' text-anchor='middle' font-size='44'%3E%F0%9F%91%9B%3C/text%3E%3C/svg%3E">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Tailwind utilities are precompiled locally into app.css; no runtime CDN scanner. -->
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://catatan-ayah-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
+    <link rel="stylesheet" href="./app.css">
+    <script src="https://unpkg.com/@phosphor-icons/web" defer></script>
     <style>
         ::-webkit-scrollbar { display:none; }
         * { -ms-overflow-style:none; scrollbar-width:none; -webkit-tap-highlight-color:transparent; }
@@ -31,6 +35,68 @@
         .safe-top { padding-top:env(safe-area-inset-top,0px); }
         .app-content-scroll { padding-bottom:7rem; }
         .disabled { pointer-events:none; opacity:.6; }
+        /* Bottom navigation: FAB berada di slot tengah antara Transaksi dan Tagihan. */
+        .bottom-nav { position:sticky; bottom:0; width:100%; z-index:30; background:rgba(255,255,255,.96); backdrop-filter:blur(14px); border-top:1px solid #f3f4f6; border-radius:1.25rem 1.25rem 0 0; box-shadow:0 -4px 15px -3px rgba(0,0,0,.06); padding-bottom:calc(.55rem + env(safe-area-inset-bottom,0px)); }
+        .bottom-nav-list { display:flex; align-items:center; justify-content:space-around; list-style:none; padding:0; margin:0; height:4rem; }
+        .bottom-nav-item { position:relative; height:100%; flex:1 1 0%; min-width:0; display:flex; align-items:center; justify-content:center; }
+        .bottom-nav-button { width:100%; height:100%; border:0; background:transparent; color:#9ca3af; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; transition:color .16s ease; }
+        .bottom-nav-button i { font-size:1.35rem; line-height:1; }
+        .bottom-nav-button span { font-size:10px; font-weight:600; white-space:nowrap; }
+        .bottom-nav-button.is-active { color:#16a34a; }
+        .nav-fab-slot { overflow:visible; }
+        #fab-add { position:absolute; top:-20px; left:50%; transform:translateX(-50%); z-index:35; width:3.5rem; height:3.5rem; border:0; border-radius:9999px; background:#16a34a; color:#fff; box-shadow:0 8px 18px rgba(22,163,74,.28); display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:box-shadow .15s ease, background .15s ease; }
+        #fab-add:active { transform:translateX(-50%) scale(.94); }
+        #fab-add i { font-size:1.7rem; line-height:1; }
+        #fab-add-label { position:absolute; top:39px; left:50%; transform:translateX(-50%); color:#6b7280; font-size:9px; font-weight:600; line-height:1; pointer-events:none; }
+        .report-page { display:flex; flex-direction:column; gap:14px; padding-bottom:8px; }
+        .report-page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:2px 2px 0; }
+        .report-page-title { margin:0; font-size:20px; line-height:1.2; font-weight:850; letter-spacing:-.025em; color:#111827; }
+        .report-page-subtitle { margin-top:5px; font-size:11px; line-height:1.5; color:#6b7280; }
+        .report-card { background:#fff; border:1px solid #f0f1f3; border-radius:17px; padding:15px; box-shadow:0 2px 6px rgba(15,23,42,.025); min-width:0; }
+        .report-card-title { margin:0; font-size:13px; line-height:1.35; color:#1f2937; font-weight:800; }
+        .report-card-subtitle { margin-top:4px; font-size:10px; line-height:1.45; color:#9ca3af; }
+        .report-summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+        .report-kpi { padding:12px; border:1px solid #f1f5f9; border-radius:14px; background:#fff; min-width:0; }
+        .report-kpi-label { color:#6b7280; font-size:10px; line-height:1.4; font-weight:750; text-transform:uppercase; letter-spacing:.025em; }
+        .report-kpi-value { margin-top:6px; font-size:17px; line-height:1.25; font-weight:900; color:#111827; overflow-wrap:anywhere; }
+        .report-kpi-note { margin-top:4px; color:#9ca3af; font-size:10px; }
+        .report-type-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+        .report-type-card { border-radius:15px; padding:13px; border:1px solid transparent; min-width:0; }
+        .report-type-card.debt { background:#fff7f7; border-color:#fee2e2; }
+        .report-type-card.credit { background:#f0fdf4; border-color:#dcfce7; }
+        .report-type-title { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:850; }
+        .report-type-card.debt .report-type-title { color:#b91c1c; }
+        .report-type-card.credit .report-type-title { color:#15803d; }
+        .report-type-metrics { display:grid; grid-template-columns:1fr; gap:9px; margin-top:12px; }
+        .report-type-metric-label { color:#6b7280; font-size:10px; }
+        .report-type-metric-value { margin-top:2px; color:#111827; font-size:13px; line-height:1.3; font-weight:850; overflow-wrap:anywhere; }
+        .report-chart-legend { display:flex; align-items:center; gap:13px; flex-wrap:wrap; margin-top:12px; font-size:10px; color:#6b7280; }
+        .report-legend-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+        .report-bar-row { margin-top:16px; }
+        .report-bar-heading { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:7px; font-size:11px; font-weight:750; color:#374151; }
+        .report-bar-heading strong { color:#111827; font-weight:900; text-align:right; }
+        .report-bar-track { height:12px; width:100%; background:#f3f4f6; border-radius:999px; overflow:hidden; }
+        .report-bar-fill { height:100%; min-width:0; border-radius:999px; transition:width .25s ease; }
+        .report-bar-fill.debt { background:linear-gradient(90deg,#f87171,#dc2626); }
+        .report-bar-fill.credit { background:linear-gradient(90deg,#4ade80,#16a34a); }
+        .report-contact-toolbar { display:flex; flex-direction:column; gap:10px; }
+        .report-search { width:100%; box-sizing:border-box; border:1px solid #e5e7eb; background:#f9fafb; padding:10px 12px; border-radius:11px; font:inherit; font-size:12px; outline:none; color:#111827; }
+        .report-search:focus { border-color:#86efac; box-shadow:0 0 0 3px rgba(34,197,94,.12); }
+        .report-export-all { width:100%; border:1px solid #bbf7d0; background:#f0fdf4; color:#15803d; padding:10px 12px; border-radius:11px; font-size:11px; font-weight:800; cursor:pointer; }
+        .report-contact-list { display:flex; flex-direction:column; gap:9px; margin-top:13px; }
+        .report-contact { border:1px solid #f1f5f9; border-radius:13px; padding:12px; background:#fff; }
+        .report-contact-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+        .report-contact-name { color:#1f2937; font-size:12px; font-weight:850; overflow-wrap:anywhere; }
+        .report-contact-meta { color:#9ca3af; font-size:10px; margin-top:3px; }
+        .report-contact-balances { display:flex; flex-wrap:wrap; gap:5px; justify-content:flex-end; }
+        .report-balance-chip { border-radius:7px; padding:4px 6px; font-size:9px; font-weight:800; white-space:nowrap; }
+        .report-balance-chip.debt { color:#b91c1c; background:#fef2f2; }
+        .report-balance-chip.credit { color:#15803d; background:#f0fdf4; }
+        .report-contact-actions { display:flex; gap:7px; margin-top:10px; }
+        .report-contact-action { border:1px solid #e5e7eb; background:#fff; color:#4b5563; border-radius:9px; padding:7px 9px; font-size:10px; font-weight:750; cursor:pointer; }
+        .report-contact-action.primary { border-color:#bbf7d0; background:#f0fdf4; color:#15803d; }
+        .report-empty { border:1px dashed #d1d5db; border-radius:13px; padding:25px 15px; text-align:center; color:#9ca3af; font-size:12px; }
+        @media (min-width:420px) { .report-type-metrics { grid-template-columns:1fr 1fr; } .report-contact-toolbar { flex-direction:row; } .report-export-all { width:auto; flex-shrink:0; } }
     </style>
 </head>
 <body class="text-gray-800 font-sans selection:bg-green-200">
@@ -103,7 +169,7 @@
 
     <!-- MAIN APP -->
     <div id="app-content" class="hidden flex flex-col min-h-screen flex-1">
-        <header class="bg-green-600 text-white px-4 pb-4 pt-safe sticky top-0 z-30 shadow-md rounded-b-2xl">
+        <header class="bg-green-600 text-white px-4 pb-4 safe-top sticky top-0 z-30 shadow-md rounded-b-2xl">
             <div class="flex items-center justify-between gap-3 pt-3">
                 <div class="min-w-0">
                     <h1 class="text-lg sm:text-xl font-bold flex items-center gap-2 truncate">
@@ -129,15 +195,13 @@
 
         <main id="app-container" class="flex-1 p-4 app-content-scroll overflow-y-auto fade-in"></main>
 
-        <button id="fab-add" onclick="openTransactionModal()" class="fixed bottom-20 right-5 z-40 w-14 h-14 bg-green-600 text-white rounded-full shadow-xl shadow-green-600/30 flex items-center justify-center active:scale-90 transition-transform">
-            <i class="ph ph-plus text-2xl font-bold"></i>
-        </button>
-
-        <nav class="sticky bottom-0 w-full bg-white/95 backdrop-blur-md border-t border-gray-100 z-30 rounded-t-2xl shadow-[0_-4px_15px_-3px_rgba(0,0,0,0.05)] safe-bottom">
-            <ul class="flex justify-around items-center h-16">
-                <li class="flex-1"><button id="nav-beranda" onclick="switchTab('beranda')" class="w-full h-full flex flex-col items-center justify-center text-green-600 transition-colors"><i class="ph-fill ph-house text-2xl mb-0.5"></i><span class="text-[10px] font-semibold">Beranda</span></button></li>
-                <li class="flex-1"><button id="nav-transaksi" onclick="switchTab('transaksi')" class="w-full h-full flex flex-col items-center justify-center text-gray-400 transition-colors"><i class="ph-fill ph-arrows-left-right text-2xl mb-0.5"></i><span class="text-[10px] font-semibold">Transaksi</span></button></li>
-                <li class="flex-1"><button id="nav-kebutuhan" onclick="switchTab('kebutuhan')" class="w-full h-full flex flex-col items-center justify-center text-gray-400 transition-colors"><i class="ph-fill ph-list-checks text-2xl mb-0.5"></i><span class="text-[10px] font-semibold">Tagihan</span></button></li>
+        <nav class="bottom-nav safe-bottom" aria-label="Navigasi utama">
+            <ul class="bottom-nav-list">
+                <li class="bottom-nav-item"><button id="nav-beranda" onclick="switchTab('beranda')" class="bottom-nav-button is-active"><i class="ph-fill ph-house"></i><span>Beranda</span></button></li>
+                <li class="bottom-nav-item"><button id="nav-transaksi" onclick="switchTab('transaksi')" class="bottom-nav-button"><i class="ph ph-arrows-left-right"></i><span>Transaksi</span></button></li>
+                <li class="bottom-nav-item nav-fab-slot"><button id="fab-add" onclick="openTransactionModal()" aria-label="Tambah transaksi" title="Tambah transaksi"><i class="ph-bold ph-plus"></i></button><span id="fab-add-label">Tambah</span></li>
+                <li class="bottom-nav-item"><button id="nav-kebutuhan" onclick="switchTab('kebutuhan')" class="bottom-nav-button"><i class="ph ph-list-checks"></i><span>Tagihan</span></button></li>
+                <li class="bottom-nav-item"><button id="nav-laporan" onclick="switchTab('laporan')" class="bottom-nav-button"><i class="ph ph-chart-bar"></i><span>Laporan</span></button></li>
             </ul>
         </nav>
     </div>
@@ -274,6 +338,8 @@ let currentTab = 'beranda';
 let txFilter = 'semua';
 let txStatus = 'semua';
 let txSearch = '';
+let reportSearch = '';
+let reportSearchRenderTimer = null;
 let data = { transactions: [], needs: [] };
 let deleteTarget = null;
 let activePayTx = null;
@@ -287,6 +353,7 @@ let authReady = false;
 let appUnlocked = false;
 let saveInProgress = false;
 let txSearchRenderTimer = null;
+let remoteRenderScheduled = false;
 
 const TX_STATUS = { BELUM:'Belum Lunas', CICIL:'Dicicil', LUNAS:'Lunas' };
 
@@ -383,6 +450,12 @@ function clearSensitiveInMemoryData() {
         clearTimeout(txSearchRenderTimer);
         txSearchRenderTimer = null;
     }
+    if (reportSearchRenderTimer !== null) {
+        clearTimeout(reportSearchRenderTimer);
+        reportSearchRenderTimer = null;
+    }
+    txSearch = '';
+    reportSearch = '';
     data = { transactions: [], needs: [] };
     lastStableData = null;
     activePayTx = null;
@@ -566,14 +639,18 @@ function setupFirebaseListener() {
         firebaseUnsubscribe = onValue(dbRef, snapshot => {
             const cloud = snapshot.val();
             if (saveInProgress && firstSnapshotHandled) return;
-            if (cloud && typeof cloud === 'object') {
-                data = normalizeData(cloud);
-            } else {
-                // Cloud is the source of truth. If empty, start empty rather than silently resurrecting stale browser cache.
-                data = { transactions: [], needs: [] };
+
+            // Keep the existing single-root schema but avoid full DOM rebuilds when
+            // Firebase echoes a snapshot that is identical to the stable baseline.
+            const incoming = cloud && typeof cloud === 'object'
+                ? normalizeData(cloud)
+                : { transactions: [], needs: [] };
+            const dataChanged = !lastStableData || !jsonEqual(incoming, lastStableData);
+            data = incoming;
+            if (dataChanged) {
+                lastStableData = cloneData(incoming);
+                clearSensitiveLocalCache();
             }
-            clearSensitiveLocalCache();
-            lastStableData = cloneData(data);
             firebaseDataReady = true;
             setSyncState('online');
 
@@ -581,7 +658,7 @@ function setupFirebaseListener() {
                 firstSnapshotHandled = true;
                 resolve(true);
             }
-            if (isAppUnlocked()) renderApp();
+            if (dataChanged && isAppUnlocked()) scheduleRemoteRender();
         }, error => {
             console.warn('Firebase listener error', error);
             firebaseListening = false;
@@ -713,15 +790,28 @@ async function logoutFirebaseAccount() {
 }
 
 function switchTab(tab){
+    if (!['beranda','transaksi','kebutuhan','laporan'].includes(tab)) tab='beranda';
     currentTab=tab;
-    ['beranda','transaksi','kebutuhan'].forEach(t=>{
+    ['beranda','transaksi','kebutuhan','laporan'].forEach(t=>{
         const btn=document.getElementById(`nav-${t}`); if(!btn) return;
         const icon=btn.querySelector('i');
-        if(t===tab){ btn.classList.add('text-green-600'); btn.classList.remove('text-gray-400'); icon.classList.add('ph-fill'); icon.classList.remove('ph'); }
-        else { btn.classList.remove('text-green-600'); btn.classList.add('text-gray-400'); icon.classList.add('ph'); icon.classList.remove('ph-fill'); }
+        btn.classList.toggle('is-active', t===tab);
+        if(icon){
+            if(t===tab){ icon.classList.add('ph-fill'); icon.classList.remove('ph'); }
+            else { icon.classList.remove('ph-fill'); icon.classList.add('ph'); }
+        }
     });
-    document.getElementById('fab-add').classList.toggle('hidden', tab==='kebutuhan');
     renderApp();
+}
+function setReportSearch(value){
+    reportSearch=String(value||'');
+    if(reportSearchRenderTimer!==null) clearTimeout(reportSearchRenderTimer);
+    reportSearchRenderTimer=setTimeout(()=>{
+        reportSearchRenderTimer=null;
+        renderApp();
+        const input=document.querySelector('#app-container input[data-report-search]');
+        if(input){ input.focus(); const pos=reportSearch.length; try{input.setSelectionRange(pos,pos);}catch{} }
+    },120);
 }
 function setTxFilter(filter){ txFilter=filter; renderApp(); }
 function setTxStatus(status){ txStatus=status; renderApp(); }
@@ -1005,6 +1095,90 @@ function buildMonthlySummary(){
     const net=incoming-outgoing;
     return `<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3"><div class="flex items-center justify-between"><div><p class="text-[10px] uppercase tracking-widest text-gray-400 font-black">Ringkasan Bulan Ini</p><h3 class="text-base font-black text-gray-800">${escapeHtml(monthLabel(key))}</h3></div><div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-chart-line-up text-lg"></i></div></div><div class="grid grid-cols-2 gap-2"><div class="rounded-xl bg-green-50 border border-green-100 p-3"><p class="text-[10px] text-green-700 font-bold uppercase">Uang Masuk</p><p class="text-sm font-black text-gray-800 mt-1">${formatRupiah(incoming)}</p></div><div class="rounded-xl bg-red-50 border border-red-100 p-3"><p class="text-[10px] text-red-700 font-bold uppercase">Uang Keluar</p><p class="text-sm font-black text-gray-800 mt-1">${formatRupiah(outgoing)}</p></div></div><div class="flex items-center justify-between text-[11px] bg-gray-50 rounded-xl px-3 py-2"><span class="font-bold text-gray-500">Arus bersih</span><span class="font-black ${net>=0?'text-green-600':'text-red-600'}">${formatRupiah(net)}</span></div><p class="text-[10px] text-gray-400">${count} transaksi utama tercatat pada bulan ini.</p></div>`;
 }
+function reportContactGroups(){
+    const groups=new Map();
+    data.transactions.forEach(tx=>{
+        const rawName=String(tx.contact||'Tanpa Nama').trim()||'Tanpa Nama';
+        const key=rawName.toLowerCase();
+        if(!groups.has(key)) groups.set(key,{key,name:rawName,items:[],hutang:0,piutang:0,paid:0,remaining:0});
+        const g=groups.get(key); g.items.push(tx); g.paid+=getTxPaidAmount(tx); g.remaining+=getTxRemaining(tx);
+        if(tx.type==='hutang') g.hutang+=getTxRemaining(tx); else g.piutang+=getTxRemaining(tx);
+    });
+    return [...groups.values()].sort((a,b)=>(b.hutang+b.piutang)-(a.hutang+a.piutang)||a.name.localeCompare(b.name,'id'));
+}
+function getReportTotals(type){
+    const list=data.transactions.filter(tx=>tx.type===type);
+    const principal=list.reduce((sum,tx)=>sum+Math.max(0,Number(tx.amount)||0),0);
+    const paid=list.reduce((sum,tx)=>sum+Math.max(0,getTxPaidAmount(tx)),0);
+    const remaining=list.reduce((sum,tx)=>sum+Math.max(0,getTxRemaining(tx)),0);
+    const open=list.filter(tx=>getTxRemaining(tx)>0).length;
+    const settled=list.length-open;
+    return {count:list.length,principal,paid,remaining,open,settled};
+}
+function buildReportTypeCard(type,totals){
+    const debt=type==='hutang';
+    return `<div class="report-type-card ${debt?'debt':'credit'}"><div class="report-type-title"><i class="ph-bold ${debt?'ph-arrow-down-left':'ph-arrow-up-right'}"></i><span>${debt?'Utang Saya':'Piutang Saya'}</span></div><div class="report-type-metrics"><div><div class="report-type-metric-label">Nominal awal</div><div class="report-type-metric-value">${formatRupiah(totals.principal)}</div></div><div><div class="report-type-metric-label">Sudah dibayar</div><div class="report-type-metric-value">${formatRupiah(totals.paid)}</div></div><div><div class="report-type-metric-label">Sisa ${debt?'utang':'piutang'}</div><div class="report-type-metric-value" style="color:${debt?'#b91c1c':'#15803d'}">${formatRupiah(totals.remaining)}</div></div><div><div class="report-type-metric-label">Aktif / lunas</div><div class="report-type-metric-value">${totals.open} / ${totals.settled}</div><div class="report-kpi-note">${totals.count} transaksi</div></div></div></div>`;
+}
+function buildLaporan(){
+    const hutang=getReportTotals('hutang'), piutang=getReportTotals('piutang');
+    const maxRemaining=Math.max(hutang.remaining,piutang.remaining,1);
+    const debtPct=Math.round((hutang.remaining/maxRemaining)*100);
+    const creditPct=Math.round((piutang.remaining/maxRemaining)*100);
+    const groups=reportContactGroups().filter(g=>g.name.toLowerCase().includes(reportSearch.trim().toLowerCase()));
+    const allRemaining=hutang.remaining+piutang.remaining;
+    const net=piutang.remaining-hutang.remaining;
+    const contactRows=groups.length?groups.map(g=>{
+        const txLabel=`${g.items.length} transaksi`;
+        const debtChip=g.hutang?`<span class="report-balance-chip debt">Utang ${formatRupiah(g.hutang)}</span>`:'';
+        const creditChip=g.piutang?`<span class="report-balance-chip credit">Piutang ${formatRupiah(g.piutang)}</span>`:'';
+        return `<div class="report-contact"><div class="report-contact-top"><div style="min-width:0"><div class="report-contact-name">${escapeHtml(g.name)}</div><div class="report-contact-meta">${txLabel} · Terbayar ${formatRupiah(g.paid)}</div></div><div class="report-contact-balances">${debtChip}${creditChip}${(!g.hutang&&!g.piutang)?'<span class="report-balance-chip" style="background:#f3f4f6;color:#6b7280">Lunas</span>':''}</div></div><div class="report-contact-actions"><button class="report-contact-action" onclick="openDetailModalByContact(${jsArg(g.key)})"><i class="ph-bold ph-eye"></i> Detail</button><button class="report-contact-action primary" onclick="downloadContactCsv(${jsArg(g.key)})"><i class="ph-bold ph-download-simple"></i> Unduh detail CSV</button></div></div>`;
+    }).join(''):`<div class="report-empty"><i class="ph ph-magnifying-glass" style="font-size:22px;display:block;margin-bottom:6px"></i>${reportSearch.trim()?'Kontak tidak ditemukan.':'Belum ada transaksi yang dapat dilaporkan.'}</div>`;
+    return `<div class="report-page">
+        <div class="report-page-header"><div><h2 class="report-page-title">Laporan Utang-Piutang</h2><p class="report-page-subtitle">Rekap sisa saldo, pembayaran, dan detail setiap kontak.</p></div><div style="width:40px;height:40px;flex:0 0 40px;border-radius:13px;background:#dcfce7;color:#15803d;display:flex;align-items:center;justify-content:center"><i class="ph-fill ph-chart-bar" style="font-size:22px"></i></div></div>
+        <div class="report-summary-grid"><div class="report-kpi"><div class="report-kpi-label">Total sisa utang + piutang</div><div class="report-kpi-value">${formatRupiah(allRemaining)}</div><div class="report-kpi-note">Total saldo yang belum selesai</div></div><div class="report-kpi"><div class="report-kpi-label">Saldo bersih</div><div class="report-kpi-value" style="color:${net<0?'#b91c1c':'#15803d'}">${net<0?'- ':''}${formatRupiah(Math.abs(net))}</div><div class="report-kpi-note">Sisa piutang dikurangi sisa utang</div></div></div>
+        <section class="report-card"><h3 class="report-card-title">Grafik Sisa Utang &amp; Piutang</h3><p class="report-card-subtitle">Perbandingan saldo yang masih belum lunas saat ini.</p><div class="report-bar-row"><div class="report-bar-heading"><span><i class="ph-fill ph-circle" style="color:#dc2626;margin-right:4px"></i>Sisa utang</span><strong>${formatRupiah(hutang.remaining)}</strong></div><div class="report-bar-track" role="img" aria-label="Sisa utang ${formatRupiah(hutang.remaining)}"><div class="report-bar-fill debt" style="width:${debtPct}%"></div></div></div><div class="report-bar-row"><div class="report-bar-heading"><span><i class="ph-fill ph-circle" style="color:#16a34a;margin-right:4px"></i>Sisa piutang</span><strong>${formatRupiah(piutang.remaining)}</strong></div><div class="report-bar-track" role="img" aria-label="Sisa piutang ${formatRupiah(piutang.remaining)}"><div class="report-bar-fill credit" style="width:${creditPct}%"></div></div></div><div class="report-chart-legend"><span><i class="report-legend-dot" style="background:#dc2626"></i>Utang yang harus dibayar</span><span><i class="report-legend-dot" style="background:#16a34a"></i>Piutang yang akan diterima</span></div></section>
+        <section><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 9px"><h3 class="report-card-title">Rekap Utang &amp; Piutang</h3><span style="font-size:9px;color:#9ca3af">Semua tanggal</span></div><div class="report-type-grid">${buildReportTypeCard('hutang',hutang)}${buildReportTypeCard('piutang',piutang)}</div></section>
+        <section class="report-card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><h3 class="report-card-title">Detail per Kontak</h3><p class="report-card-subtitle">Unduh transaksi individual atau seluruh kontak dalam format CSV untuk Excel.</p></div><i class="ph-fill ph-users-three" style="font-size:20px;color:#16a34a"></i></div><div class="report-contact-toolbar" style="margin-top:12px"><input data-report-search class="report-search" value="${escapeHtml(reportSearch)}" oninput="setReportSearch(this.value)" placeholder="Cari nama kontak..."><button class="report-export-all" onclick="downloadAllContactsCsv()"><i class="ph-bold ph-download-simple"></i> Unduh semua CSV</button></div><div class="report-contact-list">${contactRows}</div><p class="report-card-subtitle" style="margin-top:12px">Menampilkan ${groups.length} kontak dari ${reportContactGroups().length} kontak.</p></section>
+    </div>`;
+}
+function csvCell(value){
+    let text=String(value??'').replace(/\r?\n/g,' ');
+    // Neutralize spreadsheet formula prefixes in imported contact names and notes.
+    if (/^\s*[=+@\-]/.test(text) && !/^\s*-?\d+(?:[.,]\d+)?$/.test(text)) text="'"+text;
+    return '"'+text.replace(/"/g,'""')+'"';
+}
+function reportCsvRow(values){ return values.map(csvCell).join(','); }
+function createContactCsvRows(transactions){
+    const rows=[['Kontak','ID Transaksi','Jenis','Tanggal Transaksi','Catatan','Jatuh Tempo','Nominal Awal','Total Dibayar','Sisa','Status','Riwayat Pembayaran']];
+    const sorted=transactions.slice().sort((a,b)=>String(a.txDate||'').localeCompare(String(b.txDate||''))||String(a.contact||'').localeCompare(String(b.contact||''),'id'));
+    sorted.forEach(tx=>{
+        const payments=(Array.isArray(tx.payments)?tx.payments:[]).map((p,i)=>`${p.date||'-'}: ${formatRupiah(p.amount)}${p.note?' ('+String(p.note).replace(/[\r\n;]/g,' ')+')':''}`).join(' | ') || (getTxPaidAmount(tx)>0?'Pembayaran legacy tanpa rincian':'Belum ada pembayaran');
+        rows.push([tx.contact||'Tanpa Nama',tx.id||'',tx.type==='hutang'?'Utang':'Piutang',tx.txDate||'',tx.note||'',tx.dueDate||'',Number(tx.amount||0),getTxPaidAmount(tx),getTxRemaining(tx),tx.status||deriveStatus(tx),payments]);
+    });
+    return rows;
+}
+function downloadCsv(filename,rows){
+    if(!requireUnlockedApp()) return;
+    const content='\uFEFF'+rows.map(reportCsvRow).join('\r\n');
+    const blob=new Blob([content],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function safeReportFilename(value){ return String(value||'kontak').normalize('NFKD').replace(/[^a-z0-9_-]+/gi,'_').replace(/^_+|_+$/g,'').slice(0,60)||'kontak'; }
+function downloadContactCsv(contactKey){
+    if(!requireUnlockedApp()) return;
+    const txs=data.transactions.filter(tx=>(tx.contact||'Tanpa Nama').trim().toLowerCase()===String(contactKey||'').trim().toLowerCase());
+    if(!txs.length){ showToast('Tidak ada transaksi untuk kontak tersebut.'); return; }
+    const name=txs[0].contact||'Tanpa Nama';
+    downloadCsv(`Detail_${safeReportFilename(name)}.csv`,createContactCsvRows(txs));
+    showToast(`Detail ${name} berhasil diunduh.`);
+}
+function downloadAllContactsCsv(){
+    if(!requireUnlockedApp()) return;
+    if(!data.transactions.length){ showToast('Belum ada transaksi untuk diekspor.'); return; }
+    downloadCsv(`Laporan_Utang_Piutang_${todayStr()}.csv`,createContactCsvRows(data.transactions));
+    showToast('Seluruh detail transaksi berhasil diunduh.');
+}
+
 function buildBeranda(){
     let totalHutang=0,totalPiutang=0,totalLunas=0; const upcoming=[];
     data.transactions.forEach(tx=>{ const rem=getTxRemaining(tx); if(rem<=0){ totalLunas++; return; } if(tx.type==='hutang') totalHutang+=rem; else totalPiutang+=rem; if(tx.dueDate){ const d=daysDiff(tx.dueDate); if(d<=3) upcoming.push({...tx,days:d,remaining:rem}); } });
@@ -1194,7 +1368,16 @@ async function restoreBackup(e) {
 }
 async function migrateLegacyPhotos(){ if(!requireUnlockedApp()) return; showToast('Migrasi foto ditangguhkan sampai Firebase Storage, billing, dan Storage Rules dikonfigurasi. Lampiran lama tidak diubah.'); }
 
-function renderApp(){ if(!isAppUnlocked()) return; const c=document.getElementById('app-container'); if(!c) return; c.innerHTML=currentTab==='beranda'?buildBeranda():currentTab==='transaksi'?buildTransaksi():buildKebutuhan(); }
+function scheduleRemoteRender() {
+    if (remoteRenderScheduled) return;
+    remoteRenderScheduled = true;
+    requestAnimationFrame(() => {
+        remoteRenderScheduled = false;
+        if (isAppUnlocked()) renderApp();
+    });
+}
+
+function renderApp(){ if(!isAppUnlocked()) return; const c=document.getElementById('app-container'); if(!c) return; c.innerHTML=currentTab==='beranda'?buildBeranda():currentTab==='transaksi'?buildTransaksi():currentTab==='laporan'?buildLaporan():buildKebutuhan(); }
 
 function initApp(){
     const dateEl=document.getElementById('current-date');
@@ -1206,7 +1389,7 @@ function initApp(){
 }
 
 window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup; window.migrateLegacyPhotos=migrateLegacyPhotos;
-window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch;
+window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
 window.authLogin=authLogin; window.logoutFirebaseAccount=logoutFirebaseAccount; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.viewPhoto=viewPhoto; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.downloadAttachment=downloadAttachment; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
 document.addEventListener('DOMContentLoaded', initApp);

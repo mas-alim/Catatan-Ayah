@@ -4,10 +4,11 @@
  * transaction data, and cross-origin requests are deliberately never cached.
  */
 const CACHE_PREFIX = 'catatan-ayah-static-';
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_NAME = `${CACHE_PREFIX}v2`;
 const SCOPE_URL = new URL(self.registration.scope);
 const OFFLINE_URL = new URL('offline.html', SCOPE_URL).href;
 const STATIC_URLS = [
+  new URL('app.css', SCOPE_URL).href,
   new URL('manifest.webmanifest', SCOPE_URL).href,
   new URL('icons/icon-192.png', SCOPE_URL).href,
   new URL('icons/icon-512.png', SCOPE_URL).href,
