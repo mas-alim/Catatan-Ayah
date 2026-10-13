@@ -265,7 +265,7 @@ const auth = getAuth(app);
 const OWNER_UID = 'ZlWZFhPLbHbOtIDPYsK4yxiLrGC2';
 const db = getDatabase(app);
 const dbRef = ref(db, 'catatan_keuangan_v1');
-const LOCAL_DATA_KEY = 'catatanKeuanganApp';
+const LEGACY_LOCAL_DATA_KEY = 'catatanKeuanganApp'; // old cache key; dataset is no longer persisted in browser storage
 const PIN_KEY = 'app_pin';
 
 let currentTab = 'beranda';
@@ -284,6 +284,7 @@ let currentAuthUser = null;
 let authReady = false;
 let appUnlocked = false;
 let saveInProgress = false;
+let txSearchRenderTimer = null;
 
 const TX_STATUS = { BELUM:'Belum Lunas', CICIL:'Dicicil', LUNAS:'Lunas' };
 
@@ -369,17 +370,36 @@ function setSyncState(mode) {
     else { icon.className='ph-bold ph-cloud-check text-green-300 text-sm'; text.textContent='Tersinkron'; }
 }
 
-function loadLocalData() {
-    try {
-        const raw = localStorage.getItem(LOCAL_DATA_KEY);
-        if (raw) data = normalizeData(JSON.parse(raw));
-        else data = { transactions: [], needs: [] };
-        lastStableData = cloneData(data);
-    } catch (e) {
-        console.warn('Local data error', e);
-        data = { transactions: [], needs: [] };
-        lastStableData = cloneData(data);
+function clearSensitiveLocalCache() {
+    // Previous revisions wrote the full debt/receivables dataset to localStorage.
+    // The application now uses Firebase as the only persisted source of truth.
+    try { localStorage.removeItem(LEGACY_LOCAL_DATA_KEY); } catch (error) { console.warn('Local cache cleanup skipped', error); }
+}
+
+function clearSensitiveInMemoryData() {
+    if (txSearchRenderTimer !== null) {
+        clearTimeout(txSearchRenderTimer);
+        txSearchRenderTimer = null;
     }
+    data = { transactions: [], needs: [] };
+    lastStableData = null;
+    activePayTx = null;
+    clearSensitiveLocalCache();
+
+    // Hide and clear protected DOM too; hidden markup should not retain contact names,
+    // notes, payment amounts, and detail history after lock/logout.
+    const appContainer = document.getElementById('app-container');
+    if (appContainer) appContainer.replaceChildren();
+    const detailContent = document.getElementById('detail-content');
+    if (detailContent) detailContent.replaceChildren();
+    const photoPreview = document.getElementById('photo-preview-img');
+    if (photoPreview) photoPreview.removeAttribute('src');
+    document.querySelectorAll('form').forEach(form => { try { form.reset(); } catch {} });
+    document.querySelectorAll('[id^="modal-"]').forEach(modal => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    });
+    document.body.classList.remove('modal-open');
 }
 
 function isOwnerAuthenticated() {
@@ -451,9 +471,8 @@ async function handleAuthStateChanged(user) {
         currentAuthUser = null;
         authReady = false;
         appUnlocked = false;
-        data = { transactions: [], needs: [] };
-        lastStableData = null;
         stopFirebaseListener();
+        clearSensitiveInMemoryData();
         hideProtectedScreens();
         document.getElementById('screen-auth').classList.remove('hidden');
         return;
@@ -463,9 +482,8 @@ async function handleAuthStateChanged(user) {
         currentAuthUser = null;
         authReady = false;
         appUnlocked = false;
-        data = { transactions: [], needs: [] };
-        lastStableData = null;
         stopFirebaseListener();
+        clearSensitiveInMemoryData();
         hideProtectedScreens();
         document.getElementById('screen-auth').classList.remove('hidden');
         setAuthError('Akun ini tidak diizinkan mengakses Catatan-Ayah. Gunakan akun pemilik yang terdaftar.');
@@ -523,13 +541,12 @@ async function saveData({ replaceAll = false } = {}) {
         }, { applyLocally: false });
         if (!result.committed) throw new Error('TRANSACTION_NOT_COMMITTED');
         data = normalizeData(result.snapshot.val() || { transactions: [], needs: [] });
-        localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(data));
         lastStableData = cloneData(data);
         setSyncState('online');
     } catch (err) {
         if (lastStableData) data = cloneData(lastStableData);
         else data = { transactions: [], needs: [] };
-        try { localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(data)); } catch {}
+        clearSensitiveLocalCache();
         setSyncState('offline');
         throw err;
     } finally {
@@ -553,7 +570,7 @@ function setupFirebaseListener() {
                 // Cloud is the source of truth. If empty, start empty rather than silently resurrecting stale browser cache.
                 data = { transactions: [], needs: [] };
             }
-            try { localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(data)); } catch (storageError) { console.warn('Local cache unavailable', storageError); }
+            clearSensitiveLocalCache();
             lastStableData = cloneData(data);
             firebaseDataReady = true;
             setSyncState('online');
@@ -660,8 +677,13 @@ async function unlockApp() {
 }
 
 function lockApp() {
+    if (saveInProgress) {
+        showToast('Penyimpanan masih berlangsung. Tunggu sampai selesai sebelum mengunci aplikasi.');
+        return;
+    }
     appUnlocked = false;
     stopFirebaseListener();
+    clearSensitiveInMemoryData();
     document.getElementById('app-content').classList.add('hidden');
     document.getElementById('screen-data-loading').classList.add('hidden');
     if (isOwnerAuthenticated()) document.getElementById('screen-login').classList.remove('hidden');
@@ -670,16 +692,21 @@ function lockApp() {
 }
 
 async function logoutFirebaseAccount() {
+    if (saveInProgress) {
+        showToast('Penyimpanan masih berlangsung. Tunggu sampai selesai sebelum keluar.');
+        return;
+    }
+    appUnlocked = false;
     stopFirebaseListener();
+    clearSensitiveInMemoryData();
     document.getElementById('app-content').classList.add('hidden');
     closeModal('modal-settings');
     try {
         await signOut(auth);
-        data = { transactions: [], needs: [] };
-        lastStableData = null;
     } catch (error) {
         console.error('Firebase sign-out failed:', error);
-        showToast('Tidak dapat keluar dari akun. Coba lagi.');
+        showToast('Tidak dapat keluar dari akun. Aplikasi tetap terkunci; silakan buka kembali dengan PIN.');
+        if (isOwnerAuthenticated()) document.getElementById('screen-login').classList.remove('hidden');
     }
 }
 
@@ -696,8 +723,32 @@ function switchTab(tab){
 }
 function setTxFilter(filter){ txFilter=filter; renderApp(); }
 function setTxStatus(status){ txStatus=status; renderApp(); }
-function setTxSearch(value){ txSearch=String(value||''); renderApp(); const input=document.querySelector('#app-container input[data-tx-search]'); if(input){ input.focus(); input.setSelectionRange(txSearch.length,txSearch.length); } }
-function clearTxSearch(){ txSearch=''; renderApp(); }
+function setTxSearch(value) {
+    txSearch = String(value || '');
+    const activeInput = document.querySelector('#app-container input[data-tx-search]');
+    const selectionStart = activeInput?.selectionStart ?? txSearch.length;
+    const selectionEnd = activeInput?.selectionEnd ?? txSearch.length;
+    if (txSearchRenderTimer !== null) clearTimeout(txSearchRenderTimer);
+    // Avoid rebuilding the whole transaction list for every keystroke.
+    txSearchRenderTimer = setTimeout(() => {
+        txSearchRenderTimer = null;
+        if (!isAppUnlocked() || currentTab !== 'transaksi') return;
+        renderApp();
+        const nextInput = document.querySelector('#app-container input[data-tx-search]');
+        if (nextInput) {
+            nextInput.focus({ preventScroll: true });
+            const start = Math.min(selectionStart, nextInput.value.length);
+            const end = Math.min(selectionEnd, nextInput.value.length);
+            try { nextInput.setSelectionRange(start, end); } catch {}
+        }
+    }, 120);
+}
+function clearTxSearch(){
+    if (txSearchRenderTimer !== null) clearTimeout(txSearchRenderTimer);
+    txSearchRenderTimer = null;
+    txSearch = '';
+    renderApp();
+}
 
 function openModal(id){ const el=document.getElementById(id); if(!el) return; document.body.classList.add('modal-open'); el.classList.remove('hidden'); el.classList.add('flex'); }
 function closeModal(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('hidden'); el.classList.remove('flex'); document.body.classList.remove('modal-open'); if(id==='modal-add-transaction'){ document.getElementById('form-transaction').reset(); document.getElementById('tx_edit_id').value=''; document.getElementById('tx-existing-image').classList.add('hidden'); } if(id==='modal-add-need'){ document.getElementById('form-need').reset(); document.getElementById('nd_edit_id').value=''; } if(id==='modal-pay-transaction'){ document.getElementById('form-pay').reset(); activePayTx=null; } }
