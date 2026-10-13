@@ -501,6 +501,7 @@ function clearSensitiveInMemoryData() {
         modal.classList.remove('flex');
     });
     document.body.classList.remove('modal-open');
+    refreshPhotoStorageStatus();
 }
 
 function isOwnerAuthenticated() {
@@ -1337,7 +1338,7 @@ async function downloadAttachment(contactKey){
     contactTxs.forEach(tx=>{if(tx.image)attachments.push({src:tx.image,name:`${tx.contact||'kontak'}_${tx.id}`});(tx.payments||[]).forEach(p=>{if(p.image)attachments.push({src:p.image,name:`${tx.contact||'kontak'}_pembayaran_${p.id||tx.id}`});});});
     if(!attachments.length){showToast('Tidak ada lampiran foto.');return;}
     try{
-        let opened=0;
+        let opened=0,unavailable=0;
         for(const item of attachments){
             if(isGoogleDrivePhoto(item.src)){
                 const blob=await getGoogleDrivePhotoBlob(item.src);
@@ -1347,14 +1348,12 @@ async function downloadAttachment(contactKey){
             }else if(typeof item.src==='string'&&item.src.startsWith('data:image/')){
                 const blob=await dataUrlToBlob(item.src);const url=URL.createObjectURL(blob);const ext=blob.type==='image/webp'?'webp':blob.type==='image/png'?'png':'jpg';
                 const link=document.createElement('a');link.download=`${item.name.replace(/[^a-z0-9_.-]/gi,'_')}.${ext}`;link.href=url;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);opened++;
-            }else if(isLegacyImageKitPhoto(item.src)){
-                throw new Error('LEGACY_IMAGEKIT_REFERENCE');
-            }else if(typeof item.src==='string'&&item.src.startsWith('drive:')){
-                throw new Error('LEGACY_DRIVE_REFERENCE');
+            }else if(isLegacyImageKitPhoto(item.src)|| (typeof item.src==='string'&&item.src.startsWith('drive:'))){
+                unavailable++;
             }
             await new Promise(resolve=>setTimeout(resolve,180));
         }
-        showToast(`${opened} lampiran diproses dari penyimpanan privat.`);
+        showToast(`${opened} lampiran diunduh.${unavailable?` ${unavailable} foto lama belum tersedia karena masih memakai referensi penyimpanan lama.`:''}`);
     }catch(error){console.error('Attachment download failed:',error);showToast(photoUserMessage(error));}
 }
 
