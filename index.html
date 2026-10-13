@@ -1010,7 +1010,7 @@ async function connectGoogleDrive(){
         if(!auth.currentUser||auth.currentUser.uid!==OWNER_UID) throw new Error('AUTH_REQUIRED');
         if(!GOOGLE_DRIVE_CLIENT_ID||GOOGLE_DRIVE_CLIENT_ID.startsWith('GANTI_')) throw new Error('GOOGLE_DRIVE_CLIENT_ID_MISSING');
         if(!window.google?.accounts?.oauth2) throw new Error('GOOGLE_IDENTITY_NOT_READY');
-        await requestGoogleDriveToken('consent');
+        await requestGoogleDriveToken('');
         await ensureGoogleDriveFolder();
         refreshPhotoStorageStatus();
         showToast('Google Drive terhubung. Foto baru akan disimpan privat dengan batas 100 KB.');
