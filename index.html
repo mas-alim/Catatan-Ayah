@@ -1547,8 +1547,6 @@ async function downloadAttachment(contactKey){
                 const url=URL.createObjectURL(blob);
                 const ext=blob.type==='image/webp'?'webp':blob.type==='image/png'?'png':'jpg';
                 const link=document.createElement('a');link.download=`${item.name.replace(/[^a-z0-9_.-]/gi,'_')}.${ext}`;link.href=url;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);opened++;
-            }else if(typeof item.src==='string'&&item.src.startsWith('drive:')){
-                unavailable++;
             }
             await new Promise(resolve=>setTimeout(resolve,180));
         }
