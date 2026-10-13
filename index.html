@@ -1039,7 +1039,7 @@ async function uploadCompressedPhoto(blobInfo,itemId){
     form.append('useUniqueFileName','false');
     let response;
     try{
-        response=await fetch('https://upload.imagekit.io/api/v1/files',{method:'POST',body:form,cache:'no-store'});
+        response=await fetch('https://upload.imagekit.io/api/v1/files/upload',{method:'POST',body:form,cache:'no-store'});
     }catch(networkError){
         const err=new Error('IMAGEKIT_UPLOAD_NETWORK_FAILED');
         err.cause=networkError;
