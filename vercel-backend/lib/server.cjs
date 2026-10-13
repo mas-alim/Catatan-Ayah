@@ -136,7 +136,7 @@ function signPrivatePhotoPath(filePath, privateKey, urlEndpoint) {
     throw error;
   }
   const expire = Math.floor(Date.now() / 1000) + 300;
-  const signature = crypto.createHmac('sha1', privateKey).update(`${path.slice(1)}${expire}`).digest('hex');
+  const signature = crypto.createHmac('sha1', privateKey).update(`${path}${expire}`).digest('hex');
   return { url: `${urlEndpoint}${path}?ik-t=${expire}&ik-s=${signature}`, expiresAt: expire };
 }
 
