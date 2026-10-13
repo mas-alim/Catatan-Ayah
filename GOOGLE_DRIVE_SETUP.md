@@ -23,8 +23,8 @@ Catatan Ayah sekarang menggunakan Google Drive pemilik untuk foto. Aplikasi tida
    - `https://mas-alim.github.io`
    - Opsional untuk server lokal: origin lokal yang benar-benar digunakan saat menguji.
 6. Buat client dan salin **Client ID** yang berakhiran `.apps.googleusercontent.com`. Jangan membuat atau menaruh Client Secret di HTML.
-7. Buka `index.html` dan ganti nilai `GOOGLE_DRIVE_CLIENT_ID` yang masih berisi placeholder dengan Client ID tersebut.
-8. Commit dan push perubahan ke branch `main`, lalu tunggu GitHub Pages selesai memperbarui aplikasi.
+7. Masukkan Client ID ke konfigurasi `GOOGLE_DRIVE_CLIENT_ID` di `index.html`.
+8. Pastikan perubahan sudah dipublikasikan melalui GitHub Pages.
 
 Aplikasi memakai scope `https://www.googleapis.com/auth/drive.file`, bukan izin untuk membaca semua file Drive. Folder dan foto yang dibuat aplikasi akan tetap privat secara default.
 
@@ -44,16 +44,11 @@ Aplikasi memakai scope `https://www.googleapis.com/auth/drive.file`, bukan izin 
 - Jangan menghapus file atau menutup akun ImageKit sebelum foto lama yang masih diperlukan sudah diekspor atau dimigrasikan. Jangan menghapus referensi lama secara manual dari Firebase.
 - Referensi berformat `drive:` dari percobaan integrasi lama tidak otomatis dianggap sebagai referensi baru. Referensi Google Drive yang dibuat versi ini memakai awalan `gdrive:`.
 
-## Memutus hubungan Vercel
+## Integrasi lama
 
-Kode aplikasi di `index.html` sudah tidak memakai endpoint Vercel. Untuk memutus integrasi GitHub di sisi akun Vercel juga, buka dashboard Vercel:
-
-1. Buka project backend Catatan Ayah.
-2. Masuk ke **Settings → Git**.
-3. Pilih **Disconnect** untuk repository yang terhubung.
-4. Setelah integrasi Drive lulus pengujian dan tidak diperlukan lagi, project Vercel dapat dihapus dari **Settings → General**. Pastikan memilih project backend yang benar.
-
-Folder `vercel-backend/` di repository sengaja belum dihapus pada perubahan ini agar ada jejak pemulihan selama pengujian migrasi. Folder itu tidak dipanggil oleh aplikasi. Hapus setelah pengujian Drive berhasil dan Anda yakin backend lama tidak lagi diperlukan.
+- Kode aktif tidak lagi memanggil ImageKit atau endpoint Vercel.
+- Backend `vercel-backend/` telah dihapus dari repository dan project backend Vercel telah dihapus secara terpisah.
+- Referensi foto `imagekit:` tetap dipertahankan sebagai penanda foto lama yang belum dimigrasikan. Jangan menghapus file atau akun ImageKit sebelum semua foto lama yang masih dibutuhkan berhasil diselamatkan.
 
 ## Batasan
 
