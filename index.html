@@ -262,7 +262,7 @@
     </div>
 
     <!-- PAYMENT MODAL -->
-    <div id="modal-pay-transaction" class="fixed inset-0 bg-black/60 z-[60] hidden flex-col justify-end backdrop-blur-sm">
+    <div id="modal-pay-transaction" class="fixed inset-0 bg-black/60 z-[100] hidden flex-col justify-end backdrop-blur-sm">
         <div class="bg-white rounded-t-3xl w-full max-h-[94vh] overflow-y-auto p-6 slide-up safe-bottom">
             <div class="flex justify-between items-center mb-4"><div><p class="text-[10px] uppercase tracking-widest text-orange-600 font-black">Pembayaran</p><h2 class="text-lg font-bold text-gray-800">Catat Pembayaran</h2><p id="pay-target-name" class="text-xs text-gray-500 font-medium"></p></div><button onclick="closeModal('modal-pay-transaction')" class="p-2 text-gray-500 rounded-full bg-gray-100"><i class="ph ph-x text-lg"></i></button></div>
             <div class="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4"><p class="text-xs text-green-700 font-semibold mb-1">Sisa Tagihan Saat Ini</p><p id="pay-remaining-text" class="text-2xl font-black text-green-700">Rp 0</p></div>
@@ -1097,7 +1097,7 @@ function loadMoreReportContacts() {
     requestAnimationFrame(() => document.getElementById('btn-load-more-report-contacts')?.scrollIntoView({ block: 'nearest' }));
 }
 
-function openModal(id){ const el=document.getElementById(id); if(!el) return; document.body.classList.add('modal-open'); el.classList.remove('hidden'); el.classList.add('flex'); }
+function openModal(id){ const el=document.getElementById(id); if(!el) return; if(id==='modal-pay-transaction'){ el.style.zIndex='100'; if(el.parentElement!==document.body || el!==document.body.lastElementChild) document.body.appendChild(el); } document.body.classList.add('modal-open'); el.classList.remove('hidden'); el.classList.add('flex'); }
 function closeModal(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('hidden'); el.classList.remove('flex'); if(!document.querySelector('.fixed.inset-0:not(.hidden)')) document.body.classList.remove('modal-open'); if(id==='modal-photo'){ const img=document.getElementById('photo-preview-img'); if(img) img.removeAttribute('src'); if(photoObjectUrl){URL.revokeObjectURL(photoObjectUrl);photoObjectUrl=null;} } if(id==='modal-add-transaction'){ document.getElementById('form-transaction').reset(); document.getElementById('tx_edit_id').value=''; document.getElementById('tx-existing-image').classList.add('hidden'); updateTxImageSelection(); } if(id==='modal-add-need'){ document.getElementById('form-need').reset(); document.getElementById('nd_edit_id').value=''; } if(id==='modal-pay-transaction'){ document.getElementById('form-pay').reset(); updatePayImageSelection(); activePayTx=null; } }
 
 function updateTxImageSelection(input=document.getElementById('tx_image')){
