@@ -306,6 +306,7 @@
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
                 <button id="btn-connect-google-drive" onclick="connectGoogleDrive()" class="w-full flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center"><i class="ph-bold ph-google-drive-logo text-lg"></i></div><div class="min-w-0"><p id="google-drive-connect-title" class="font-bold text-sm text-gray-800">Hubungkan Google Drive</p><p id="google-drive-connect-caption" class="text-[11px] text-gray-500">Foto privat disimpan di Drive pemilik, dengan target maksimal 100 KB per foto.</p></div></button>
                 <button id="btn-migrate-photos" onclick="migrateLegacyPhotos()" class="w-full flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-gray-200 text-gray-600 flex items-center justify-center"><i class="ph-bold ph-images-square text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Migrasi Foto Lama</p><p class="text-[11px] text-gray-500">Kompres foto Base64 lama hingga maksimal 100 KB lalu pindahkan ke Google Drive.</p></div></button>
+                <button id="btn-cleanup-imagekit" onclick="removeLegacyImageKitReferences()" class="w-full flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center"><i class="ph-bold ph-trash text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-red-800">Hapus Referensi Foto ImageKit</p><p class="text-[11px] text-red-700">Hapus hanya referensi foto ImageKit dari database. Transaksi dan riwayat pembayaran tetap dipertahankan.</p></div></button>
                 <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4"><div class="flex justify-between items-center mb-1 gap-2"><p class="text-xs font-bold text-gray-700">Penyimpanan foto</p><span id="photo-storage-status" class="text-[10px] font-bold text-amber-700 text-right">Belum diperiksa</span></div><p id="photo-legacy-count" class="text-[10px] text-gray-500">Memeriksa lampiran lama...</p></div>
                 <button onclick="lockApp(); closeModal('modal-settings')" class="w-full flex items-center justify-center gap-2 p-3.5 bg-gray-900 text-white rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-lock-key"></i> Kunci Aplikasi (PIN)</button>
                 <button onclick="logoutFirebaseAccount()" class="w-full flex items-center justify-center gap-2 p-3.5 bg-red-50 text-red-700 border border-red-100 rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-sign-out"></i> Keluar dari Akun</button>
@@ -1103,6 +1104,39 @@ async function getGoogleDrivePhotoBlob(reference){
     if(!String(blob.type||'').startsWith('image/')||blob.size===0) throw new Error('GOOGLE_DRIVE_READ_FAILED');
     return blob;
 }
+async function removeLegacyImageKitReferences(){
+    if(!requireUnlockedApp())return;
+    if(saveInProgress){showToast('Tunggu proses penyimpanan yang sedang berjalan.');return;}
+    const total=countLegacyImageKitPhotos();
+    if(!total){refreshPhotoStorageStatus();showToast('Tidak ada referensi foto ImageKit yang perlu dihapus.');return;}
+    const backupConfirmed=confirm('PENTING: Sebelum penghapusan permanen, buat backup JSON dari menu Pengaturan. Apakah backup terbaru sudah berhasil diunduh dan disimpan?');
+    if(!backupConfirmed)return;
+    const proceed=confirm(`HAPUS PERMANEN ${total} referensi foto ImageKit dari database? Yang dihapus hanya field foto pada transaksi/pembayaran yang memakai awalan "imagekit:". Data transaksi, nominal, tanggal, status, dan seluruh riwayat pembayaran tidak akan dihapus. File fisik di ImageKit tidak ikut dihapus.`);
+    if(!proceed)return;
+    const button=document.getElementById('btn-cleanup-imagekit');
+    if(button){button.disabled=true;button.classList.add('opacity-60');}
+    const before=cloneData(data);
+    let removed=0;
+    try{
+        data.transactions.forEach(tx=>{
+            if(isLegacyImageKitPhoto(tx.image)){delete tx.image;removed++;}
+            (tx.payments||[]).forEach(payment=>{
+                if(isLegacyImageKitPhoto(payment.image)){delete payment.image;removed++;}
+            });
+        });
+        await saveData();
+        refreshPhotoStorageStatus();
+        renderApp();
+        showToast(`Selesai: ${removed} referensi ImageKit dihapus. Transaksi dan riwayat pembayaran dipertahankan.`);
+    }catch(error){
+        data=before;
+        console.error('Penghapusan referensi ImageKit gagal:',error);
+        showToast('Gagal menyimpan penghapusan ke Firebase. Data lokal dipulihkan; periksa koneksi lalu coba lagi.');
+    }finally{
+        if(button){button.disabled=false;button.classList.remove('opacity-60');}
+    }
+}
+
 function countLegacyImageKitPhotos(){
     let count=0;
     data.transactions.forEach(tx=>{if(isLegacyImageKitPhoto(tx.image))count++;(tx.payments||[]).forEach(p=>{if(isLegacyImageKitPhoto(p.image))count++;});});
