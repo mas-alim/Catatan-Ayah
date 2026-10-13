@@ -1336,19 +1336,25 @@ async function migrateLegacyPhotos(){
         for(let start=0;start<targets.length;start+=batchSize){
             const batch=targets.slice(start,start+batchSize);
             const pending=[];
+            let batchError=null;
             for(let index=0;index<batch.length;index++){
                 const target=batch[index];
                 const record=findLegacyPhotoRecord(target);
                 if(!record||record.image!==target.image){skipped++;continue;}
-                let driveReference=cachedReferences.get(target.image);
-                if(!driveReference){
-                    setProgress('Mengunggah foto '+(start+index+1)+' dari '+targets.length+'...');
-                    const originalBlob=await dataUrlToBlob(target.image);
-                    const compressed=await compressPhotoBlob(originalBlob);
-                    driveReference=await uploadCompressedPhoto(compressed,target.itemId);
-                    cachedReferences.set(target.image,driveReference);
+                try{
+                    let driveReference=cachedReferences.get(target.image);
+                    if(!driveReference){
+                        setProgress('Mengunggah foto '+(start+index+1)+' dari '+targets.length+'...');
+                        const originalBlob=await dataUrlToBlob(target.image);
+                        const compressed=await compressPhotoBlob(originalBlob);
+                        driveReference=await uploadCompressedPhoto(compressed,target.itemId);
+                        cachedReferences.set(target.image,driveReference);
+                    }
+                    pending.push({target,driveReference});
+                }catch(error){
+                    batchError=error;
+                    break;
                 }
-                pending.push({target,driveReference});
             }
             let changed=0;
             for(const item of pending){
@@ -1359,12 +1365,13 @@ async function migrateLegacyPhotos(){
                 }else skipped++;
             }
             if(changed){
-                // Commit per batch. If Firebase rejects it, saveData restores the last
-                // stable snapshot, leaving the original Base64 references in Firebase.
+                // Persist successful uploads in this batch before propagating any later
+                // upload error, so uploaded files are not left unreferenced unnecessarily.
                 await saveData();
                 migrated+=changed;
             }
             setProgress('Tersimpan '+migrated+' dari '+targets.length+' foto lama...');
+            if(batchError)throw batchError;
         }
         const remaining=collectLegacyPhotoTargets().length;
         setProgress('Selesai: '+migrated+' foto dipindahkan; '+remaining+' lampiran Base64 tersisa.');
