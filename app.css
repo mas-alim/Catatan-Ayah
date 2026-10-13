@@ -1518,23 +1518,17 @@
   }
 }
 
-/* Dashboard summary card accents: explicit CSS because utility classes may not be generated. */
-.dashboard-stat-glow {
-  position: absolute;
-  top: -1.25rem;
-  right: -1.25rem;
-  width: 4rem;
-  height: 4rem;
-  border-radius: 9999px;
-  pointer-events: none;
-  opacity: 0.95;
+/* Full-card pastel gradients for dashboard summary cards. */
+.dashboard-stat-card {
+  background-size: 100% 100%;
+  transition: filter 160ms ease;
 }
-.dashboard-stat-glow-blue {
-  background: linear-gradient(135deg, #e0f2fe 0%, #bfdbfe 100%);
+.dashboard-stat-card-blue {
+  background-image: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 55%, #bfdbfe 100%);
 }
-.dashboard-stat-glow-green {
-  background: linear-gradient(135deg, #d1fae5 0%, #bbf7d0 100%);
+.dashboard-stat-card-green {
+  background-image: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 55%, #bbf7d0 100%);
 }
-.dashboard-stat-glow-purple {
-  background: linear-gradient(135deg, #ede9fe 0%, #c7d2fe 100%);
+.dashboard-stat-card-purple {
+  background-image: linear-gradient(135deg, #faf5ff 0%, #ede9fe 55%, #ddd6fe 100%);
 }
