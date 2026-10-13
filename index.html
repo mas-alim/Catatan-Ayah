@@ -364,6 +364,7 @@ let firebaseDataReady = false;
 let lastStableData = null;
 let currentAuthUser = null;
 let authReady = false;
+let explicitFirebaseLoginPending = false;
 let appUnlocked = false;
 let saveInProgress = false;
 let txSearchRenderTimer = null;
@@ -616,16 +617,19 @@ async function authLogin(e) {
     const password = passwordEl?.value || '';
     if (!email || !password) { setAuthError('Masukkan email dan password.'); return; }
     setAuthError('');
+    explicitFirebaseLoginPending = true;
     if (button) { button.disabled = true; button.textContent = 'Memeriksa akun...'; }
     try {
         const credential = await signInWithEmailAndPassword(auth, email, password);
         if (credential.user.uid !== OWNER_UID) {
+            explicitFirebaseLoginPending = false;
             await signOut(auth).catch(() => {});
             setAuthError('Akun ini tidak diizinkan mengakses Catatan-Ayah.');
             return;
         }
         if (passwordEl) passwordEl.value = '';
     } catch (error) {
+        explicitFirebaseLoginPending = false;
         console.warn('Firebase Authentication login failed:', error);
         setAuthError(authErrorMessage(error));
     } finally {
@@ -646,6 +650,7 @@ async function handleAuthStateChanged(user) {
     }
 
     if (user.uid !== OWNER_UID) {
+        explicitFirebaseLoginPending = false;
         currentAuthUser = null;
         authReady = false;
         appUnlocked = false;
@@ -658,11 +663,29 @@ async function handleAuthStateChanged(user) {
         return;
     }
 
+    // If the browser restores a Firebase session but its local PIN verifier has
+    // disappeared, require a fresh email/password login before allowing PIN setup.
+    // This prevents a missing local PIN entry from silently becoming a PIN reset.
+    if (!localStorage.getItem(PIN_KEY) && !explicitFirebaseLoginPending) {
+        currentAuthUser = null;
+        authReady = false;
+        appUnlocked = false;
+        stopFirebaseListener();
+        clearSensitiveInMemoryData();
+        hideProtectedScreens();
+        document.getElementById('screen-auth').classList.remove('hidden');
+        setAuthError('PIN lokal tidak ditemukan. Masuk ulang dengan email dan password untuk membuat PIN baru.');
+        await signOut(auth).catch(error => console.warn('Sign-out before PIN recovery failed:', error));
+        return;
+    }
+
+    explicitFirebaseLoginPending = false;
     currentAuthUser = user;
     authReady = true;
     document.getElementById('screen-auth').classList.add('hidden');
     updatePinScreens();
 }
+
 
 function jsonEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
 function mergeCollectionById(remoteList, baselineList, desiredList) {
