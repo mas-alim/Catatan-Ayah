@@ -304,8 +304,8 @@
                 <button onclick="downloadBackup()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-download-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Backup Data</p><p class="text-[11px] text-gray-500">Simpan transaksi dan tagihan ke file JSON.</p></div></button>
                 <button onclick="document.getElementById('restore-file').click()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><i class="ph-bold ph-upload-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Restore Data</p><p class="text-[11px] text-gray-500">Impor backup JSON dan mengganti data saat ini.</p></div></button>
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
-                <button id="btn-check-imagekit" onclick="connectImageKit()" class="w-full flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center"><i class="ph-bold ph-image-square text-lg"></i></div><div class="min-w-0"><p id="imagekit-connect-title" class="font-bold text-sm text-gray-800">Periksa koneksi ImageKit</p><p id="imagekit-connect-caption" class="text-[11px] text-gray-500">Foto dikompres di perangkat dan disimpan privat di ImageKit.</p></div></button>
-                <button id="btn-migrate-photos" onclick="migrateLegacyPhotos()" class="w-full flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-gray-200 text-gray-600 flex items-center justify-center"><i class="ph-bold ph-images-square text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Migrasi Foto Lama</p><p class="text-[11px] text-gray-500">Kompres foto Base64 lama dan pindahkan ke ImageKit.</p></div></button>
+                <button id="btn-connect-google-drive" onclick="connectGoogleDrive()" class="w-full flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center"><i class="ph-bold ph-google-drive-logo text-lg"></i></div><div class="min-w-0"><p id="google-drive-connect-title" class="font-bold text-sm text-gray-800">Hubungkan Google Drive</p><p id="google-drive-connect-caption" class="text-[11px] text-gray-500">Foto privat disimpan di Drive pemilik, dengan target maksimal 100 KB per foto.</p></div></button>
+                <button id="btn-migrate-photos" onclick="migrateLegacyPhotos()" class="w-full flex items-center gap-3 p-4 bg-gray-50 border border-gray-200 rounded-2xl text-left"><div class="w-10 h-10 rounded-xl bg-gray-200 text-gray-600 flex items-center justify-center"><i class="ph-bold ph-images-square text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Migrasi Foto Lama</p><p class="text-[11px] text-gray-500">Kompres foto Base64 lama hingga maksimal 100 KB lalu pindahkan ke Google Drive.</p></div></button>
                 <div class="bg-gray-50 border border-gray-100 rounded-2xl p-4"><div class="flex justify-between items-center mb-1 gap-2"><p class="text-xs font-bold text-gray-700">Penyimpanan foto</p><span id="photo-storage-status" class="text-[10px] font-bold text-amber-700 text-right">Belum diperiksa</span></div><p id="photo-legacy-count" class="text-[10px] text-gray-500">Memeriksa lampiran lama...</p></div>
                 <button onclick="lockApp(); closeModal('modal-settings')" class="w-full flex items-center justify-center gap-2 p-3.5 bg-gray-900 text-white rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-lock-key"></i> Kunci Aplikasi (PIN)</button>
                 <button onclick="logoutFirebaseAccount()" class="w-full flex items-center justify-center gap-2 p-3.5 bg-red-50 text-red-700 border border-red-100 rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-sign-out"></i> Keluar dari Akun</button>
@@ -336,11 +336,13 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const OWNER_UID = 'ZlWZFhPLbHbOtIDPYsK4yxiLrGC2';
-// Isi setelah deploy backend Vercel. Ini URL publik, bukan rahasia.
-const IMAGE_API_BASE_URL = 'https://catatan-ayah-vercel-backend.vercel.app';
-const IMAGEKIT_UPLOAD_FOLDER = '/catatan-ayah';
+// OAuth Client ID Google Drive (publik; bukan client secret). Isi sesuai GOOGLE_DRIVE_SETUP.md.
+const GOOGLE_DRIVE_CLIENT_ID = 'GANTI_DENGAN_OAUTH_CLIENT_ID.apps.googleusercontent.com';
+const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const GOOGLE_DRIVE_API = 'https://www.googleapis.com/drive/v3';
+const GOOGLE_DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files';
 const MAX_PHOTO_INPUT_BYTES = 15 * 1024 * 1024;
-const MAX_COMPRESSED_PHOTO_BYTES = 300 * 1024; // target <= 300 KB setelah kompresi
+const MAX_COMPRESSED_PHOTO_BYTES = 100 * 1024; // hard cap: 100 KiB per foto
 const db = getDatabase(app);
 const dbRef = ref(db, 'catatan_keuangan_v1');
 const LEGACY_LOCAL_DATA_KEY = 'catatanKeuanganApp'; // old cache key; dataset is no longer persisted in browser storage
@@ -367,8 +369,11 @@ let saveInProgress = false;
 let txSearchRenderTimer = null;
 let remoteRenderScheduled = false;
 let photoObjectUrl = null;
-let imageKitBackendReady = false;
-const imageKitSignedUrlCache = new Map();
+let googleDriveAccessToken = '';
+let googleDriveTokenExpiresAt = 0;
+let googleDriveTokenClient = null;
+let googleDriveFolderId = '';
+let googleIdentityScriptPromise = null;
 
 const TX_STATUS = { BELUM:'Belum Lunas', CICIL:'Dicicil', LUNAS:'Lunas' };
 
@@ -906,67 +911,111 @@ function openNeedModal(needId=''){
     openModal('modal-add-need');
 }
 
-function isImageKitConfigured(){
-    return /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(IMAGE_API_BASE_URL) && !IMAGE_API_BASE_URL.includes('GANTI-DENGAN');
-}
 function photoUserMessage(error){
     const code=String(error?.message||'');
-    if(code==='IMAGE_API_NOT_CONFIGURED') return 'Backend foto Vercel belum dikonfigurasi pada source aplikasi.';
-    if(code==='AUTH_REQUIRED'||code==='OWNER_ONLY') return 'Sesi Firebase pemilik tidak valid. Login kembali lalu coba lagi.';
-    if(code==='IMAGEKIT_PRIVATE_KEY_MISSING'||code==='IMAGEKIT_PUBLIC_KEY_MISSING'||code==='IMAGEKIT_URL_ENDPOINT_MISSING'||code==='FIREBASE_ADMIN_CONFIG_MISSING') return 'Konfigurasi rahasia backend Vercel belum lengkap. Periksa Environment Variables.';
-    if(code==='IMAGEKIT_AUTH_FAILED'||code==='IMAGEKIT_URL_FAILED') return 'Backend gagal menyiapkan otorisasi foto. Periksa konfigurasi ImageKit dan Vercel.';
-    if(code==='IMAGEKIT_UPLOAD_NETWORK_FAILED') return 'Koneksi ke layanan unggah ImageKit gagal. Periksa koneksi internet lalu coba lagi.';
-    if(code==='IMAGEKIT_UPLOAD_HTTP_400') return 'ImageKit menolak parameter atau file foto (HTTP 400). Pastikan format foto valid.';
-    if(code==='IMAGEKIT_UPLOAD_HTTP_401') return 'ImageKit menolak autentikasi unggah (HTTP 401). Periksa Public Key dan signature yang dibuat backend.';
-    if(code==='IMAGEKIT_UPLOAD_HTTP_403') return 'ImageKit menolak izin unggah (HTTP 403). Periksa pengaturan kunci, izin unggah, dan paket ImageKit.';
-    if(code==='IMAGEKIT_UPLOAD_HTTP_413') return 'Ukuran foto ditolak oleh ImageKit (HTTP 413). Pilih foto yang lebih kecil.';
-    if(code==='IMAGEKIT_UPLOAD_HTTP_429') return 'Permintaan ImageKit dibatasi (HTTP 429). Periksa kuota atau batas pemakaian ImageKit.';
-    if(/^IMAGEKIT_UPLOAD_HTTP_5\d{2}$/.test(code)) return 'Layanan ImageKit sedang bermasalah (HTTP 5xx). Coba lagi beberapa saat.';
-    if(code==='IMAGEKIT_UPLOAD_FAILED') return 'Unggah foto gagal tanpa kode HTTP. Coba lagi dan periksa log koneksi.';
-    if(code==='IMAGEKIT_FILE_RESPONSE_INVALID') return 'ImageKit tidak mengembalikan referensi file yang valid. Foto belum disimpan pada transaksi.';
-    if(code==='PHOTO_PATH_INVALID') return 'Referensi foto tidak valid atau berada di luar folder Catatan Ayah.';
-    if(code==='PHOTO_TOO_LARGE') return 'Foto tetap melebihi 300 KB setelah kompresi. Pilih foto lain dengan resolusi lebih rendah.';
+    if(code==='GOOGLE_DRIVE_CLIENT_ID_MISSING') return 'Google Drive belum dikonfigurasi. Isi OAuth Client ID sesuai GOOGLE_DRIVE_SETUP.md.';
+    if(code==='GOOGLE_IDENTITY_NOT_READY') return 'Layanan login Google sedang dimuat. Tunggu sebentar lalu tekan Hubungkan Google Drive lagi.';
+    if(code==='GOOGLE_DRIVE_NOT_CONNECTED') return 'Hubungkan Google Drive terlebih dahulu melalui menu Pengaturan.';
+    if(code==='GOOGLE_DRIVE_AUTH_FAILED'||code==='access_denied') return 'Izin Google Drive belum diberikan. Hubungkan kembali dan setujui akses yang diminta.';
+    if(code==='GOOGLE_DRIVE_HTTP_401') return 'Sesi Google Drive kedaluwarsa. Hubungkan kembali Google Drive.';
+    if(code==='GOOGLE_DRIVE_HTTP_403') return 'Google Drive menolak akses. Pastikan Google Drive API aktif dan OAuth Client ID benar.';
+    if(code==='GOOGLE_DRIVE_HTTP_404') return 'Foto tidak ditemukan di Google Drive pemilik.';
+    if(code==='GOOGLE_DRIVE_HTTP_429') return 'Batas permintaan Google Drive tercapai. Coba lagi nanti.';
+    if(/^GOOGLE_DRIVE_HTTP_5\d{2}$/.test(code)) return 'Layanan Google Drive sedang bermasalah. Coba lagi beberapa saat.';
+    if(code==='GOOGLE_DRIVE_UPLOAD_FAILED'||code==='GOOGLE_DRIVE_READ_FAILED') return 'Google Drive gagal memproses foto. Periksa koneksi lalu coba lagi.';
+    if(code==='AUTH_REQUIRED') return 'Sesi Firebase pemilik tidak valid. Login kembali lalu coba lagi.';
+    if(code==='PHOTO_TOO_LARGE') return 'Foto tidak dapat dipadatkan hingga maksimal 100 KB. Coba foto lain atau potong bagian yang tidak diperlukan.';
     if(code==='PHOTO_UNSUPPORTED') return 'Foto tidak dapat dibaca. Gunakan JPEG, PNG, atau WebP.';
     if(code==='PHOTO_INPUT_TOO_LARGE') return 'Foto asli maksimal 15 MB sebelum kompresi.';
-    if(code==='IMAGE_API_FAILED'||code==='IMAGE_API_NETWORK_FAILED') return 'Backend Vercel tidak dapat dihubungi. Periksa URL API dan deployment.';
-    if(code==='LEGACY_DRIVE_REFERENCE') return 'Lampiran ini memakai referensi Google Drive versi percobaan. Migrasikan atau pulihkan file lama sebelum mengganti referensinya.';
-    return `Operasi foto gagal. Kode diagnostik: ${code || 'UNKNOWN'}. Periksa log Console untuk detail teknis.`;
+    if(code==='PHOTO_FILE_INVALID') return 'Referensi foto Google Drive tidak valid.';
+    if(code==='LEGACY_IMAGEKIT_REFERENCE') return 'Foto ini masih merujuk ke ImageKit lama. Integrasi ImageKit sudah dihentikan; referensi tidak dihapus, tetapi foto ini belum dimigrasikan ke Google Drive.';
+    if(code==='LEGACY_DRIVE_REFERENCE') return 'Lampiran ini menggunakan format referensi Drive versi lama yang belum dikenali. Referensi asli dipertahankan.';
+    return `Operasi foto gagal. Kode diagnostik: ${code || 'UNKNOWN'}.`;
 }
-async function imageKitApiRequest(endpoint, payload={}){
-    if(!isImageKitConfigured()) throw new Error('IMAGE_API_NOT_CONFIGURED');
+function loadGoogleIdentityServices(){
+    if(window.google?.accounts?.oauth2) return Promise.resolve();
+    if(googleIdentityScriptPromise) return googleIdentityScriptPromise;
+    googleIdentityScriptPromise=new Promise((resolve,reject)=>{
+        const script=document.createElement('script');
+        script.src='https://accounts.google.com/gsi/client';
+        script.async=true;
+        script.defer=true;
+        script.onload=()=>window.google?.accounts?.oauth2?resolve():reject(new Error('GOOGLE_IDENTITY_NOT_READY'));
+        script.onerror=()=>reject(new Error('GOOGLE_IDENTITY_NOT_READY'));
+        document.head.appendChild(script);
+    });
+    return googleIdentityScriptPromise;
+}
+function requestGoogleDriveToken(prompt=''){
+    if(!GOOGLE_DRIVE_CLIENT_ID||GOOGLE_DRIVE_CLIENT_ID.startsWith('GANTI_')) throw new Error('GOOGLE_DRIVE_CLIENT_ID_MISSING');
+    if(!window.google?.accounts?.oauth2) throw new Error('GOOGLE_IDENTITY_NOT_READY');
+    return new Promise((resolve,reject)=>{
+        googleDriveTokenClient=window.google.accounts.oauth2.initTokenClient({
+            client_id:GOOGLE_DRIVE_CLIENT_ID,
+            scope:GOOGLE_DRIVE_SCOPE,
+            callback:(response)=>{
+                if(response?.error||!response?.access_token){reject(new Error(response?.error||'GOOGLE_DRIVE_AUTH_FAILED'));return;}
+                googleDriveAccessToken=String(response.access_token);
+                googleDriveTokenExpiresAt=Date.now()+Math.max(60,Number(response.expires_in||3600))*1000;
+                resolve(googleDriveAccessToken);
+            },
+            error_callback:()=>reject(new Error('GOOGLE_DRIVE_AUTH_FAILED'))
+        });
+        googleDriveTokenClient.requestAccessToken({prompt});
+    });
+}
+function requireGoogleDriveToken(){
     const user=auth.currentUser;
-    if(!user || user.uid!==OWNER_UID) throw new Error('AUTH_REQUIRED');
-    let idToken;
-    try{idToken=await user.getIdToken();}catch{throw new Error('AUTH_REQUIRED');}
+    if(!user||user.uid!==OWNER_UID) throw new Error('AUTH_REQUIRED');
+    if(!googleDriveAccessToken||googleDriveTokenExpiresAt<Date.now()+15000) throw new Error('GOOGLE_DRIVE_NOT_CONNECTED');
+    return googleDriveAccessToken;
+}
+async function googleDriveRequest(url,options={}){
+    const token=requireGoogleDriveToken();
     let response;
     try{
-        response=await fetch(`${IMAGE_API_BASE_URL}${endpoint}`,{
-            method:'POST',
-            headers:{'Content-Type':'application/json','Authorization':`Bearer ${idToken}`},
-            body:JSON.stringify(payload),
-            cache:'no-store'
-        });
-    }catch{throw new Error('IMAGE_API_NETWORK_FAILED');}
-    let result={};
-    try{result=await response.json();}catch{}
-    if(!response.ok) throw new Error(String(result.error||'IMAGE_API_FAILED'));
-    return result;
+        response=await fetch(url,{...options,headers:{...(options.headers||{}),Authorization:`Bearer ${token}`},cache:'no-store'});
+    }catch{throw new Error('GOOGLE_DRIVE_READ_FAILED');}
+    if(response.status===401){googleDriveAccessToken='';googleDriveTokenExpiresAt=0;}
+    if(!response.ok){
+        const code=`GOOGLE_DRIVE_HTTP_${response.status}`;
+        const error=new Error(code);error.status=response.status;throw error;
+    }
+    return response;
 }
-async function connectImageKit(){
+async function ensureGoogleDriveFolder(){
+    if(googleDriveFolderId) return googleDriveFolderId;
+    const query="name = 'Catatan Ayah' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+    const listUrl=`${GOOGLE_DRIVE_API}/files?q=${encodeURIComponent(query)}&pageSize=100&fields=files(id,name)`;
+    const listResponse=await googleDriveRequest(listUrl);
+    const list=await listResponse.json();
+    const existing=(list.files||[]).find(file=>file.name==='Catatan Ayah');
+    if(existing?.id){googleDriveFolderId=existing.id;return googleDriveFolderId;}
+    const createResponse=await googleDriveRequest(`${GOOGLE_DRIVE_API}/files?fields=id,name`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name:'Catatan Ayah',mimeType:'application/vnd.google-apps.folder'})
+    });
+    const created=await createResponse.json();
+    if(!created.id) throw new Error('GOOGLE_DRIVE_UPLOAD_FAILED');
+    googleDriveFolderId=created.id;
+    return googleDriveFolderId;
+}
+async function connectGoogleDrive(){
     if(!requireUnlockedApp()) return;
-    const button=document.getElementById('btn-check-imagekit');
+    const button=document.getElementById('btn-connect-google-drive');
     if(button){button.disabled=true;button.classList.add('opacity-60');}
     try{
-        // Request short-lived upload credentials to verify Vercel, Firebase Admin and ImageKit secrets.
-        const result=await imageKitApiRequest('/api/imagekit-auth',{});
-        if(!result.publicKey||!result.token||!result.signature||!result.expire) throw new Error('IMAGEKIT_AUTH_FAILED');
-        imageKitBackendReady=true;
+        if(!auth.currentUser||auth.currentUser.uid!==OWNER_UID) throw new Error('AUTH_REQUIRED');
+        if(!GOOGLE_DRIVE_CLIENT_ID||GOOGLE_DRIVE_CLIENT_ID.startsWith('GANTI_')) throw new Error('GOOGLE_DRIVE_CLIENT_ID_MISSING');
+        if(!window.google?.accounts?.oauth2) throw new Error('GOOGLE_IDENTITY_NOT_READY');
+        await requestGoogleDriveToken('consent');
+        await ensureGoogleDriveFolder();
         refreshPhotoStorageStatus();
-        showToast('Backend foto siap. File baru akan disimpan privat di ImageKit.');
+        showToast('Google Drive terhubung. Foto baru akan disimpan privat dengan batas 100 KB.');
     }catch(error){
-        imageKitBackendReady=false;
+        console.error('Google Drive connection check failed:',error);
         refreshPhotoStorageStatus();
-        console.error('ImageKit connection check failed:',error);
         showToast(photoUserMessage(error));
     }finally{if(button){button.disabled=false;button.classList.remove('opacity-60');}}
 }
@@ -977,8 +1026,8 @@ async function compressPhotoBlob(inputBlob){
     let bitmap;
     try{bitmap=await createImageBitmap(inputBlob);}catch{throw new Error('PHOTO_UNSUPPORTED');}
     try{
-        const dimensions=[1280,1100,960,840,720];
-        const qualities=[0.82,0.74,0.66,0.58,0.50,0.42];
+        const dimensions=[1280,1100,960,840,720,640,560,480,400,320];
+        const qualities=[0.78,0.68,0.58,0.48,0.38,0.30,0.22];
         for(const maxEdge of dimensions){
             const scale=Math.min(1,maxEdge/Math.max(bitmap.width,bitmap.height));
             const width=Math.max(1,Math.round(bitmap.width*scale));
@@ -1002,57 +1051,37 @@ async function dataUrlToBlob(dataUrl){
     if(typeof dataUrl!=='string'||!dataUrl.startsWith('data:image/')) throw new Error('PHOTO_UNSUPPORTED');
     const response=await fetch(dataUrl);return response.blob();
 }
-function makeImageKitFileName(itemId,extension){
+function makeDriveFileName(itemId,extension){
     const safeId=String(itemId||'foto').replace(/[^a-z0-9_-]/gi,'').slice(0,40)||'foto';
-    return `ca-${safeId}-${Date.now().toString(36)}.${extension}`;
+    return `catatan-ayah-${safeId}-${Date.now().toString(36)}.${extension}`;
 }
-function makeImageKitReference(file){
-    if(!file||!file.fileId||!file.filePath) throw new Error('IMAGEKIT_FILE_RESPONSE_INVALID');
-    const path=String(file.filePath);
-    if(!path.startsWith(`${IMAGEKIT_UPLOAD_FOLDER}/`)) throw new Error('PHOTO_PATH_INVALID');
-    return `imagekit:${encodeURIComponent(String(file.fileId))}|${encodeURIComponent(path)}`;
+function isLegacyImageKitPhoto(reference){return typeof reference==='string'&&reference.startsWith('imagekit:');}
+function isGoogleDrivePhoto(reference){return typeof reference==='string'&&reference.startsWith('gdrive:')&&reference.slice(7).length>0;}
+function parseGoogleDriveFileId(reference){
+    if(!isGoogleDrivePhoto(reference)) return null;
+    const id=reference.slice(7);
+    return /^[A-Za-z0-9_-]{10,200}$/.test(id)?id:null;
 }
-function parseImageKitReference(reference){
-    if(typeof reference!=='string'||!reference.startsWith('imagekit:')) return null;
-    const separator=reference.indexOf('|',8);
-    if(separator<0) return null;
-    try{
-        const fileId=decodeURIComponent(reference.slice(8,separator));
-        const filePath=decodeURIComponent(reference.slice(separator+1));
-        if(!fileId||!filePath.startsWith(`${IMAGEKIT_UPLOAD_FOLDER}/`)) return null;
-        return {fileId,filePath};
-    }catch{return null;}
-}
-function isImageKitPhoto(reference){return !!parseImageKitReference(reference);}
 async function uploadCompressedPhoto(blobInfo,itemId){
-    const authParams=await imageKitApiRequest('/api/imagekit-auth',{});
-    const fileName=makeImageKitFileName(itemId,blobInfo.extension);
-    const form=new FormData();
-    form.append('file',blobInfo.blob,fileName);
-    form.append('fileName',fileName);
-    form.append('publicKey',authParams.publicKey);
-    form.append('token',authParams.token);
-    form.append('signature',authParams.signature);
-    form.append('expire',String(authParams.expire));
-    form.append('folder',IMAGEKIT_UPLOAD_FOLDER);
-    form.append('isPrivateFile','true');
-    form.append('useUniqueFileName','false');
-    let response;
-    try{
-        response=await fetch('https://upload.imagekit.io/api/v1/files/upload',{method:'POST',body:form,cache:'no-store'});
-    }catch(networkError){
-        const err=new Error('IMAGEKIT_UPLOAD_NETWORK_FAILED');
-        err.cause=networkError;
-        throw err;
-    }
-    let file={};try{file=await response.json();}catch{}
-    if(!response.ok){
-        // Simpan hanya status HTTP untuk diagnosis; jangan tampilkan respons mentah ImageKit ke pengguna.
-        const err=new Error(`IMAGEKIT_UPLOAD_HTTP_${response.status}`);
-        err.status=response.status;
-        throw err;
-    }
-    return makeImageKitReference(file);
+    const token=requireGoogleDriveToken();
+    const folderId=await ensureGoogleDriveFolder();
+    const fileName=makeDriveFileName(itemId,blobInfo.extension);
+    const boundary=`catatanayah_${crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)}`;
+    const metadata={name:fileName,mimeType:blobInfo.mimeType,parents:[folderId],description:'Lampiran privat Catatan Ayah'};
+    const body=new Blob([
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`,
+        `--${boundary}\r\nContent-Type: ${blobInfo.mimeType}\r\n\r\n`,
+        blobInfo.blob,
+        `\r\n--${boundary}--`
+    ]);
+    const response=await googleDriveRequest(`${GOOGLE_DRIVE_UPLOAD_API}?uploadType=multipart&fields=id,name,mimeType,size`,{
+        method:'POST',
+        headers:{'Content-Type':`multipart/related; boundary=${boundary}`},
+        body
+    });
+    const file=await response.json();
+    if(!file.id) throw new Error('GOOGLE_DRIVE_UPLOAD_FAILED');
+    return `gdrive:${file.id}`;
 }
 async function uploadImageToStorage(file,folder,itemId){
     if(!file)return null;
@@ -1064,15 +1093,18 @@ async function uploadDataUrlToStorage(dataUrl,folder,itemId){
     const compressed=await compressPhotoBlob(original);
     return uploadCompressedPhoto(compressed,itemId);
 }
-async function getImageKitSignedUrl(reference){
-    const parsed=parseImageKitReference(reference);
-    if(!parsed) throw new Error('PHOTO_PATH_INVALID');
-    const cached=imageKitSignedUrlCache.get(parsed.filePath);
-    if(cached&&cached.expiresAt>Date.now()+15000) return cached.url;
-    const result=await imageKitApiRequest('/api/photo-url',{filePath:parsed.filePath});
-    if(!result.url||!result.expiresAt) throw new Error('IMAGEKIT_URL_FAILED');
-    imageKitSignedUrlCache.set(parsed.filePath,{url:result.url,expiresAt:Number(result.expiresAt)*1000});
-    return result.url;
+async function getGoogleDrivePhotoBlob(reference){
+    const fileId=parseGoogleDriveFileId(reference);
+    if(!fileId) throw new Error('PHOTO_FILE_INVALID');
+    const response=await googleDriveRequest(`${GOOGLE_DRIVE_API}/files/${encodeURIComponent(fileId)}?alt=media`);
+    const blob=await response.blob();
+    if(!String(blob.type||'').startsWith('image/')||blob.size===0) throw new Error('GOOGLE_DRIVE_READ_FAILED');
+    return blob;
+}
+function countLegacyImageKitPhotos(){
+    let count=0;
+    data.transactions.forEach(tx=>{if(isLegacyImageKitPhoto(tx.image))count++;(tx.payments||[]).forEach(p=>{if(isLegacyImageKitPhoto(p.image))count++;});});
+    return count;
 }
 function countLegacyPhotos(){
     let count=0;
@@ -1082,12 +1114,19 @@ function countLegacyPhotos(){
 function refreshPhotoStorageStatus(){
     const legacy=document.getElementById('photo-legacy-count');
     const status=document.getElementById('photo-storage-status');
-    const title=document.getElementById('imagekit-connect-title');
-    const caption=document.getElementById('imagekit-connect-caption');
-    if(status){status.textContent=imageKitBackendReady?'Backend siap':'Belum diperiksa';status.className=`text-[10px] font-bold text-right ${imageKitBackendReady?'text-green-700':'text-amber-700'}`;}
-    if(title)title.textContent=imageKitBackendReady?'ImageKit Terhubung':'Periksa koneksi ImageKit';
-    if(caption)caption.textContent=imageKitBackendReady?'Vercel dan ImageKit merespons. Foto tetap privat dan URL akses bersifat sementara.':'Foto dikompres di perangkat; kunci rahasia disimpan di Vercel, bukan di browser.';
-    if(legacy){const n=countLegacyPhotos();legacy.textContent=n?`${n} foto lama masih berupa Base64. Unduh backup sebelum menjalankan migrasi.`:'Tidak ada foto Base64 lama yang terdeteksi.';}
+    const title=document.getElementById('google-drive-connect-title');
+    const caption=document.getElementById('google-drive-connect-caption');
+    const connected=!!googleDriveAccessToken&&googleDriveTokenExpiresAt>Date.now()+15000;
+    if(status){status.textContent=connected?'Google Drive terhubung':'Belum terhubung';status.className=`text-[10px] font-bold text-right ${connected?'text-green-700':'text-amber-700'}`;}
+    if(title)title.textContent=connected?'Google Drive Terhubung':'Hubungkan Google Drive';
+    if(caption)caption.textContent=connected?'Foto disimpan privat di Drive pemilik. Batas ukuran foto 100 KB.':'Hubungkan akun Google pemilik untuk menyimpan dan membaca foto privat.';
+    if(legacy){
+        const base64=countLegacyPhotos(),oldImageKit=countLegacyImageKitPhotos();
+        const parts=[];
+        if(base64)parts.push(`${base64} foto Base64 lama`);
+        if(oldImageKit)parts.push(`${oldImageKit} foto ImageKit lama yang belum dimigrasikan`);
+        legacy.textContent=parts.length?parts.join('; ')+'. Unduh backup JSON sebelum migrasi.':'Tidak ada foto Base64 atau referensi ImageKit lama yang terdeteksi.';
+    }
 }
 
 async function saveTransaction(e){
@@ -1247,14 +1286,18 @@ async function viewPhoto(src){
     if(photoObjectUrl){URL.revokeObjectURL(photoObjectUrl);photoObjectUrl=null;}
     img.removeAttribute('src');img.alt='Memuat foto...';openModal('modal-photo');
     try{
-        if(isImageKitPhoto(src)){
-            img.src=await getImageKitSignedUrl(src);img.alt='Bukti Foto';
+        if(isGoogleDrivePhoto(src)){
+            const blob=await getGoogleDrivePhotoBlob(src);
+            photoObjectUrl=URL.createObjectURL(blob);
+            img.src=photoObjectUrl;img.alt='Bukti Foto';
         }else if(typeof src==='string'&&src.startsWith('data:image/')){
             img.src=src;img.alt='Bukti Foto';
+        }else if(isLegacyImageKitPhoto(src)){
+            throw new Error('LEGACY_IMAGEKIT_REFERENCE');
         }else if(typeof src==='string'&&src.startsWith('drive:')){
             throw new Error('LEGACY_DRIVE_REFERENCE');
         }else{
-            throw new Error('PHOTO_PATH_INVALID');
+            throw new Error('PHOTO_FILE_INVALID');
         }
     }catch(error){closeModal('modal-photo');console.error('Photo view failed:',error);showToast(photoUserMessage(error));}
 }
@@ -1295,18 +1338,22 @@ async function downloadAttachment(contactKey){
     try{
         let opened=0;
         for(const item of attachments){
-            if(isImageKitPhoto(item.src)){
-                const url=await getImageKitSignedUrl(item.src);
-                const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.title='Buka foto privat';document.body.appendChild(link);link.click();link.remove();opened++;
+            if(isGoogleDrivePhoto(item.src)){
+                const blob=await getGoogleDrivePhotoBlob(item.src);
+                const url=URL.createObjectURL(blob);
+                const ext=blob.type==='image/webp'?'webp':blob.type==='image/png'?'png':'jpg';
+                const link=document.createElement('a');link.download=`${item.name.replace(/[^a-z0-9_.-]/gi,'_')}.${ext}`;link.href=url;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);opened++;
             }else if(typeof item.src==='string'&&item.src.startsWith('data:image/')){
                 const blob=await dataUrlToBlob(item.src);const url=URL.createObjectURL(blob);const ext=blob.type==='image/webp'?'webp':blob.type==='image/png'?'png':'jpg';
                 const link=document.createElement('a');link.download=`${item.name.replace(/[^a-z0-9_.-]/gi,'_')}.${ext}`;link.href=url;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);opened++;
+            }else if(isLegacyImageKitPhoto(item.src)){
+                throw new Error('LEGACY_IMAGEKIT_REFERENCE');
             }else if(typeof item.src==='string'&&item.src.startsWith('drive:')){
                 throw new Error('LEGACY_DRIVE_REFERENCE');
             }
             await new Promise(resolve=>setTimeout(resolve,180));
         }
-        showToast(`${opened} lampiran diproses. Foto privat ImageKit terbuka di tab baru.`);
+        showToast(`${opened} lampiran diproses dari penyimpanan privat.`);
     }catch(error){console.error('Attachment download failed:',error);showToast(photoUserMessage(error));}
 }
 
@@ -1607,8 +1654,9 @@ async function migrateLegacyPhotos(){
     if(saveInProgress){showToast('Tunggu proses penyimpanan yang sedang berjalan.');return;}
     const targets=[];
     data.transactions.forEach(tx=>{if(String(tx.image||'').startsWith('data:image/'))targets.push({txId:tx.id,paymentId:null});(tx.payments||[]).forEach(p=>{if(String(p.image||'').startsWith('data:image/'))targets.push({txId:tx.id,paymentId:p.id});});});
-    if(!targets.length){refreshPhotoStorageStatus();showToast('Tidak ada foto Base64 lama yang perlu dimigrasikan.');return;}
-    if(!confirm(`Migrasi ${targets.length} foto lama ke ImageKit? Setiap foto dikompres hingga maksimal 300 KB. Referensi Base64 di Firebase hanya diganti setelah upload berhasil. Unduh backup JSON sebelum melanjutkan.`))return;
+    if(!targets.length){refreshPhotoStorageStatus();showToast('Tidak ada foto Base64 lama yang perlu dimigrasikan. Referensi ImageKit lama tidak dihapus.');return;}
+    if(!googleDriveAccessToken||googleDriveTokenExpiresAt<Date.now()+15000){showToast('Hubungkan Google Drive terlebih dahulu.');return;}
+    if(!confirm(`Migrasi ${targets.length} foto Base64 lama ke Google Drive? Setiap foto akan dikompres maksimal 100 KB. Referensi di Firebase hanya diganti setelah upload berhasil. Unduh backup JSON sebelum melanjutkan.`))return;
     const button=document.getElementById('btn-migrate-photos');if(button){button.disabled=true;button.classList.add('opacity-60');}
     let migrated=0;
     try{
@@ -1627,7 +1675,7 @@ async function migrateLegacyPhotos(){
             }
             migrated++;refreshPhotoStorageStatus();showToast(`Migrasi foto: ${migrated}/${targets.length}`);
         }
-        refreshPhotoStorageStatus();showToast(`Migrasi selesai: ${migrated} foto berhasil dipindahkan ke ImageKit.`);
+        refreshPhotoStorageStatus();showToast(`Migrasi selesai: ${migrated} foto berhasil dipindahkan ke Google Drive.`);
     }catch(error){
         console.error('Legacy photo migration stopped:',error);refreshPhotoStorageStatus();
         showToast(`Migrasi berhenti setelah ${migrated} foto. Foto lainnya belum diubah. ${photoUserMessage(error)}`);
@@ -1649,12 +1697,13 @@ function initApp(){
     const dateEl=document.getElementById('current-date');
     if(dateEl) dateEl.textContent=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
     refreshPhotoStorageStatus();
+    void loadGoogleIdentityServices().catch(error=>console.warn('Google Identity Services not ready yet:',error));
     document.getElementById('screen-auth').classList.remove('hidden');
     hideProtectedScreens();
     onAuthStateChanged(auth, user => { void handleAuthStateChanged(user); });
 }
 
-window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.updateTxImageSelection=updateTxImageSelection; window.restoreBackup=restoreBackup; window.migrateLegacyPhotos=migrateLegacyPhotos; window.connectImageKit=connectImageKit;
+window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.updateTxImageSelection=updateTxImageSelection; window.restoreBackup=restoreBackup; window.migrateLegacyPhotos=migrateLegacyPhotos; window.connectGoogleDrive=connectGoogleDrive;
 window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
 window.authLogin=authLogin; window.logoutFirebaseAccount=logoutFirebaseAccount; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.viewPhoto=viewPhoto; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.downloadAttachment=downloadAttachment; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
