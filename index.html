@@ -262,7 +262,7 @@
     </div>
 
     <!-- PAYMENT MODAL -->
-    <div id="modal-pay-transaction" class="fixed inset-0 bg-black/60 z-50 hidden flex-col justify-end backdrop-blur-sm">
+    <div id="modal-pay-transaction" class="fixed inset-0 bg-black/60 z-[60] hidden flex-col justify-end backdrop-blur-sm">
         <div class="bg-white rounded-t-3xl w-full max-h-[94vh] overflow-y-auto p-6 slide-up safe-bottom">
             <div class="flex justify-between items-center mb-4"><div><p class="text-[10px] uppercase tracking-widest text-orange-600 font-black">Pembayaran</p><h2 class="text-lg font-bold text-gray-800">Catat Pembayaran</h2><p id="pay-target-name" class="text-xs text-gray-500 font-medium"></p></div><button onclick="closeModal('modal-pay-transaction')" class="p-2 text-gray-500 rounded-full bg-gray-100"><i class="ph ph-x text-lg"></i></button></div>
             <div class="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4"><p class="text-xs text-green-700 font-semibold mb-1">Sisa Tagihan Saat Ini</p><p id="pay-remaining-text" class="text-2xl font-black text-green-700">Rp 0</p></div>
@@ -272,7 +272,7 @@
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Nominal Yang Dibayar (Rp)</label><input type="number" id="pay_amount" required min="1" inputmode="numeric" placeholder="0" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Pembayaran</label><input type="date" id="pay_date" required class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Keterangan <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="text" id="pay_note" placeholder="Cth: Cicil minggu pertama" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
-                <div><label class="block text-sm font-medium text-gray-700 mb-1">Bukti Pembayaran <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><input type="file" id="pay_image" accept="image/jpeg,image/png,image/webp,image/*" class="w-full text-sm text-gray-600"><p class="text-[10px] text-gray-500 mt-1">Foto dikompres di perangkat hingga maksimal 100 KB sebelum disimpan privat di Google Drive pemilik.</p></div>
+                <div><label for="pay_image" class="block text-sm font-medium text-gray-700 mb-2">Bukti Pembayaran <span class="text-xs text-gray-400 font-normal">(Opsional)</span></label><div class="flex items-center gap-3"><input type="file" id="pay_image" accept="image/jpeg,image/png,image/webp,image/*" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap;border:0;" aria-label="Pilih foto bukti pembayaran" onchange="updatePayImageSelection(this)"><button type="button" id="btn-pick-pay-image" onclick="document.getElementById('pay_image').click()" class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-orange-200 bg-orange-50 text-orange-800 text-sm font-bold active:scale-[.99] transition"><i class="ph ph-camera text-lg"></i><span>Pilih Bukti Pembayaran</span></button><span id="pay-image-selection" class="min-w-0 flex-1 text-xs text-gray-500 break-words">Belum ada foto dipilih</span></div><p class="text-[10px] text-gray-500 mt-2">Foto dikompres di perangkat hingga maksimal 100 KB sebelum disimpan privat di Google Drive pemilik.</p></div>
                 <button id="btn-save-pay" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3.5 active:scale-[.99] transition shadow-lg shadow-green-200 flex items-center justify-center gap-2"><i class="ph-bold ph-check-square"></i> Simpan Pembayaran</button>
             </form>
         </div>
@@ -1098,10 +1098,18 @@ function loadMoreReportContacts() {
 }
 
 function openModal(id){ const el=document.getElementById(id); if(!el) return; document.body.classList.add('modal-open'); el.classList.remove('hidden'); el.classList.add('flex'); }
-function closeModal(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('hidden'); el.classList.remove('flex'); document.body.classList.remove('modal-open'); if(id==='modal-photo'){ const img=document.getElementById('photo-preview-img'); if(img) img.removeAttribute('src'); if(photoObjectUrl){URL.revokeObjectURL(photoObjectUrl);photoObjectUrl=null;} } if(id==='modal-add-transaction'){ document.getElementById('form-transaction').reset(); document.getElementById('tx_edit_id').value=''; document.getElementById('tx-existing-image').classList.add('hidden'); } if(id==='modal-add-need'){ document.getElementById('form-need').reset(); document.getElementById('nd_edit_id').value=''; } if(id==='modal-pay-transaction'){ document.getElementById('form-pay').reset(); activePayTx=null; } }
+function closeModal(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('hidden'); el.classList.remove('flex'); if(!document.querySelector('.fixed.inset-0:not(.hidden)')) document.body.classList.remove('modal-open'); if(id==='modal-photo'){ const img=document.getElementById('photo-preview-img'); if(img) img.removeAttribute('src'); if(photoObjectUrl){URL.revokeObjectURL(photoObjectUrl);photoObjectUrl=null;} } if(id==='modal-add-transaction'){ document.getElementById('form-transaction').reset(); document.getElementById('tx_edit_id').value=''; document.getElementById('tx-existing-image').classList.add('hidden'); updateTxImageSelection(); } if(id==='modal-add-need'){ document.getElementById('form-need').reset(); document.getElementById('nd_edit_id').value=''; } if(id==='modal-pay-transaction'){ document.getElementById('form-pay').reset(); updatePayImageSelection(); activePayTx=null; } }
 
 function updateTxImageSelection(input=document.getElementById('tx_image')){
     const output=document.getElementById('tx-image-selection');
+    if(!output)return;
+    const file=input?.files?.[0];
+    if(!file){output.textContent='Belum ada foto dipilih';return;}
+    const sizeKb=Math.max(1,Math.round(file.size/1024));
+    output.textContent=`${file.name} · ${sizeKb} KB`;
+}
+function updatePayImageSelection(input=document.getElementById('pay_image')){
+    const output=document.getElementById('pay-image-selection');
     if(!output)return;
     const file=input?.files?.[0];
     if(!file){output.textContent='Belum ada foto dipilih';return;}
@@ -1435,6 +1443,7 @@ function openPayModalByTransaction(txId){
     if(!tx){ showToast('Transaksi tidak ditemukan.'); return; }
     const remaining=getTxRemaining(tx);
     if(remaining<=0){ showToast('Transaksi sudah lunas.'); return; }
+    document.getElementById('form-pay').reset(); updatePayImageSelection();
     activePayTx=tx; document.getElementById('pay-tx-id').value=tx.id; document.getElementById('pay-target-name').textContent=`${tx.type==='hutang'?'Hutang ke':'Piutang dari'}: ${tx.contact}`; document.getElementById('pay-remaining-text').textContent=formatRupiah(remaining); document.getElementById('pay_amount').max=remaining; document.getElementById('pay_amount').value=''; document.getElementById('pay_date').value=todayStr(); document.querySelector('input[name="pay_mode"][value="cicil"]').checked=true; document.getElementById('pay_amount').readOnly=false; openModal('modal-pay-transaction');
 }
 function togglePayMode(mode){ if(!activePayTx) return; const remaining=getTxRemaining(activePayTx); const input=document.getElementById('pay_amount'); if(mode==='lunas'){ input.value=remaining; input.readOnly=true; } else { input.value=''; input.readOnly=false; } }
@@ -1898,7 +1907,7 @@ function initApp(){
     onAuthStateChanged(auth, user => { void handleAuthStateChanged(user); });
 }
 
-window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.updateTxImageSelection=updateTxImageSelection; window.restoreBackup=restoreBackup; window.connectGoogleDrive=connectGoogleDrive;
+window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.updateTxImageSelection=updateTxImageSelection; window.updatePayImageSelection=updatePayImageSelection; window.restoreBackup=restoreBackup; window.connectGoogleDrive=connectGoogleDrive;
 window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
 window.authLogin=authLogin; window.logoutFirebaseAccount=logoutFirebaseAccount; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.viewPhoto=viewPhoto; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.downloadAttachment=downloadAttachment; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
