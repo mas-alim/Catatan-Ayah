@@ -376,6 +376,10 @@ let googleDriveTokenClient = null;
 let googleDriveFolderId = '';
 let googleIdentityScriptPromise = null;
 
+const CONTACTS_RENDER_PAGE_SIZE = 40;
+let txVisibleGroupCount = CONTACTS_RENDER_PAGE_SIZE;
+let reportVisibleGroupCount = CONTACTS_RENDER_PAGE_SIZE;
+
 const TX_STATUS = { BELUM:'Belum Lunas', CICIL:'Dicicil', LUNAS:'Lunas' };
 
 function todayStr() {
@@ -950,6 +954,7 @@ function switchTab(tab){
 }
 function setReportSearch(value){
     reportSearch=String(value||'');
+    reportVisibleGroupCount=CONTACTS_RENDER_PAGE_SIZE;
     if(reportSearchRenderTimer!==null) clearTimeout(reportSearchRenderTimer);
     reportSearchRenderTimer=setTimeout(()=>{
         reportSearchRenderTimer=null;
@@ -958,10 +963,11 @@ function setReportSearch(value){
         if(input){ input.focus(); const pos=reportSearch.length; try{input.setSelectionRange(pos,pos);}catch{} }
     },120);
 }
-function setTxFilter(filter){ txFilter=filter; renderApp(); }
-function setTxStatus(status){ txStatus=status; renderApp(); }
+function setTxFilter(filter){ txFilter=filter; txVisibleGroupCount=CONTACTS_RENDER_PAGE_SIZE; renderApp(); }
+function setTxStatus(status){ txStatus=status; txVisibleGroupCount=CONTACTS_RENDER_PAGE_SIZE; renderApp(); }
 function setTxSearch(value) {
     txSearch = String(value || '');
+    txVisibleGroupCount = CONTACTS_RENDER_PAGE_SIZE;
     const activeInput = document.querySelector('#app-container input[data-tx-search]');
     const selectionStart = activeInput?.selectionStart ?? txSearch.length;
     const selectionEnd = activeInput?.selectionEnd ?? txSearch.length;
@@ -984,7 +990,22 @@ function clearTxSearch(){
     if (txSearchRenderTimer !== null) clearTimeout(txSearchRenderTimer);
     txSearchRenderTimer = null;
     txSearch = '';
+    txVisibleGroupCount = CONTACTS_RENDER_PAGE_SIZE;
     renderApp();
+}
+
+function loadMoreTransactions() {
+    if (!requireUnlockedApp() || currentTab !== 'transaksi') return;
+    txVisibleGroupCount += CONTACTS_RENDER_PAGE_SIZE;
+    renderApp();
+    requestAnimationFrame(() => document.getElementById('btn-load-more-transactions')?.scrollIntoView({ block: 'nearest' }));
+}
+
+function loadMoreReportContacts() {
+    if (!requireUnlockedApp() || currentTab !== 'laporan') return;
+    reportVisibleGroupCount += CONTACTS_RENDER_PAGE_SIZE;
+    renderApp();
+    requestAnimationFrame(() => document.getElementById('btn-load-more-report-contacts')?.scrollIntoView({ block: 'nearest' }));
 }
 
 function openModal(id){ const el=document.getElementById(id); if(!el) return; document.body.classList.add('modal-open'); el.classList.remove('hidden'); el.classList.add('flex'); }
@@ -1528,20 +1549,22 @@ function buildLaporan(){
     const allGroups=reportContactGroups();
     const normalizedReportSearch=reportSearch.trim().toLowerCase();
     const groups=normalizedReportSearch?allGroups.filter(g=>g.name.toLowerCase().includes(normalizedReportSearch)):allGroups;
+    const visibleGroups=groups.slice(0,reportVisibleGroupCount);
     const allRemaining=hutang.remaining+piutang.remaining;
     const net=piutang.remaining-hutang.remaining;
-    const contactRows=groups.length?groups.map(g=>{
+    const contactRows=groups.length?visibleGroups.map(g=>{
         const txLabel=`${g.items.length} transaksi`;
         const debtChip=g.hutang?`<span class="report-balance-chip debt">Utang ${formatRupiah(g.hutang)}</span>`:'';
         const creditChip=g.piutang?`<span class="report-balance-chip credit">Piutang ${formatRupiah(g.piutang)}</span>`:'';
         return `<div class="report-contact"><div class="report-contact-top"><div style="min-width:0"><div class="report-contact-name">${escapeHtml(g.name)}</div><div class="report-contact-meta">${txLabel} · Terbayar ${formatRupiah(g.paid)}</div></div><div class="report-contact-balances">${debtChip}${creditChip}${(!g.hutang&&!g.piutang)?'<span class="report-balance-chip" style="background:#f3f4f6;color:#6b7280">Lunas</span>':''}</div></div><div class="report-contact-actions"><button class="report-contact-action" onclick="openDetailModalByContact(${jsArg(g.key)})"><i class="ph-bold ph-eye"></i> Detail</button><button class="report-contact-action primary" onclick="downloadContactCsv(${jsArg(g.key)})"><i class="ph-bold ph-download-simple"></i> Unduh detail CSV</button></div></div>`;
     }).join(''):`<div class="report-empty"><i class="ph ph-magnifying-glass" style="font-size:22px;display:block;margin-bottom:6px"></i>${reportSearch.trim()?'Kontak tidak ditemukan.':'Belum ada transaksi yang dapat dilaporkan.'}</div>`;
+    const reportLoadMore=groups.length>visibleGroups.length?`<div class="text-center space-y-2 py-3"><button id="btn-load-more-report-contacts" onclick="loadMoreReportContacts()" class="w-full rounded-xl border border-green-200 bg-green-50 text-green-700 text-sm font-bold py-3 active:scale-[.99]">Muat ${Math.min(CONTACTS_RENDER_PAGE_SIZE,groups.length-visibleGroups.length)} kontak berikutnya</button></div>`:'';
     return `<div class="report-page">
         <div class="report-page-header"><div><h2 class="report-page-title">Laporan Utang-Piutang</h2><p class="report-page-subtitle">Rekap sisa saldo, pembayaran, dan detail setiap kontak.</p></div><div style="width:40px;height:40px;flex:0 0 40px;border-radius:13px;background:#dcfce7;color:#15803d;display:flex;align-items:center;justify-content:center"><i class="ph-fill ph-chart-bar" style="font-size:22px"></i></div></div>
         <div class="report-summary-grid"><div class="report-kpi"><div class="report-kpi-label">Total sisa utang + piutang</div><div class="report-kpi-value">${formatRupiah(allRemaining)}</div><div class="report-kpi-note">Total saldo yang belum selesai</div></div><div class="report-kpi"><div class="report-kpi-label">Saldo bersih</div><div class="report-kpi-value" style="color:${net<0?'#b91c1c':'#15803d'}">${net<0?'- ':''}${formatRupiah(Math.abs(net))}</div><div class="report-kpi-note">Sisa piutang dikurangi sisa utang</div></div></div>
         <section class="report-card"><h3 class="report-card-title">Grafik Sisa Utang &amp; Piutang</h3><p class="report-card-subtitle">Perbandingan saldo yang masih belum lunas saat ini.</p><div class="report-bar-row"><div class="report-bar-heading"><span><i class="ph-fill ph-circle" style="color:#dc2626;margin-right:4px"></i>Sisa utang</span><strong>${formatRupiah(hutang.remaining)}</strong></div><div class="report-bar-track" role="img" aria-label="Sisa utang ${formatRupiah(hutang.remaining)}"><div class="report-bar-fill debt" style="width:${debtPct}%"></div></div></div><div class="report-bar-row"><div class="report-bar-heading"><span><i class="ph-fill ph-circle" style="color:#16a34a;margin-right:4px"></i>Sisa piutang</span><strong>${formatRupiah(piutang.remaining)}</strong></div><div class="report-bar-track" role="img" aria-label="Sisa piutang ${formatRupiah(piutang.remaining)}"><div class="report-bar-fill credit" style="width:${creditPct}%"></div></div></div><div class="report-chart-legend"><span><i class="report-legend-dot" style="background:#dc2626"></i>Utang yang harus dibayar</span><span><i class="report-legend-dot" style="background:#16a34a"></i>Piutang yang akan diterima</span></div></section>
         <section><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 9px"><h3 class="report-card-title">Rekap Utang &amp; Piutang</h3><span style="font-size:9px;color:#9ca3af">Semua tanggal</span></div><div class="report-type-grid">${buildReportTypeCard('hutang',hutang)}${buildReportTypeCard('piutang',piutang)}</div></section>
-        <section class="report-card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><h3 class="report-card-title">Detail per Kontak</h3><p class="report-card-subtitle">Unduh transaksi individual atau seluruh kontak dalam format CSV untuk Excel.</p></div><i class="ph-fill ph-users-three" style="font-size:20px;color:#16a34a"></i></div><div class="report-contact-toolbar" style="margin-top:12px"><input data-report-search class="report-search" value="${escapeHtml(reportSearch)}" oninput="setReportSearch(this.value)" placeholder="Cari nama kontak..."><button class="report-export-all" onclick="downloadAllContactsCsv()"><i class="ph-bold ph-download-simple"></i> Unduh semua CSV</button></div><div class="report-contact-list">${contactRows}</div><p class="report-card-subtitle" style="margin-top:12px">Menampilkan ${groups.length} kontak dari ${allGroups.length} kontak.</p></section>
+        <section class="report-card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><h3 class="report-card-title">Detail per Kontak</h3><p class="report-card-subtitle">Unduh transaksi individual atau seluruh kontak dalam format CSV untuk Excel.</p></div><i class="ph-fill ph-users-three" style="font-size:20px;color:#16a34a"></i></div><div class="report-contact-toolbar" style="margin-top:12px"><input data-report-search class="report-search" value="${escapeHtml(reportSearch)}" oninput="setReportSearch(this.value)" placeholder="Cari nama kontak..."><button class="report-export-all" onclick="downloadAllContactsCsv()"><i class="ph-bold ph-download-simple"></i> Unduh semua CSV</button></div><div class="report-contact-list">${contactRows}</div><p class="report-card-subtitle" style="margin-top:12px">Menampilkan ${visibleGroups.length} dari ${groups.length} hasil pencarian (${allGroups.length} kontak total).</p>${reportLoadMore}</section>
     </div>`;
 }
 function csvCell(value){
@@ -1610,7 +1633,14 @@ function buildTransaksi(){
     });
     let html=`<div class="space-y-3 mb-4"><div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-100"><div class="relative"><i class="ph-bold ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input data-tx-search value="${escapeHtml(txSearch)}" oninput="setTxSearch(this.value)" placeholder="Cari nama atau catatan..." class="w-full pl-9 pr-9 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-green-500"><button onclick="clearTxSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 text-gray-400 ${txSearch?'':'hidden'}"><i class="ph-bold ph-x"></i></button></div></div><div class="bg-white p-1.5 rounded-xl shadow-sm border border-gray-100"><div class="flex gap-1.5"><button onclick="setTxFilter('semua')" class="flex-1 py-2 text-[11px] font-bold rounded-lg ${txFilter==='semua'?'bg-green-100 text-green-700':'text-gray-500'}">Semua</button><button onclick="setTxFilter('hutang')" class="flex-1 py-2 text-[11px] font-bold rounded-lg ${txFilter==='hutang'?'bg-red-100 text-red-700':'text-gray-500'}">Hutang</button><button onclick="setTxFilter('piutang')" class="flex-1 py-2 text-[11px] font-bold rounded-lg ${txFilter==='piutang'?'bg-green-100 text-green-700':'text-gray-500'}">Piutang</button></div><div class="grid grid-cols-4 gap-1.5 mt-1.5"><button onclick="setTxStatus('semua')" class="py-2 text-[10px] font-bold rounded-lg ${txStatus==='semua'?'bg-gray-200 text-gray-800':'text-gray-500'}">Semua</button><button onclick="setTxStatus(${jsArg(TX_STATUS.BELUM)})" class="py-2 text-[10px] font-bold rounded-lg ${txStatus===TX_STATUS.BELUM?'bg-amber-100 text-amber-700':'text-gray-500'}">Belum</button><button onclick="setTxStatus(${jsArg(TX_STATUS.CICIL)})" class="py-2 text-[10px] font-bold rounded-lg ${txStatus===TX_STATUS.CICIL?'bg-orange-100 text-orange-700':'text-gray-500'}">Cicil</button><button onclick="setTxStatus(${jsArg(TX_STATUS.LUNAS)})" class="py-2 text-[10px] font-bold rounded-lg ${txStatus===TX_STATUS.LUNAS?'bg-green-100 text-green-700':'text-gray-500'}">Lunas</button></div></div></div>`;
     const keys=Object.keys(groups); if(!keys.length) return html+`<div class="text-center text-gray-400 mt-16"><i class="ph-fill ph-folder-open text-6xl mb-3 text-gray-300"></i><p class="font-medium">Data transaksi tidak ditemukan.</p><p class="text-[11px] mt-1">Coba ubah pencarian atau filter.</p></div>`;
-    html+=`<div class="space-y-3">`+keys.map(key=>{const g=groups[key];const h=g.hutang,p=g.piutang;const status=h>0?`<span class="text-xs font-bold text-red-500">Sisa Hutang: ${formatRupiah(h)}</span>`:p>0?`<span class="text-xs font-bold text-green-600">Sisa Piutang: ${formatRupiah(p)}</span>`:`<span class="text-xs font-bold text-gray-400">Lunas</span>`;return `<div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100"><div class="flex justify-between gap-3"><div class="flex items-center gap-2 min-w-0"><div class="w-9 h-9 rounded-full bg-green-50 text-green-600 flex items-center justify-center"><i class="ph-bold ph-user-circle text-xl"></i></div><div class="min-w-0"><h3 class="font-bold text-gray-800 text-base leading-tight truncate">${escapeHtml(g.name)}</h3><p class="text-[11px] text-gray-400">${g.items.length} transaksi</p></div></div>${status}</div><div class="flex flex-wrap items-center justify-end gap-1.5 pt-3"><button onclick="openPayModalByContact(${jsArg(key)})" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold"><i class="ph-bold ph-hand-coins"></i> Bayar</button><button onclick="openDetailModalByContact(${jsArg(key)})" class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold"><i class="ph-bold ph-eye"></i> Detail</button><button onclick="openTransactionModal('',${jsArg(g.name)})" class="px-3 py-1.5 border border-green-200 text-green-700 rounded-lg text-xs font-bold"><i class="ph-bold ph-plus"></i> Tambah</button><button onclick="downloadContactStatement(${jsArg(key)})" class="w-8 h-8 text-blue-600 bg-blue-50 rounded-lg"><i class="ph-bold ph-download-simple"></i></button><button onclick="confirmDeleteContact(${jsArg(key)})" class="w-8 h-8 text-red-500 bg-red-50 rounded-lg"><i class="ph-bold ph-trash"></i></button></div></div>`}).join('')+`</div>`;
+    const visibleKeys=keys.slice(0,txVisibleGroupCount);
+    html+=`<div class="space-y-3">`+visibleKeys.map(key=>{const g=groups[key];const h=g.hutang,p=g.piutang;const status=h>0?`<span class="text-xs font-bold text-red-500">Sisa Hutang: ${formatRupiah(h)}</span>`:p>0?`<span class="text-xs font-bold text-green-600">Sisa Piutang: ${formatRupiah(p)}</span>`:`<span class="text-xs font-bold text-gray-400">Lunas</span>`;return `<div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100"><div class="flex justify-between gap-3"><div class="flex items-center gap-2 min-w-0"><div class="w-9 h-9 rounded-full bg-green-50 text-green-600 flex items-center justify-center"><i class="ph-bold ph-user-circle text-xl"></i></div><div class="min-w-0"><h3 class="font-bold text-gray-800 text-base leading-tight truncate">${escapeHtml(g.name)}</h3><p class="text-[11px] text-gray-400">${g.items.length} transaksi</p></div></div>${status}</div><div class="flex flex-wrap items-center justify-end gap-1.5 pt-3"><button onclick="openPayModalByContact(${jsArg(key)})" class="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold"><i class="ph-bold ph-hand-coins"></i> Bayar</button><button onclick="openDetailModalByContact(${jsArg(key)})" class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold"><i class="ph-bold ph-eye"></i> Detail</button><button onclick="openTransactionModal('',${jsArg(g.name)})" class="px-3 py-1.5 border border-green-200 text-green-700 rounded-lg text-xs font-bold"><i class="ph-bold ph-plus"></i> Tambah</button><button onclick="downloadContactStatement(${jsArg(key)})" class="w-8 h-8 text-blue-600 bg-blue-50 rounded-lg"><i class="ph-bold ph-download-simple"></i></button><button onclick="confirmDeleteContact(${jsArg(key)})" class="w-8 h-8 text-red-500 bg-red-50 rounded-lg"><i class="ph-bold ph-trash"></i></button></div></div>`}).join('')+`</div>`;
+    if(keys.length>visibleKeys.length){
+        const remaining=keys.length-visibleKeys.length;
+        html+=`<div class="text-center space-y-2 py-3"><p class="text-xs text-gray-400">Menampilkan ${visibleKeys.length} dari ${keys.length} kontak</p><button id="btn-load-more-transactions" onclick="loadMoreTransactions()" class="w-full rounded-xl border border-green-200 bg-green-50 text-green-700 text-sm font-bold py-3 active:scale-[.99]">Muat ${Math.min(CONTACTS_RENDER_PAGE_SIZE,remaining)} kontak berikutnya</button></div>`;
+    }else{
+        html+=`<p class="text-center text-xs text-gray-400 py-3">Menampilkan semua ${keys.length} kontak</p>`;
+    }
     return html;
 }
 
@@ -1840,7 +1870,7 @@ function initApp(){
 }
 
 window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.updateTxImageSelection=updateTxImageSelection; window.restoreBackup=restoreBackup; window.migrateLegacyPhotos=migrateLegacyPhotos; window.connectGoogleDrive=connectGoogleDrive;
-window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
+window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
 window.authLogin=authLogin; window.logoutFirebaseAccount=logoutFirebaseAccount; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.viewPhoto=viewPhoto; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.downloadAttachment=downloadAttachment; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
 document.addEventListener('DOMContentLoaded', initApp);
