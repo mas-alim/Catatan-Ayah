@@ -6,6 +6,8 @@
     <title>Catatan Ayah — Rekonstruksi 2026</title>
     <meta name="theme-color" content="#16a34a">
     <meta name="application-name" content="Catatan Ayah">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <meta name="description" content="Catatan pribadi utang-piutang dan tagihan dengan akses Firebase Authentication.">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -228,7 +230,7 @@
                 <button onclick="closeModal('modal-settings')" class="p-2 text-gray-500 rounded-full bg-gray-100"><i class="ph ph-x text-lg"></i></button>
             </div>
             <div class="space-y-3">
-                <div class="bg-green-50 border border-green-100 rounded-2xl p-4"><div class="flex items-start gap-3"><div class="w-10 h-10 rounded-xl bg-green-600 text-white flex items-center justify-center flex-shrink-0"><i class="ph-bold ph-cloud-check text-lg"></i></div><div><p class="font-bold text-sm text-gray-800">Sinkronisasi Cloud</p><p class="text-[11px] text-gray-500 mt-0.5">Data utama tetap tersimpan pada Firebase. Perangkat ini menyimpan cache lokal untuk akses cepat.</p></div></div></div>
+                <div class="bg-green-50 border border-green-100 rounded-2xl p-4"><div class="flex items-start gap-3"><div class="w-10 h-10 rounded-xl bg-green-600 text-white flex items-center justify-center flex-shrink-0"><i class="ph-bold ph-cloud-check text-lg"></i></div><div><p class="font-bold text-sm text-gray-800">Sinkronisasi Cloud</p><p class="text-[11px] text-gray-500 mt-0.5">Data utama tersimpan pada Firebase. Data transaksi tidak disimpan untuk akses offline pada perangkat ini.</p></div></div></div>
                 <button onclick="downloadBackup()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-download-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Backup Data</p><p class="text-[11px] text-gray-500">Simpan transaksi dan tagihan ke file JSON.</p></div></button>
                 <button onclick="document.getElementById('restore-file').click()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><i class="ph-bold ph-upload-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Restore Data</p><p class="text-[11px] text-gray-500">Impor backup JSON dan mengganti data saat ini.</p></div></button>
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
@@ -1032,8 +1034,164 @@ function buildKebutuhan(){
 }
 
 function openSettings(){ if(!requireUnlockedApp()) return; refreshPhotoStorageStatus(); openModal('modal-settings'); }
-function downloadBackup(){ if(!requireUnlockedApp()) return; const payload={app:'Catatan Ayah',version:2,exportedAt:new Date().toISOString(),data:normalizeData(data)}; const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`catatan-ayah-backup-${todayStr()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); showToast('Backup berhasil dibuat.'); }
-async function restoreBackup(e){ if(!requireUnlockedApp()) { if(e?.target) e.target.value=''; return; } const file=e.target.files?.[0]; e.target.value=''; if(!file) return; let parsedSuccessfully=false; try{ const raw=await file.text(); const parsed=JSON.parse(raw); const restored=normalizeData(parsed?.data||parsed); if(!confirm(`Restore backup? ${restored.transactions.length} transaksi dan ${restored.needs.length} tagihan akan menggantikan data saat ini.`)) return; parsedSuccessfully=true; data=restored; await saveData({replaceAll:true}); renderApp(); refreshPhotoStorageStatus(); showToast('Restore berhasil.'); }catch(err){ console.error(err); showToast(parsedSuccessfully?'Restore gagal disimpan ke Firebase. Data sebelumnya dipulihkan.':'File backup tidak valid atau formatnya tidak didukung.'); } }
+const MAX_BACKUP_FILE_BYTES = 100 * 1024 * 1024;
+const MAX_BACKUP_RECORDS = 50000;
+const MAX_BACKUP_AMOUNT = 1e15;
+
+async function sha256Hex(value) {
+    if (!globalThis.crypto?.subtle) throw new Error('CRYPTO_UNAVAILABLE');
+    const bytes = new TextEncoder().encode(value);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function isPlainRecord(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function validateBackupCollection(value, label) {
+    if (Array.isArray(value)) {
+        if (value.length > MAX_BACKUP_RECORDS) throw new Error(`${label.toUpperCase()}_TOO_MANY_RECORDS`);
+        if (!value.every(isPlainRecord)) throw new Error(`${label.toUpperCase()}_INVALID_RECORD`);
+        return value;
+    }
+    if (isPlainRecord(value)) {
+        const entries = Object.values(value);
+        if (entries.length > MAX_BACKUP_RECORDS) throw new Error(`${label.toUpperCase()}_TOO_MANY_RECORDS`);
+        if (!entries.every(isPlainRecord)) throw new Error(`${label.toUpperCase()}_INVALID_RECORD`);
+        return entries;
+    }
+    throw new Error(`${label.toUpperCase()}_COLLECTION_MISSING_OR_INVALID`);
+}
+
+function validateBackupPayload(parsed) {
+    if (!isPlainRecord(parsed)) throw new Error('BACKUP_ROOT_INVALID');
+    if (parsed.app && parsed.app !== 'Catatan Ayah') throw new Error('BACKUP_WRONG_APPLICATION');
+    if (Object.prototype.hasOwnProperty.call(parsed, 'data') && !isPlainRecord(parsed.data)) throw new Error('BACKUP_DATA_INVALID');
+    const source = Object.prototype.hasOwnProperty.call(parsed, 'data') ? parsed.data : parsed;
+    if (!isPlainRecord(source) || !Object.prototype.hasOwnProperty.call(source, 'transactions') || !Object.prototype.hasOwnProperty.call(source, 'needs')) {
+        throw new Error('BACKUP_MISSING_COLLECTIONS');
+    }
+    const transactions = validateBackupCollection(source.transactions, 'transactions');
+    const needs = validateBackupCollection(source.needs, 'needs');
+    if (transactions.length + needs.length > MAX_BACKUP_RECORDS) throw new Error('BACKUP_TOO_MANY_RECORDS');
+
+    for (const [index, tx] of transactions.entries()) {
+        const amount = Number(tx.amount);
+        if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_BACKUP_AMOUNT) throw new Error(`TRANSACTION_AMOUNT_INVALID_${index + 1}`);
+        if (tx.contact !== undefined && typeof tx.contact !== 'string') throw new Error(`TRANSACTION_CONTACT_INVALID_${index + 1}`);
+        if (tx.note !== undefined && typeof tx.note !== 'string') throw new Error(`TRANSACTION_NOTE_INVALID_${index + 1}`);
+        if (tx.payments !== undefined && !Array.isArray(tx.payments)) throw new Error(`TRANSACTION_PAYMENTS_INVALID_${index + 1}`);
+        for (const [paymentIndex, payment] of (Array.isArray(tx.payments) ? tx.payments : []).entries()) {
+            if (!isPlainRecord(payment)) throw new Error(`PAYMENT_INVALID_${index + 1}_${paymentIndex + 1}`);
+            const paymentAmount = Number(payment.amount);
+            if (!Number.isFinite(paymentAmount) || paymentAmount <= 0 || paymentAmount > MAX_BACKUP_AMOUNT) throw new Error(`PAYMENT_AMOUNT_INVALID_${index + 1}_${paymentIndex + 1}`);
+            if (payment.date !== undefined && typeof payment.date !== 'string') throw new Error(`PAYMENT_DATE_INVALID_${index + 1}_${paymentIndex + 1}`);
+        }
+    }
+    for (const [index, need] of needs.entries()) {
+        const amount = Number(need.amount);
+        if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_BACKUP_AMOUNT) throw new Error(`NEED_AMOUNT_INVALID_${index + 1}`);
+        if (need.description !== undefined && typeof need.description !== 'string') throw new Error(`NEED_DESCRIPTION_INVALID_${index + 1}`);
+        if (need.dueDate !== undefined && typeof need.dueDate !== 'string') throw new Error(`NEED_DATE_INVALID_${index + 1}`);
+    }
+    return { source, transactions, needs };
+}
+
+async function downloadBackup() {
+    if (!requireUnlockedApp()) return;
+    try {
+        const backupData = cloneData(lastStableData || data);
+        const dataJson = JSON.stringify(backupData);
+        const payload = {
+            app: 'Catatan Ayah',
+            version: 3,
+            exportedAt: new Date().toISOString(),
+            data: backupData,
+            integrity: { algorithm: 'SHA-256', digest: await sha256Hex(dataJson) }
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `catatan-ayah-backup-${todayStr()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+        showToast(`Backup berhasil dibuat: ${backupData.transactions.length} transaksi, ${backupData.needs.length} tagihan.`);
+    } catch (err) {
+        console.error(err);
+        showToast('Backup gagal dibuat. Pastikan browser mendukung SHA-256 dan coba kembali.');
+    }
+}
+
+async function restoreBackup(e) {
+    if (!requireUnlockedApp()) { if (e?.target) e.target.value = ''; return; }
+    const input = e?.target;
+    const file = input?.files?.[0];
+    if (input) input.value = '';
+    if (!file) return;
+
+    try {
+        if (file.size <= 0) throw new Error('BACKUP_FILE_EMPTY');
+        if (file.size > MAX_BACKUP_FILE_BYTES) throw new Error('BACKUP_FILE_TOO_LARGE');
+        const raw = await file.text();
+        let parsed;
+        try { parsed = JSON.parse(raw); } catch { throw new Error('BACKUP_JSON_INVALID'); }
+        const validated = validateBackupPayload(parsed);
+
+        // Backups generated by v3 carry a checksum. Legacy backups remain supported but are clearly identified.
+        if (parsed.integrity !== undefined) {
+            if (!isPlainRecord(parsed.integrity) || parsed.integrity.algorithm !== 'SHA-256' || !/^[a-f0-9]{64}$/i.test(String(parsed.integrity.digest || ''))) {
+                throw new Error('BACKUP_INTEGRITY_FIELD_INVALID');
+            }
+            const expected = await sha256Hex(JSON.stringify(validated.source));
+            if (expected.toLowerCase() !== String(parsed.integrity.digest).toLowerCase()) throw new Error('BACKUP_CHECKSUM_MISMATCH');
+        }
+
+        const restored = normalizeData(validated.source);
+        const legacyNotice = parsed.integrity ? 'Checksum SHA-256 sesuai.' : 'Backup lama tanpa checksum; struktur data sudah diperiksa.';
+        const summary = `File: ${file.name}\n${restored.transactions.length} transaksi dan ${restored.needs.length} tagihan akan menggantikan seluruh data aktif.\n${legacyNotice}`;
+        if (!confirm(`PERINGATAN RESTORE\n\n${summary}\n\nPastikan Anda sudah mengunduh backup kondisi database saat ini. Lanjutkan?`)) return;
+        const phrase = prompt('Konfirmasi terakhir: ketik RESTORE (huruf kapital) untuk mengganti seluruh data aktif.');
+        if (phrase !== 'RESTORE') { showToast('Restore dibatalkan. Data aktif tidak diubah.'); return; }
+
+        // Keep the in-memory baseline intact until Firebase confirms the replacement transaction.
+        const previousStableData = cloneData(lastStableData || data);
+        data = restored;
+        try {
+            await saveData({ replaceAll: true });
+        } catch (saveError) {
+            data = previousStableData;
+            lastStableData = cloneData(previousStableData);
+            throw saveError;
+        }
+        renderApp();
+        refreshPhotoStorageStatus();
+        showToast('Restore berhasil diverifikasi dan disimpan ke Firebase.');
+    } catch (err) {
+        console.error('Restore backup rejected/failed:', err);
+        const messages = {
+            BACKUP_FILE_EMPTY: 'File backup kosong.',
+            BACKUP_FILE_TOO_LARGE: 'Ukuran backup melebihi batas aman 100 MB.',
+            BACKUP_JSON_INVALID: 'Isi file bukan JSON yang valid.',
+            BACKUP_ROOT_INVALID: 'Format root backup tidak valid.',
+            BACKUP_WRONG_APPLICATION: 'File ini bukan backup Catatan Ayah.',
+            BACKUP_DATA_INVALID: 'Bagian data backup tidak valid.',
+            BACKUP_MISSING_COLLECTIONS: 'Backup harus memuat koleksi transaksi dan tagihan.',
+            BACKUP_CHECKSUM_MISMATCH: 'Checksum tidak cocok. File berubah atau rusak; restore dibatalkan.',
+            BACKUP_INTEGRITY_FIELD_INVALID: 'Metadata integritas backup tidak valid.',
+            CRYPTO_UNAVAILABLE: 'Browser tidak mendukung pemeriksaan integritas SHA-256.'
+        };
+        const code = String(err?.message || '');
+        if (code.startsWith('TRANSACTION_') || code.startsWith('PAYMENT_') || code.startsWith('NEED_') || code.endsWith('_INVALID') || code.endsWith('_MISSING') || code.includes('TOO_MANY')) {
+            showToast('Struktur backup tidak valid atau memiliki data yang tidak aman. Data aktif tidak diubah.');
+        } else {
+            showToast(messages[code] || 'Restore gagal disimpan. Data aktif dipertahankan.');
+        }
+    }
+}
 async function migrateLegacyPhotos(){ if(!requireUnlockedApp()) return; showToast('Migrasi foto ditangguhkan sampai Firebase Storage, billing, dan Storage Rules dikonfigurasi. Lampiran lama tidak diubah.'); }
 
 function renderApp(){ if(!isAppUnlocked()) return; const c=document.getElementById('app-container'); if(!c) return; c.innerHTML=currentTab==='beranda'?buildBeranda():currentTab==='transaksi'?buildTransaksi():buildKebutuhan(); }
@@ -1053,5 +1211,16 @@ window.authLogin=authLogin; window.logoutFirebaseAccount=logoutFirebaseAccount; 
 
 document.addEventListener('DOMContentLoaded', initApp);
 </script>
+
+<script>
+// PWA registration is intentionally limited to the app's GitHub Pages subpath.
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+            .catch(error => console.warn('PWA service worker registration failed:', error));
+    });
+}
+</script>
+
 </body>
 </html>
