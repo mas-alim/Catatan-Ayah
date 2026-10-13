@@ -930,7 +930,7 @@ function photoUserMessage(error){
     if(code==='PHOTO_INPUT_TOO_LARGE') return 'Foto asli maksimal 15 MB sebelum kompresi.';
     if(code==='IMAGE_API_FAILED'||code==='IMAGE_API_NETWORK_FAILED') return 'Backend Vercel tidak dapat dihubungi. Periksa URL API dan deployment.';
     if(code==='LEGACY_DRIVE_REFERENCE') return 'Lampiran ini memakai referensi Google Drive versi percobaan. Migrasikan atau pulihkan file lama sebelum mengganti referensinya.';
-    return 'Operasi foto gagal. Periksa deployment Vercel, konfigurasi ImageKit, dan koneksi internet.';
+    return `Operasi foto gagal. Kode diagnostik: ${code || 'UNKNOWN'}. Periksa log Console untuk detail teknis.`;
 }
 async function imageKitApiRequest(endpoint, payload={}){
     if(!isImageKitConfigured()) throw new Error('IMAGE_API_NOT_CONFIGURED');
