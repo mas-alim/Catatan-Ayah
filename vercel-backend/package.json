@@ -1,0 +1,12 @@
+{
+  "name": "catatan-ayah-imagekit-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vercel Functions for private ImageKit photo uploads in Catatan Ayah",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.4.0"
+  }
+}
