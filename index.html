@@ -862,6 +862,7 @@ async function purgeLegacyBase64PhotoReferences(){
     saveInProgress=true;
     setSyncState('saving');
     let removed=0;
+    let cleanupFailed=false;
     try{
         const result=await runTransaction(dbRef,current=>{
             removed=0;
@@ -877,12 +878,13 @@ async function purgeLegacyBase64PhotoReferences(){
         if(removed)console.info('Removed legacy Base64 photo references:',removed);
         return {removed,failed:false};
     }catch(error){
+        cleanupFailed=true;
         console.warn('Legacy Base64 photo cleanup failed; other transaction data was preserved:',error);
         return {removed:0,failed:true};
     }finally{
         legacyBase64PurgeRunning=false;
         saveInProgress=false;
-        setSyncState(firebaseDataReady?'online':'offline');
+        setSyncState(!cleanupFailed&&firebaseDataReady?'online':'offline');
     }
 }
 
