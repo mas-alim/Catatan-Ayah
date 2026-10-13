@@ -1,7 +1,16 @@
-const { configureCors, json, requireOwner, imageKitSecrets, signUpload } = require('../lib/server');
+import server from '../lib/server.cjs';
 
-module.exports = async function handler(req, res) {
+const {
+  configureCors,
+  json,
+  requireOwner,
+  imageKitSecrets,
+  signUpload,
+} = server;
+
+export default async function handler(req, res) {
   if (!configureCors(req, res)) return;
+
   try {
     await requireOwner(req);
     const { privateKey, publicKey } = imageKitSecrets({ needPublicKey: true });
@@ -12,9 +21,14 @@ module.exports = async function handler(req, res) {
     const status = Number(error?.status) || (code === 'OWNER_ONLY' ? 403 : code === 'AUTH_REQUIRED' ? 401 : 500);
     // Never return secret values, service-account details, or SDK errors to the client.
     const safeCodes = new Set([
-      'AUTH_REQUIRED','OWNER_ONLY','OWNER_UID_MISSING','FIREBASE_ADMIN_CONFIG_MISSING',
-      'IMAGEKIT_PRIVATE_KEY_MISSING','IMAGEKIT_PUBLIC_KEY_MISSING','IMAGEKIT_URL_ENDPOINT_MISSING'
+      'AUTH_REQUIRED',
+      'OWNER_ONLY',
+      'OWNER_UID_MISSING',
+      'FIREBASE_ADMIN_CONFIG_MISSING',
+      'IMAGEKIT_PRIVATE_KEY_MISSING',
+      'IMAGEKIT_PUBLIC_KEY_MISSING',
+      'IMAGEKIT_URL_ENDPOINT_MISSING',
     ]);
     return json(res, status, { error: safeCodes.has(code) ? code : 'IMAGEKIT_AUTH_FAILED' });
   }
-};
+}
