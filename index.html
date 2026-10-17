@@ -769,7 +769,7 @@ function setupFirebaseListener() {
 }
 
 
-function stopFirebaseListener() {function stopFirebaseListener() {
+function stopFirebaseListener() {
     if (typeof firebaseUnsubscribe === 'function') firebaseUnsubscribe();
     firebaseUnsubscribe = null;
     firebaseListening = false;
@@ -866,7 +866,7 @@ async function unlockApp() {
     }
 }
 
-function lockApp(){function lockApp() {
+function lockApp() {
     if (saveInProgress) {
         showToast('Penyimpanan masih berlangsung. Tunggu sampai selesai sebelum mengunci aplikasi.');
         return;
@@ -1129,7 +1129,7 @@ async function savePayment(e) {
     } finally { btn.disabled = false; btn.classList.remove('disabled'); }
 }
 
-function confirmDeleteContact(contactKey){function confirmDeleteContact(contactKey){ if(!requireUnlockedApp()) return; deleteTarget={type:'contact',key:contactKey}; showConfirm('Hapus semua transaksi pihak ini?','Semua transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
+function confirmDeleteContact(contactKey){ if(!requireUnlockedApp()) return; deleteTarget={type:'contact',key:contactKey}; showConfirm('Hapus semua transaksi pihak ini?','Semua transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
 function confirmDeleteTransaction(txId){ if(!requireUnlockedApp()) return; const tx=data.transactions.find(t=>t.id===txId); if(!tx) return; deleteTarget={type:'transaction',id:txId}; showConfirm('Hapus transaksi ini?','Transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
 function confirmDeleteNeed(needId){ if(!requireUnlockedApp()) return; deleteTarget={type:'need',id:needId}; showConfirm('Hapus tagihan ini?','Rencana tagihan ini akan dihapus permanen.'); }
 function showConfirm(title,text){ document.getElementById('confirm-title').textContent=title; document.getElementById('confirm-text').textContent=text; document.getElementById('btn-confirm-delete').onclick=executeDelete; openModal('modal-confirm'); }
@@ -1144,7 +1144,7 @@ async function executeDelete(){
     } catch(err){ console.error(err); showToast('Data gagal dihapus.'); }
 }
 
-function openDetailModalByContact(contactKey){function openDetailModalByContact(contactKey){
+function openDetailModalByContact(contactKey){
     if (!requireUnlockedApp()) return;
     const contactTxs=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey);
     if(!contactTxs.length) return;
@@ -1170,7 +1170,7 @@ function openDetailModalByContact(contactKey){function openDetailModalByContact(
     openModal('modal-detail-transaction');
 }
 
-function downloadContactStatement(contactKey){function downloadContactStatement(contactKey){
+function downloadContactStatement(contactKey){
     if (!requireUnlockedApp()) return;
     const txs=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey); if(!txs.length) return; const name=txs[0].contact||'Kontak';
     const canvas=document.createElement('canvas'); canvas.width=760; canvas.height=Math.max(900,280+txs.length*70); const ctx=canvas.getContext('2d');
