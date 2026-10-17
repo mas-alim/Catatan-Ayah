@@ -983,7 +983,7 @@ function closeModal(id) {
     if (id === 'modal-pay-transaction') { document.getElementById('form-pay').reset(); activePayTx = null; }
 }
 
-function openTransactionModal(txId='', contactName='') {function openTransactionModal(txId='', contactName='') {
+function openTransactionModal(txId='', contactName='') {
     if (!requireUnlockedApp()) return;
     const form=document.getElementById('form-transaction'); form.reset();
     document.getElementById('tx_edit_id').value=txId || '';
