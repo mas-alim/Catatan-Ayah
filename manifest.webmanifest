@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Catatan Utang Piutang",
-  "short_name": "Catatan Utang Piutang",
-  "description": "Catatan utang-piutang, pembayaran, dan tagihan.",
+  "name": "Catatan Utang",
+  "short_name": "Catatan Utang",
+  "description": "Pencatatan utang, piutang, pembayaran, dan tagihan.",
   "lang": "id-ID",
   "start_url": "./",
   "scope": "./",
