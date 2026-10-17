@@ -107,7 +107,7 @@
                 <i class="ph ph-shield-check text-3xl"></i>
             </div>
             <h2 class="text-xl font-bold text-gray-800 mb-2">Login Catatan Utang</h2>
-            <p class="text-sm text-gray-500 mb-6">Masuk atau buat akun baru. Data setiap akun dipisahkan secara otomatis.</p>
+            <p class="text-sm text-gray-500 mb-6">Masuk dengan akun yang disetujui pengelola. Akun baru menunggu persetujuan sebelum dapat mengakses data.</p>
             <form id="form-auth-login" onsubmit="authLogin(event)" class="text-left space-y-3">
                 <div>
                     <label for="auth-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
@@ -121,7 +121,21 @@
                 <button id="btn-auth-login" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3 active:scale-[.99] transition shadow-lg shadow-green-200">Masuk</button>
             </form>
             <button id="btn-auth-create" type="button" onclick="authCreateAccount()" class="w-full mt-3 border border-green-200 text-green-800 bg-green-50 font-bold rounded-xl py-3 active:scale-[.99] transition">Buat Akun Baru</button>
-            <p class="text-[11px] text-gray-400 mt-4">Setiap akun memiliki ruang data privat yang terpisah.</p>
+            <p class="text-[11px] text-gray-400 mt-4">Pembuatan akun tidak memerlukan verifikasi email, tetapi akses aplikasi wajib disetujui pengelola.</p>
+        </div>
+    </div>
+
+    <!-- ACCESS APPROVAL: USER DATA REMAINS LOCKED UNTIL ADMIN APPROVES -->
+    <div id="screen-pending" class="fixed inset-0 bg-green-700 z-[118] flex flex-col justify-center items-center px-4 hidden safe-top safe-bottom">
+        <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-sm text-center slide-up">
+            <div class="w-16 h-16 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="ph ph-hourglass-medium text-3xl"></i>
+            </div>
+            <h2 id="approval-heading" class="text-xl font-bold text-gray-800 mb-2">Menunggu Persetujuan Pengelola</h2>
+            <p id="approval-email" class="text-xs text-gray-500 mb-3"></p>
+            <p id="approval-message" class="text-sm text-gray-600 mb-6">Permintaan akses Anda sedang menunggu persetujuan. Data aplikasi tetap terkunci sampai pengelola menyetujuinya.</p>
+            <button id="btn-check-approval" type="button" onclick="checkMyApprovalStatus()" class="w-full bg-green-600 text-white font-bold rounded-xl py-3 active:scale-[.99] transition shadow-lg shadow-green-200">Periksa Status Persetujuan</button>
+            <button type="button" onclick="logoutFirebaseAccount()" class="w-full mt-3 border border-gray-200 text-gray-700 bg-gray-50 font-bold rounded-xl py-3">Keluar</button>
         </div>
     </div>
 
@@ -285,6 +299,7 @@
             </div>
             <div class="space-y-3">
                 <div class="bg-green-50 border border-green-100 rounded-2xl p-4"><div class="flex items-start gap-3"><div class="w-10 h-10 rounded-xl bg-green-600 text-white flex items-center justify-center flex-shrink-0"><i class="ph-bold ph-cloud-check text-lg"></i></div><div><p class="font-bold text-sm text-gray-800">Sinkronisasi Cloud</p><p class="text-[11px] text-gray-500 mt-0.5">Data disimpan di Firebase pada ruang privat akun yang sedang login. Data transaksi tidak disimpan untuk akses offline.</p></div></div></div>
+                <button id="btn-admin-approvals" onclick="openAccessAdmin()" class="hidden w-full flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center"><i class="ph-bold ph-user-check text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Persetujuan Akun</p><p class="text-[11px] text-gray-500">Tinjau, setujui, atau tolak permintaan akses.</p></div><span id="access-pending-count" class="ml-auto rounded-full bg-amber-200 px-2 py-1 text-[10px] font-black text-amber-900">0</span></button>
                 <button onclick="downloadBackup()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-download-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Backup Data</p><p class="text-[11px] text-gray-500">Simpan transaksi dan tagihan ke file JSON.</p></div></button>
                 <button onclick="document.getElementById('restore-file').click()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><i class="ph-bold ph-upload-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Restore Data</p><p class="text-[11px] text-gray-500">Impor backup JSON dan mengganti data saat ini.</p></div></button>
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
@@ -295,6 +310,19 @@
         </div>
     </div>
 
+    <!-- ADMIN ACCESS-APPROVAL MODAL -->
+    <div id="modal-access-admin" class="fixed inset-0 bg-black/60 z-[105] hidden flex-col justify-end backdrop-blur-sm">
+        <div class="bg-white rounded-t-3xl w-full max-h-[92vh] overflow-y-auto p-5 slide-up safe-bottom">
+            <div class="flex justify-between items-center mb-3">
+                <div><p class="text-[10px] uppercase tracking-widest text-amber-700 font-black">Pengelola</p><h2 class="text-lg font-bold text-gray-800">Persetujuan Akun</h2></div>
+                <button onclick="closeModal('modal-access-admin')" class="p-2 text-gray-500 rounded-full bg-gray-100"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            <p class="text-xs text-gray-500 mb-4">Akun yang belum disetujui tidak dapat membuka ruang data. Menolak akun akan mencabut akses database akun tersebut.</p>
+            <button onclick="refreshAccessRequests()" class="w-full mb-3 border border-gray-200 bg-gray-50 text-gray-700 font-bold rounded-xl py-2.5 text-sm"><i class="ph-bold ph-arrows-clockwise"></i> Muat Ulang Permintaan</button>
+            <div id="access-requests-list" class="space-y-3"><div class="text-center text-sm text-gray-400 py-8">Memuat permintaan akses...</div></div>
+        </div>
+    </div>
+
     <!-- TOAST -->
     <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-24 z-[120] hidden max-w-[90%]"><div id="toast-inner" class="bg-gray-900 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-2xl"></div></div>
 </div>
@@ -302,7 +330,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getDatabase, ref, onValue, runTransaction, get, set, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // Configure this object with the Firebase Web App settings for a NEW Catatan Utang project.
 // Do not point this clone at the original Catatan-Ayah project.
@@ -315,6 +343,10 @@ const firebaseConfig = {
     messagingSenderId: "254998996702",
     appId: "1:254998996702:web:d7456ed79a98889063844f"
 };
+
+// Replace with the Firebase Authentication UID of the owner/admin created in Firebase Console.
+// This UID is also enforced by database.rules.json; the UI check alone is not a security boundary.
+const ADMIN_UID = "sJeHXyCC3hT1psDeM9QplRiFsoh2";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -342,6 +374,10 @@ let lastStableData = null;
 let lastStableDataJson = null;
 let currentAuthUser = null;
 let authReady = false;
+let approvalStatusCheckInProgress = false;
+let accessRequestsUnsubscribe = null;
+let knownPendingRequestIds = new Set();
+let accessNotificationsInitialized = false;
 let explicitFirebaseLoginPending = false;
 let appUnlocked = false;
 let saveInProgress = false;
@@ -556,7 +592,7 @@ function requireUnlockedApp() {
 }
 
 function hideProtectedScreens() {
-    ['screen-setup','screen-login','screen-data-loading','app-content'].forEach(id => {
+    ['screen-setup','screen-login','screen-data-loading','screen-pending','app-content'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -576,6 +612,53 @@ function isFirebaseConfigured() {
         !String(firebaseConfig.projectId).startsWith('GANTI_') &&
         !!firebaseConfig.databaseURL &&
         !String(firebaseConfig.databaseURL).includes('GANTI_');
+}
+
+function isAppAdmin(user = currentAuthUser) {
+    return !!user && !!ADMIN_UID && !ADMIN_UID.startsWith('GANTI_') && user.uid === ADMIN_UID;
+}
+
+function showAccessPendingScreen(user, status = 'pending', detail = '') {
+    hideProtectedScreens();
+    stopFirebaseListener();
+    appUnlocked = false;
+    authReady = false;
+    dbRef = null;
+    document.getElementById('screen-auth').classList.add('hidden');
+    const screen = document.getElementById('screen-pending');
+    screen.classList.remove('hidden');
+    document.getElementById('approval-heading').textContent =
+        status === 'rejected' ? 'Permintaan Akses Ditolak' :
+        status === 'error' ? 'Status Akses Belum Dapat Diperiksa' :
+        'Menunggu Persetujuan Pengelola';
+    document.getElementById('approval-email').textContent = user?.email ? 'Akun: ' + user.email : 'UID: ' + (user?.uid || '');
+    document.getElementById('approval-message').textContent = detail || (
+        status === 'rejected'
+            ? 'Pengelola menolak permintaan akses akun ini. Hubungi pengelola jika Anda merasa keputusan ini keliru.'
+            : status === 'error'
+                ? 'Status persetujuan belum dapat dibaca. Akses data tetap dikunci. Pengelola perlu memeriksa konfigurasi Security Rules.'
+                : 'Permintaan akses tercatat. Anda belum dapat membuka transaksi sampai pengelola menyetujui akun ini.'
+    );
+    document.getElementById('btn-check-approval').disabled = false;
+    document.getElementById('btn-check-approval').textContent = status === 'error' ? 'Coba Periksa Lagi' : 'Periksa Status Persetujuan';
+}
+
+async function activateAuthorizedSession(user) {
+    currentAuthUser = user;
+    dbRef = ref(db, `tenants/${user.uid}/catatan_keuangan_v1`);
+    if (!localStorage.getItem(pinStorageKey(user.uid)) && !explicitFirebaseLoginPending) {
+        currentAuthUser = null; dbRef = null; authReady = false; appUnlocked = false;
+        stopFirebaseListener(); clearSensitiveInMemoryData(); hideProtectedScreens();
+        document.getElementById('screen-auth').classList.remove('hidden');
+        setAuthError('PIN lokal untuk akun ini tidak ditemukan. Masuk ulang dengan email dan password untuk membuat PIN baru.');
+        await signOut(auth).catch(error => console.warn('Sign-out before PIN recovery failed:', error));
+        return;
+    }
+    explicitFirebaseLoginPending = false;
+    authReady = true;
+    document.getElementById('screen-pending').classList.add('hidden');
+    document.getElementById('screen-auth').classList.add('hidden');
+    updatePinScreens();
 }
 
 function authErrorMessage(error) {
@@ -633,7 +716,7 @@ async function authCreateAccount() {
     try {
         await createUserWithEmailAndPassword(auth, email, password);
         if (passwordEl) passwordEl.value = '';
-        showToast('Akun berhasil dibuat. Buat PIN untuk mengunci aplikasi.');
+        showToast('Akun berhasil dibuat. Permintaan akses menunggu persetujuan pengelola.');
     } catch (error) {
         explicitFirebaseLoginPending = false;
         console.warn('Firebase account creation failed:', error);
@@ -644,11 +727,12 @@ async function authCreateAccount() {
 }
 
 async function handleAuthStateChanged(user) {
+    stopAccessRequestNotifications();
     if (user && (!isFirebaseConfigured() || !db)) {
         currentAuthUser = null; dbRef = null; authReady = false; appUnlocked = false;
         stopFirebaseListener(); clearSensitiveInMemoryData(); hideProtectedScreens();
         document.getElementById('screen-auth').classList.remove('hidden');
-        setAuthError('Konfigurasi Firebase Catatan Utang belum diisi. Ikuti README.md sebelum login.');
+        setAuthError('Konfigurasi Firebase Catatan Utang belum lengkap. Akses aplikasi tetap dikunci.');
         await signOut(auth).catch(error => console.warn('Sign-out with incomplete Firebase configuration failed:', error));
         return;
     }
@@ -656,24 +740,205 @@ async function handleAuthStateChanged(user) {
         currentAuthUser = null; dbRef = null; authReady = false; appUnlocked = false;
         explicitFirebaseLoginPending = false;
         stopFirebaseListener(); clearSensitiveInMemoryData(); hideProtectedScreens();
+        closeModal('modal-access-admin');
         document.getElementById('screen-auth').classList.remove('hidden');
         return;
     }
-    // Each Firebase UID receives its own isolated data root.
+
     currentAuthUser = user;
-    dbRef = ref(db, `tenants/${user.uid}/catatan_keuangan_v1`);
-    if (!localStorage.getItem(pinStorageKey(user.uid)) && !explicitFirebaseLoginPending) {
-        currentAuthUser = null; dbRef = null; authReady = false; appUnlocked = false;
-        stopFirebaseListener(); clearSensitiveInMemoryData(); hideProtectedScreens();
-        document.getElementById('screen-auth').classList.remove('hidden');
-        setAuthError('PIN lokal untuk akun ini tidak ditemukan. Masuk ulang dengan email dan password untuk membuat PIN baru.');
-        await signOut(auth).catch(error => console.warn('Sign-out before PIN recovery failed:', error));
+    appUnlocked = false;
+    stopFirebaseListener();
+    clearSensitiveInMemoryData();
+    hideProtectedScreens();
+
+    // The initial owner account is identified by a UID configured in both this UI
+    // and database.rules.json. Rules—not this client check—enforce admin privileges.
+    if (isAppAdmin(user)) {
+        await activateAuthorizedSession(user);
         return;
     }
-    explicitFirebaseLoginPending = false;
-    authReady = true;
-    document.getElementById('screen-auth').classList.add('hidden');
-    updatePinScreens();
+
+    authReady = false;
+    dbRef = null;
+    try {
+        const accessSnapshot = await get(ref(db, `userAccess/${user.uid}`));
+        const access = accessSnapshot.val() || {};
+        if (access.status === 'approved') {
+            await activateAuthorizedSession(user);
+            return;
+        }
+
+        if (access.status === 'rejected') {
+            showAccessPendingScreen(user, 'rejected');
+            explicitFirebaseLoginPending = false;
+            return;
+        }
+
+        const requestRef = ref(db, `accessRequests/${user.uid}`);
+        let requestSnapshot = await get(requestRef);
+        if (!requestSnapshot.exists()) {
+            await set(requestRef, {
+                uid: user.uid,
+                email: String(user.email || ''),
+                status: 'pending',
+                createdAt: Date.now()
+            });
+            requestSnapshot = await get(requestRef);
+        }
+        const request = requestSnapshot.val() || {};
+        if (request.status === 'rejected') {
+            showAccessPendingScreen(user, 'rejected');
+        } else {
+            showAccessPendingScreen(user, 'pending');
+        }
+        explicitFirebaseLoginPending = false;
+    } catch (error) {
+        console.error('Approval status check failed; data access remains blocked:', error);
+        showAccessPendingScreen(
+            user,
+            'error',
+            'Status persetujuan belum dapat diperiksa. Akses data tetap terkunci. Pastikan pengelola sudah menerbitkan Security Rules versi persetujuan akun, lalu coba lagi.'
+        );
+        explicitFirebaseLoginPending = false;
+    }
+}
+
+async function checkMyApprovalStatus() {
+    if (approvalStatusCheckInProgress) return;
+    const user = auth.currentUser;
+    if (!user) {
+        document.getElementById('screen-pending').classList.add('hidden');
+        document.getElementById('screen-auth').classList.remove('hidden');
+        return;
+    }
+    approvalStatusCheckInProgress = true;
+    const button = document.getElementById('btn-check-approval');
+    if (button) { button.disabled = true; button.textContent = 'Memeriksa...'; }
+    try {
+        // This explicit user action also permits PIN setup on the device just approved.
+        explicitFirebaseLoginPending = true;
+        await handleAuthStateChanged(user);
+    } finally {
+        approvalStatusCheckInProgress = false;
+        if (button && !document.getElementById('screen-pending').classList.contains('hidden')) {
+            button.disabled = false;
+            button.textContent = 'Periksa Status Persetujuan';
+        }
+    }
+}
+
+function stopAccessRequestNotifications() {
+    if (typeof accessRequestsUnsubscribe === 'function') accessRequestsUnsubscribe();
+    accessRequestsUnsubscribe = null;
+    knownPendingRequestIds = new Set();
+    accessNotificationsInitialized = false;
+}
+
+function startAccessRequestNotifications() {
+    if (!isAppAdmin() || !isAppUnlocked() || accessRequestsUnsubscribe) return;
+    accessRequestsUnsubscribe = onValue(ref(db, 'accessRequests'), snapshot => {
+        const requests = snapshot.val() || {};
+        const pendingIds = Object.keys(requests).filter(uid => requests[uid]?.status === 'pending');
+        const pendingCount = document.getElementById('access-pending-count');
+        if (pendingCount) pendingCount.textContent = String(pendingIds.length);
+        const newRequests = pendingIds.filter(uid => !knownPendingRequestIds.has(uid));
+        if (accessNotificationsInitialized && newRequests.length > 0) {
+            showToast(`${newRequests.length} permintaan akun baru menunggu persetujuan.`);
+        }
+        knownPendingRequestIds = new Set(pendingIds);
+        accessNotificationsInitialized = true;
+    }, error => {
+        console.warn('In-app access-request notification listener failed:', error);
+        stopAccessRequestNotifications();
+    });
+}
+
+async function openAccessAdmin() {
+    if (!isAppAdmin()) {
+        showToast('Menu ini hanya untuk pengelola aplikasi.');
+        return;
+    }
+    if (!isAppUnlocked()) {
+        showToast('Buka aplikasi dengan PIN sebelum mengelola persetujuan akun.');
+        return;
+    }
+    closeModal('modal-settings');
+    openModal('modal-access-admin');
+    await refreshAccessRequests();
+}
+
+async function refreshAccessRequests() {
+    if (!isAppAdmin() || !isAppUnlocked()) {
+        showToast('Akses pengelola tidak tersedia.');
+        return;
+    }
+    const list = document.getElementById('access-requests-list');
+    if (!list) return;
+    list.innerHTML = '<div class="text-center text-sm text-gray-400 py-8">Memuat permintaan akses...</div>';
+    try {
+        const snapshot = await get(ref(db, 'accessRequests'));
+        const requests = snapshot.val() || {};
+        const entries = Object.entries(requests).sort((a, b) => {
+            const aPending = a[1]?.status === 'pending' ? 0 : 1;
+            const bPending = b[1]?.status === 'pending' ? 0 : 1;
+            return aPending - bPending || Number(b[1]?.createdAt || 0) - Number(a[1]?.createdAt || 0);
+        });
+        const pendingCount = entries.filter(([, request]) => request?.status === 'pending').length;
+        const count = document.getElementById('access-pending-count');
+        if (count) count.textContent = String(pendingCount);
+        if (!entries.length) {
+            list.innerHTML = '<div class="text-center text-sm text-gray-400 py-8 border border-dashed border-gray-200 rounded-xl">Belum ada permintaan akun.</div>';
+            return;
+        }
+        list.innerHTML = entries.map(([uid, request]) => {
+            const status = ['approved', 'rejected', 'pending'].includes(request?.status) ? request.status : 'pending';
+            const label = status === 'approved' ? 'Disetujui' : status === 'rejected' ? 'Ditolak' : 'Menunggu';
+            const statusClass = status === 'approved' ? 'bg-green-50 text-green-700' : status === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800';
+            const date = Number.isFinite(Number(request?.createdAt)) && Number(request?.createdAt) > 0
+                ? new Date(Number(request.createdAt)).toLocaleString('id-ID')
+                : 'Waktu tidak tersedia';
+            const safeUid = escapeHtml(uid);
+            const safeEmail = escapeHtml(request?.email || '(email tidak tersedia)');
+            const actions = `<div class="flex gap-2 mt-3">${status !== 'approved' ? `<button onclick="setUserAccessStatus('${safeUid}','approved')" class="flex-1 bg-green-600 text-white rounded-lg py-2 px-3 text-xs font-bold">Setujui</button>` : ''}${status !== 'rejected' ? `<button onclick="setUserAccessStatus('${safeUid}','rejected')" class="flex-1 bg-red-50 border border-red-100 text-red-700 rounded-lg py-2 px-3 text-xs font-bold">${status === 'approved' ? 'Cabut Akses' : 'Tolak'}</button>` : ''}</div>`;
+            return `<article class="border border-gray-200 rounded-xl p-3 bg-white"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="text-sm font-bold text-gray-800 break-words">${safeEmail}</p><p class="text-[10px] text-gray-400 mt-1 break-all">UID: ${safeUid}</p><p class="text-[10px] text-gray-400 mt-1">Diajukan: ${escapeHtml(date)}</p></div><span class="shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${statusClass}">${label}</span></div>${actions}</article>`;
+        }).join('');
+    } catch (error) {
+        console.error('Access request list could not be loaded:', error);
+        list.innerHTML = '<div class="text-center text-sm text-red-600 bg-red-50 p-4 rounded-xl">Permintaan akses gagal dimuat. Periksa UID admin dan Realtime Database Security Rules.</div>';
+    }
+}
+
+async function setUserAccessStatus(uid, status) {
+    if (!isAppAdmin() || !isAppUnlocked()) {
+        showToast('Hanya pengelola yang sudah membuka aplikasi dapat mengubah persetujuan.');
+        return;
+    }
+    if (!['approved', 'rejected'].includes(status) || !/^[A-Za-z0-9_-]+$/.test(uid)) {
+        showToast('Permintaan tidak valid.');
+        return;
+    }
+    try {
+        const requestSnapshot = await get(ref(db, `accessRequests/${uid}`));
+        if (!requestSnapshot.exists()) {
+            showToast('Permintaan akun tidak ditemukan.');
+            await refreshAccessRequests();
+            return;
+        }
+        const timestamp = Date.now();
+        await update(ref(db), {
+            [`accessRequests/${uid}/status`]: status,
+            [`accessRequests/${uid}/reviewedAt`]: timestamp,
+            [`accessRequests/${uid}/reviewedBy`]: currentAuthUser.uid,
+            [`userAccess/${uid}/status`]: status,
+            [`userAccess/${uid}/updatedAt`]: timestamp,
+            [`userAccess/${uid}/reviewedBy`]: currentAuthUser.uid
+        });
+        showToast(status === 'approved' ? 'Akun disetujui. Pengguna dapat memeriksa statusnya.' : 'Akses akun ditolak/dicabut.');
+        await refreshAccessRequests();
+    } catch (error) {
+        console.error('Updating account approval failed:', error);
+        showToast('Status akun gagal diubah. Periksa UID admin dan Security Rules.');
+    }
 }
 
 function jsonEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
@@ -882,6 +1147,7 @@ async function unlockApp() {
         document.getElementById('screen-login').classList.add('hidden');
         document.getElementById('app-content').classList.remove('hidden');
         renderApp();
+        startAccessRequestNotifications();
     } catch (error) {
         console.error('Initial Firebase data load failed:', error);
         appUnlocked = false; stopFirebaseListener();
@@ -899,6 +1165,7 @@ function lockApp() {
     }
     appUnlocked = false;
     stopFirebaseListener();
+    stopAccessRequestNotifications();
     clearSensitiveInMemoryData();
     document.getElementById('app-content').classList.add('hidden');
     document.getElementById('screen-data-loading').classList.add('hidden');
@@ -914,6 +1181,7 @@ async function logoutFirebaseAccount() {
     }
     appUnlocked = false;
     stopFirebaseListener();
+    stopAccessRequestNotifications();
     clearSensitiveInMemoryData();
     document.getElementById('app-content').classList.add('hidden');
     closeModal('modal-settings');
@@ -1353,6 +1621,8 @@ function buildKebutuhan(){
 
 function openSettings() {
     if (!requireUnlockedApp()) return;
+    const adminButton = document.getElementById('btn-admin-approvals');
+    if (adminButton) adminButton.classList.toggle('hidden', !isAppAdmin());
     openModal('modal-settings');
 }
 const MAX_BACKUP_FILE_BYTES = 100 * 1024 * 1024;
@@ -1536,7 +1806,7 @@ function initApp(){
 
 window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
 window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
-window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.logoutFirebaseAccount=logoutFirebaseAccount; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
+window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
 document.addEventListener('DOMContentLoaded', initApp);
 </script>
