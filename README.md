@@ -26,7 +26,7 @@ Aplikasi pencatatan utang-piutang, pembayaran/cicilan, tagihan, laporan, serta b
    ```bash
    npm install --global firebase-tools
    firebase login
-   firebase deploy --only database --project ID_PROJECT_CATATAN_UTANG
+   firebase deploy --only database --project catatan-utang-prod
    ```
 
 URL Realtime Database telah dimasukkan ke konfigurasi. Sebelum menguji aplikasi, deploy dan verifikasi aturan hanya ke project baru `catatan-utang-prod`; jangan mengarahkannya ke project Catatan-Ayah.
