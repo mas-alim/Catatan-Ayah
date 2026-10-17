@@ -31,6 +31,21 @@ Aplikasi pencatatan utang-piutang, pembayaran/cicilan, tagihan, laporan, serta b
 
 URL Realtime Database telah dimasukkan ke konfigurasi. Sebelum menguji aplikasi, deploy dan verifikasi aturan hanya ke project baru `catatan-utang-prod`; jangan mengarahkannya ke project Catatan-Ayah.
 
+## Persetujuan akun oleh pemilik
+
+Aplikasi tidak mengirim email verifikasi. Pengguna boleh membuat akun Firebase, tetapi akun baru hanya membuat permintaan akses berstatus `pending`. Pengguna tidak bisa membaca atau menulis tenant sampai pemilik menyetujui permintaan dari **Pengaturan → Persetujuan Akun**. Pemilik juga dapat menolak atau mencabut akses; Security Rules yang menjadi pengunci sebenarnya.
+
+**Penting: atur admin pertama sebelum memublikasikan versi ini.**
+
+1. Buka Firebase Console → **Authentication → Users → Add user** dan buat akun pemilik secara manual. Jangan gunakan tombol pendaftaran publik untuk membuat akun admin pertama.
+2. Salin **UID** akun pemilik dari tabel Users.
+3. Ganti `GANTI_ADMIN_FIREBASE_UID` dengan UID tersebut pada konstanta `ADMIN_UID` di `index.html` dan di setiap kemunculan string admin pada `database.rules.json`.
+4. Publikasikan isi `database.rules.json` melalui **Realtime Database → Rules**. Pastikan semua kemunculan placeholder sudah diganti sebelum Publish.
+5. Setelah aturan terpasang, deploy aset aplikasi. Login pertama admin memakai email/password yang dibuat di Firebase Console; kemudian admin membuat PIN lokal.
+6. Pengguna umum membuat akun dan otomatis masuk ke layar **Menunggu Persetujuan Pengelola**. Admin membuka **Pengaturan → Persetujuan Akun** untuk menyetujui atau menolak. Setelah disetujui, pengguna menekan **Periksa Status Persetujuan** dan dapat membuat PIN.
+
+Jangan menerbitkan file aturan yang masih berisi placeholder. Tanpa UID admin yang benar, admin tidak dapat menyetujui permintaan. Membuat akun dari Firebase Console tidak mengirim tautan verifikasi email oleh aplikasi ini.
+
 ## Deployment ke Firebase Hosting
 
 Konten Hosting disiapkan di `firebase.json`; workflow GitHub Actions ada di `.github/workflows/firebase-hosting.yml` dan hanya men-deploy branch `catatan-utang-multitenant` ke project `catatan-utang-prod`. Branch `main` Catatan-Ayah tidak dipakai workflow ini.
