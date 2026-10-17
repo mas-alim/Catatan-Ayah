@@ -19,8 +19,8 @@ Aplikasi pencatatan utang-piutang, pembayaran/cicilan, tagihan, laporan, serta b
 2. Tambahkan aplikasi Web dan salin nilai konfigurasi Web Firebase.
 3. Aktifkan **Authentication → Sign-in method → Email/Password**.
 4. Buat/aktifkan Realtime Database pada project baru.
-5. Edit objek `firebaseConfig` di `index.html` dengan nilai dari aplikasi Web yang baru dibuat. Hilangkan semua nilai `GANTI_`.
-6. Ganti nilai `projects.default` di `.firebaserc` dengan Project ID baru tersebut.
+5. Nilai aplikasi Web untuk project `catatan-utang-prod` sudah diisi pada `index.html`. Setelah Realtime Database dibuat, masukkan `databaseURL` yang persis ditampilkan Firebase Console; aplikasi belum dapat mengakses data sampai langkah ini selesai.
+6. `.firebaserc` sudah diarahkan ke project `catatan-utang-prod`.
 7. Tinjau `database.rules.json` lalu deploy aturan hanya ke project baru:
 
    ```bash
@@ -29,7 +29,7 @@ Aplikasi pencatatan utang-piutang, pembayaran/cicilan, tagihan, laporan, serta b
    firebase deploy --only database --project ID_PROJECT_CATATAN_UTANG
    ```
 
-File `.firebaserc` sengaja memakai placeholder supaya perintah deploy tanpa ID project yang benar tidak mengarah ke Catatan-Ayah. Konfigurasi Firebase Web juga memakai placeholder sampai project baru disiapkan.
+Pastikan URL Realtime Database sudah benar sebelum menguji aplikasi. Deploy aturan hanya ke project baru `catatan-utang-prod`; jangan mengarahkannya ke project Catatan-Ayah.
 
 ## Uji isolasi tenant sebelum publikasi
 
