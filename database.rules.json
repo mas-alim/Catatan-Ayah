@@ -2,10 +2,26 @@
   "rules": {
     ".read": false,
     ".write": false,
+    "accessRequests": {
+      ".read": "auth != null && auth.uid === 'sJeHXyCC3hT1psDeM9QplRiFsoh2'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || auth.uid === 'sJeHXyCC3hT1psDeM9QplRiFsoh2')",
+        ".write": "auth != null && (auth.uid === 'sJeHXyCC3hT1psDeM9QplRiFsoh2' || (auth.uid === $uid && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('status').val() === 'pending'))",
+        ".validate": "newData.hasChildren(['uid','email','status','createdAt']) && newData.child('uid').val() === $uid && newData.child('email').isString() && newData.child('createdAt').isNumber() && newData.child('status').isString() && (newData.child('status').val() === 'pending' || newData.child('status').val() === 'approved' || newData.child('status').val() === 'rejected') && (auth.uid === 'sJeHXyCC3hT1psDeM9QplRiFsoh2' || (newData.child('status').val() === 'pending' && newData.child('email').val() === auth.token.email))"
+      }
+    },
+    "userAccess": {
+      ".read": "auth != null && auth.uid === 'sJeHXyCC3hT1psDeM9QplRiFsoh2'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || auth.uid === 'sJeHXyCC3hT1psDeM9QplRiFsoh2')",
+        ".write": "auth != null && auth.uid === 'sJeHXyCC3hT1psDeM9QplRiFsoh2'",
+        ".validate": "newData.hasChildren(['status','updatedAt','reviewedBy']) && newData.child('status').isString() && (newData.child('status').val() === 'approved' || newData.child('status').val() === 'rejected') && newData.child('updatedAt').isNumber() && newData.child('reviewedBy').val() === 'sJeHXyCC3hT1psDeM9QplRiFsoh2'"
+      }
+    },
     "tenants": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+        ".read": "auth != null && auth.uid === $uid && (auth.uid === 'sJeHXyCC3hT1psDeM9QplRiFsoh2' || root.child('userAccess').child(auth.uid).child('status').val() === 'approved')",
+        ".write": "auth != null && auth.uid === $uid && (auth.uid === 'sJeHXyCC3hT1psDeM9QplRiFsoh2' || root.child('userAccess').child(auth.uid).child('status').val() === 'approved')"
       }
     }
   }
