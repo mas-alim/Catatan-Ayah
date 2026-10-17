@@ -318,7 +318,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getDatabase(app);
+const db = isFirebaseConfigured() ? getDatabase(app) : null;
 let dbRef = null; // Bound to the signed-in tenant's private data root.
 const LEGACY_LOCAL_DATA_KEY = 'catatanKeuanganApp';
 function pinStorageKey(uid = currentAuthUser?.uid) {
@@ -644,6 +644,14 @@ async function authCreateAccount() {
 }
 
 async function handleAuthStateChanged(user) {
+    if (user && (!isFirebaseConfigured() || !db)) {
+        currentAuthUser = null; dbRef = null; authReady = false; appUnlocked = false;
+        stopFirebaseListener(); clearSensitiveInMemoryData(); hideProtectedScreens();
+        document.getElementById('screen-auth').classList.remove('hidden');
+        setAuthError('Konfigurasi Firebase Catatan Utang belum diisi. Ikuti README.md sebelum login.');
+        await signOut(auth).catch(error => console.warn('Sign-out with incomplete Firebase configuration failed:', error));
+        return;
+    }
     if (!user) {
         currentAuthUser = null; dbRef = null; authReady = false; appUnlocked = false;
         explicitFirebaseLoginPending = false;
