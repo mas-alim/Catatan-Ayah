@@ -2,10 +2,6 @@
   "rules": {
     ".read": false,
     ".write": false,
-    "catatan_keuangan_v1": {
-      ".read": "auth != null && auth.uid === 'ZlWZFhPLbHbOtIDPYsK4yxiLrGC2'",
-      ".write": "auth != null && auth.uid === 'ZlWZFhPLbHbOtIDPYsK4yxiLrGC2'"
-    },
     "tenants": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
