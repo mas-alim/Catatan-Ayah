@@ -17,7 +17,6 @@
     <!-- Tailwind utilities are precompiled locally into app.css; no runtime CDN scanner. -->
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
-    <link rel="preconnect" href="https://catatan-ayah-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
     <link rel="stylesheet" href="./app.css">
     <script src="https://unpkg.com/@phosphor-icons/web" defer></script>
     <style>
@@ -305,14 +304,16 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, onValue, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+// Configure this object with the Firebase Web App settings for a NEW Catatan Utang project.
+// Do not point this clone at the original Catatan-Ayah project.
 const firebaseConfig = {
-    apiKey: "AIzaSyCIjl-mXei1es5yj_sQLW6Cq4EzTqkrw_A",
-    authDomain: "catatan-ayah.firebaseapp.com",
-    databaseURL: "https://catatan-ayah-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "catatan-ayah",
-    storageBucket: "catatan-ayah.firebasestorage.app",
-    messagingSenderId: "1075310951800",
-    appId: "1:1075310951800:web:30aa475aba2d3186d95c8d"
+    apiKey: "GANTI_FIREBASE_API_KEY",
+    authDomain: "GANTI_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://GANTI_DATABASE_URL",
+    projectId: "GANTI_PROJECT_ID",
+    storageBucket: "GANTI_STORAGE_BUCKET",
+    messagingSenderId: "GANTI_MESSAGING_SENDER_ID",
+    appId: "GANTI_FIREBASE_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -568,6 +569,15 @@ function setAuthError(message) {
     el.classList.toggle('hidden', !message);
 }
 
+function isFirebaseConfigured() {
+    return !!firebaseConfig.apiKey &&
+        !String(firebaseConfig.apiKey).startsWith('GANTI_') &&
+        !!firebaseConfig.projectId &&
+        !String(firebaseConfig.projectId).startsWith('GANTI_') &&
+        !!firebaseConfig.databaseURL &&
+        !String(firebaseConfig.databaseURL).includes('GANTI_');
+}
+
 function authErrorMessage(error) {
     const code = String(error?.code || '');
     if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found') || code.includes('invalid-login-credentials')) return 'Email atau password tidak sesuai.';
@@ -582,6 +592,10 @@ function authErrorMessage(error) {
 
 async function authLogin(e) {
     e.preventDefault();
+    if (!isFirebaseConfigured()) {
+        setAuthError('Konfigurasi Firebase Catatan Utang belum diisi. Ikuti README.md sebelum mencoba login.');
+        return;
+    }
     const email = (document.getElementById('auth-email')?.value || '').trim();
     const passwordEl = document.getElementById('auth-password');
     const password = passwordEl?.value || '';
@@ -603,6 +617,10 @@ async function authLogin(e) {
 }
 
 async function authCreateAccount() {
+    if (!isFirebaseConfigured()) {
+        setAuthError('Konfigurasi Firebase Catatan Utang belum diisi. Ikuti README.md sebelum membuat akun.');
+        return;
+    }
     const email = (document.getElementById('auth-email')?.value || '').trim();
     const passwordEl = document.getElementById('auth-password');
     const password = passwordEl?.value || '';
