@@ -22,6 +22,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: catatan-utang-prod
+      url: https://catatan-utang-prod.web.app
     steps:
       - name: Checkout Catatan Utang branch
         uses: actions/checkout@v4
