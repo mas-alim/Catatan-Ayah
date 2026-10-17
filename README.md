@@ -21,15 +21,9 @@ Aplikasi pencatatan utang-piutang, pembayaran/cicilan, tagihan, laporan, serta b
 4. Buat/aktifkan Realtime Database pada project baru.
 5. Konfigurasi Web pada `index.html`, termasuk `databaseURL`, sudah diisi untuk project `catatan-utang-prod`.
 6. `.firebaserc` sudah diarahkan ke project `catatan-utang-prod`.
-7. Tinjau `database.rules.json` lalu deploy aturan hanya ke project baru:
+7. Jangan publikasikan `database.rules.json` sebelum semua nilai `GANTI_ADMIN_FIREBASE_UID` diganti dengan UID admin yang benar. Ikuti bagian **Persetujuan akun oleh pemilik** di bawah dan periksa ulang aturan sebelum klik Publish.
 
-   ```bash
-   npm install --global firebase-tools
-   firebase login
-   firebase deploy --only database --project catatan-utang-prod
-   ```
-
-URL Realtime Database telah dimasukkan ke konfigurasi. Sebelum menguji aplikasi, deploy dan verifikasi aturan hanya ke project baru `catatan-utang-prod`; jangan mengarahkannya ke project Catatan-Ayah.
+URL Realtime Database sudah dimasukkan. Aturan yang aktif di Firebase Console harus sama dengan aturan versi persetujuan akun pada branch pengembangan; jangan mengarahkan deployment aturan ke project Catatan-Ayah.
 
 ## Persetujuan akun oleh pemilik
 
@@ -42,7 +36,7 @@ Aplikasi tidak mengirim email verifikasi. Pengguna boleh membuat akun Firebase, 
 3. Ganti `GANTI_ADMIN_FIREBASE_UID` dengan UID tersebut pada konstanta `ADMIN_UID` di `index.html` dan di setiap kemunculan string admin pada `database.rules.json`.
 4. Publikasikan isi `database.rules.json` melalui **Realtime Database → Rules**. Pastikan semua kemunculan placeholder sudah diganti sebelum Publish.
 5. Setelah aturan terpasang, deploy aset aplikasi. Login pertama admin memakai email/password yang dibuat di Firebase Console; kemudian admin membuat PIN lokal.
-6. Pengguna umum membuat akun dan otomatis masuk ke layar **Menunggu Persetujuan Pengelola**. Admin membuka **Pengaturan → Persetujuan Akun** untuk menyetujui atau menolak. Setelah disetujui, pengguna menekan **Periksa Status Persetujuan** dan dapat membuat PIN.
+6. Pengguna umum membuat akun dan otomatis masuk ke layar **Menunggu Persetujuan Pengelola**. Pemilik yang sedang login dan membuka aplikasi akan melihat jumlah permintaan yang menunggu serta pemberitahuan di dalam aplikasi ketika permintaan baru masuk; pemberitahuan ini hanya aktif saat aplikasi pengelola terbuka dan tidak terkunci. Admin membuka **Pengaturan → Persetujuan Akun** untuk menyetujui atau menolak. Setelah disetujui, pengguna menekan **Periksa Status Persetujuan** dan dapat membuat PIN.
 
 Jangan menerbitkan file aturan yang masih berisi placeholder. Tanpa UID admin yang benar, admin tidak dapat menyetujui permintaan. Membuat akun dari Firebase Console tidak mengirim tautan verifikasi email oleh aplikasi ini.
 
