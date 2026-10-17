@@ -1052,7 +1052,7 @@ async function saveTransaction(e) {
     } finally { btn.disabled = false; btn.classList.remove('disabled'); }
 }
 
-async function saveNeed(e){async function saveNeed(e){
+async function saveNeed(e){
     e.preventDefault();
     if (!requireUnlockedApp()) return;
     const editId=document.getElementById('nd_edit_id').value;
