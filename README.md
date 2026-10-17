@@ -21,7 +21,7 @@ Aplikasi pencatatan utang-piutang, pembayaran/cicilan, tagihan, laporan, serta b
 4. Buat/aktifkan Realtime Database pada project baru.
 5. Konfigurasi Web pada `index.html`, termasuk `databaseURL`, sudah diisi untuk project `catatan-utang-prod`.
 6. `.firebaserc` sudah diarahkan ke project `catatan-utang-prod`.
-7. Jangan publikasikan `database.rules.json` sebelum semua nilai `GANTI_ADMIN_FIREBASE_UID` diganti dengan UID admin yang benar. Ikuti bagian **Persetujuan akun oleh pemilik** di bawah dan periksa ulang aturan sebelum klik Publish.
+7. Ikuti bagian **Persetujuan akun oleh pemilik** di bawah untuk memublikasikan aturan yang sudah dikonfigurasi khusus untuk UID admin project ini. Jangan menggunakan Security Rules versi lama.
 
 URL Realtime Database sudah dimasukkan. Aturan yang aktif di Firebase Console harus sama dengan aturan versi persetujuan akun pada branch pengembangan; jangan mengarahkan deployment aturan ke project Catatan-Ayah.
 
@@ -35,7 +35,7 @@ UID admin untuk project `catatan-utang-prod` sudah dimasukkan ke konstanta `ADMI
 
 1. Pastikan akun admin dengan UID yang sudah dikonfigurasi memang ada di Firebase Console → **Authentication → Users**.
 2. Buka Firebase Console → **Realtime Database → Rules** untuk project `catatan-utang-prod`.
-3. Ganti aturan yang ada dengan seluruh isi file `database.rules.json` dari branch `catatan-utang-approval`, lalu periksa bahwa UID admin sudah terisi dan tidak ada teks `GANTI_ADMIN_FIREBASE_UID`.
+3. Ganti aturan yang ada dengan seluruh isi file `database.rules.json` dari branch `catatan-utang-approval`. UID admin sudah diisi; pastikan tidak ada teks placeholder sebelum Publish.
 4. Klik **Publish** dan tunggu konfirmasi sukses.
 5. Setelah aturan baru dipublikasikan, baru deploy aset aplikasi. Login admin memakai email/password akun yang dibuat melalui Firebase Console; kemudian admin membuat PIN lokal.
 6. Pengguna umum membuat akun dan otomatis masuk ke layar **Menunggu Persetujuan Pengelola**. Pemilik yang sedang login dan membuka aplikasi akan melihat jumlah permintaan yang menunggu serta pemberitahuan dalam aplikasi ketika permintaan baru masuk. Pemberitahuan ini aktif ketika aplikasi pemilik terbuka dan tidak terkunci.
