@@ -375,6 +375,9 @@ let lastStableDataJson = null;
 let currentAuthUser = null;
 let authReady = false;
 let approvalStatusCheckInProgress = false;
+let accessRequestsUnsubscribe = null;
+let knownPendingRequestIds = new Set();
+let accessNotificationsInitialized = false;
 let explicitFirebaseLoginPending = false;
 let appUnlocked = false;
 let saveInProgress = false;
@@ -724,6 +727,7 @@ async function authCreateAccount() {
 }
 
 async function handleAuthStateChanged(user) {
+    stopAccessRequestNotifications();
     if (user && (!isFirebaseConfigured() || !db)) {
         currentAuthUser = null; dbRef = null; authReady = false; appUnlocked = false;
         stopFirebaseListener(); clearSensitiveInMemoryData(); hideProtectedScreens();
@@ -821,6 +825,32 @@ async function checkMyApprovalStatus() {
             button.textContent = 'Periksa Status Persetujuan';
         }
     }
+}
+
+function stopAccessRequestNotifications() {
+    if (typeof accessRequestsUnsubscribe === 'function') accessRequestsUnsubscribe();
+    accessRequestsUnsubscribe = null;
+    knownPendingRequestIds = new Set();
+    accessNotificationsInitialized = false;
+}
+
+function startAccessRequestNotifications() {
+    if (!isAppAdmin() || !isAppUnlocked() || accessRequestsUnsubscribe) return;
+    accessRequestsUnsubscribe = onValue(ref(db, 'accessRequests'), snapshot => {
+        const requests = snapshot.val() || {};
+        const pendingIds = Object.keys(requests).filter(uid => requests[uid]?.status === 'pending');
+        const pendingCount = document.getElementById('access-pending-count');
+        if (pendingCount) pendingCount.textContent = String(pendingIds.length);
+        const newRequests = pendingIds.filter(uid => !knownPendingRequestIds.has(uid));
+        if (accessNotificationsInitialized && newRequests.length > 0) {
+            showToast(`${newRequests.length} permintaan akun baru menunggu persetujuan.`);
+        }
+        knownPendingRequestIds = new Set(pendingIds);
+        accessNotificationsInitialized = true;
+    }, error => {
+        console.warn('In-app access-request notification listener failed:', error);
+        stopAccessRequestNotifications();
+    });
 }
 
 async function openAccessAdmin() {
@@ -1117,6 +1147,7 @@ async function unlockApp() {
         document.getElementById('screen-login').classList.add('hidden');
         document.getElementById('app-content').classList.remove('hidden');
         renderApp();
+        startAccessRequestNotifications();
     } catch (error) {
         console.error('Initial Firebase data load failed:', error);
         appUnlocked = false; stopFirebaseListener();
@@ -1134,6 +1165,7 @@ function lockApp() {
     }
     appUnlocked = false;
     stopFirebaseListener();
+    stopAccessRequestNotifications();
     clearSensitiveInMemoryData();
     document.getElementById('app-content').classList.add('hidden');
     document.getElementById('screen-data-loading').classList.add('hidden');
@@ -1149,6 +1181,7 @@ async function logoutFirebaseAccount() {
     }
     appUnlocked = false;
     stopFirebaseListener();
+    stopAccessRequestNotifications();
     clearSensitiveInMemoryData();
     document.getElementById('app-content').classList.add('hidden');
     closeModal('modal-settings');
