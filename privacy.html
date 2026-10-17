@@ -3,39 +3,38 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Kebijakan privasi aplikasi Catatan Utang Piutang.">
-<title>Kebijakan Privasi — Catatan Utang Piutang</title>
+<meta name="description" content="Kebijakan privasi aplikasi Catatan Utang.">
+<title>Kebijakan Privasi — Catatan Utang</title>
 <style>
-:root{color-scheme:light;--ink:#172033;--muted:#596579;--line:#dbe2ea;--accent:#2457c5}
+:root{color-scheme:light;--ink:#172033;--muted:#596579;--line:#dbe2ea;--accent:#166534}
 *{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font:16px/1.7 system-ui,-apple-system,Segoe UI,sans-serif}
 main{max-width:780px;margin:40px auto;padding:32px;background:#fff;border:1px solid var(--line);border-radius:18px}
 h1{line-height:1.2}h2{margin-top:28px;font-size:1.2rem}p,li{color:var(--muted)}a{color:var(--accent)}
 @media(max-width:600px){main{margin:12px;padding:22px}}
 </style></head>
 <body><main>
-<p><a href="./tentang.html">← Tentang Catatan Utang Piutang</a></p>
-<h1>Kebijakan Privasi Catatan Utang Piutang</h1>
-<p><strong>Berlaku mulai:</strong> 13 Oktober 2026</p>
-<p>Kebijakan ini menjelaskan bagaimana aplikasi Catatan Utang Piutang menangani informasi yang dimasukkan pengguna dan data Google yang diizinkan untuk diakses saat fitur Google Drive digunakan.</p>
-<h2>Informasi yang dikelola</h2>
-<p>Aplikasi dapat menyimpan catatan utang-piutang, tagihan, transaksi pembayaran, keterangan, serta informasi atau foto pendukung yang dipilih pengguna. Hindari memasukkan informasi yang tidak diperlukan untuk penggunaan aplikasi.</p>
-<h2>Penyimpanan data</h2>
+<p><a href="./tentang.html">← Tentang Catatan Utang</a></p>
+<h1>Kebijakan Privasi Catatan Utang</h1>
+<p><strong>Berlaku mulai:</strong> 17 Oktober 2026</p>
+<p>Kebijakan ini menjelaskan pemrosesan data oleh Catatan Utang, aplikasi untuk pencatatan utang-piutang, pembayaran, tagihan, dan laporan pribadi.</p>
+<h2>Data yang diproses</h2>
+<p>Aplikasi memproses alamat email yang digunakan untuk masuk, identitas akun Firebase, serta catatan yang Anda masukkan, seperti nama kontak, nominal, tanggal, status, pembayaran, tagihan, dan keterangan transaksi. Jangan memasukkan data yang tidak diperlukan atau data orang lain yang tidak berhak Anda kelola.</p>
+<h2>Penyimpanan dan pemisahan akun</h2>
 <ul>
-<li>Data catatan aplikasi disimpan pada layanan Firebase yang dikonfigurasi untuk aplikasi.</li>
-<li>Foto yang diunggah melalui integrasi Google Drive disimpan sebagai file di folder “Catatan Ayah” pada Google Drive akun yang dihubungkan. File tidak sengaja dibuat publik oleh fitur ini.</li>
-<li>Referensi foto disimpan di data aplikasi agar foto dapat ditemukan kembali.</li>
+<li>Catatan disimpan di Firebase Realtime Database pada project yang digunakan aplikasi, di jalur tenant yang dikaitkan dengan UID akun Firebase Authentication.</li>
+<li>Aturan database dirancang agar akun hanya dapat membaca dan mengubah data pada tenant dengan UID yang sama dengan UID sesi login.</li>
+<li>PIN kunci aplikasi tidak disimpan sebagai teks biasa; verifikator PIN berbasis hash disimpan di penyimpanan lokal browser pada perangkat yang digunakan.</li>
+<li>Service worker aplikasi hanya menyimpan aset statis untuk membantu pemuatan aplikasi. Data transaksi Firebase tidak dimasukkan ke cache offline oleh service worker.</li>
 </ul>
-<h2>Akses Google Drive</h2>
-<p>Jika pengguna memilih menghubungkan Google Drive, aplikasi meminta izin Google Drive untuk membuat dan mengelola file yang dibuat atau dibuka melalui aplikasi (cakupan drive.file). Akses ini digunakan untuk menyimpan dan mengambil foto pendukung, bukan untuk membaca seluruh isi Google Drive pengguna.</p>
-<p>Token akses digunakan di browser untuk menjalankan permintaan yang diminta pengguna dan dibersihkan ketika aplikasi dikunci atau pengguna keluar sesuai perilaku aplikasi. Pengguna dapat mencabut izin aplikasi melalui pengaturan keamanan akun Google.</p>
-<h2>Penggunaan dan pembagian data</h2>
-<p>Data digunakan untuk menjalankan fitur pencatatan dan penyimpanan foto. Pengelola aplikasi tidak menjual data pribadi atau menggunakan data Google untuk iklan. Data diproses oleh penyedia layanan yang diperlukan untuk menjalankan aplikasi, termasuk Google/Firebase, sesuai layanan yang digunakan dan pengaturan akun.</p>
-<p>Pengguna bertanggung jawab memastikan bahwa mereka memiliki hak untuk memasukkan dan mengelola data yang dicatat. Batasi akses ke akun, perangkat, dan akun Google yang terhubung.</p>
-<h2>Keamanan dan penyimpanan</h2>
-<p>Pengelola menerapkan pengaturan keamanan yang tersedia pada layanan yang digunakan, tetapi tidak ada metode penyimpanan atau transmisi elektronik yang dapat dijamin aman secara mutlak. Jaga kerahasiaan kredensial dan jangan berbagi perangkat yang masih masuk ke aplikasi.</p>
-<h2>Penghapusan dan pencabutan akses</h2>
-<p>Pengguna dapat mencabut izin Google Drive melalui pengaturan akun Google. Penghapusan file foto di Google Drive dan penghapusan catatan di Firebase merupakan tindakan terpisah; menghapus salah satunya tidak selalu menghapus yang lain. Sebelum menghapus data, pastikan tidak ada catatan yang masih memerlukan file tersebut.</p>
+<h2>Lampiran dan layanan pihak ketiga</h2>
+<p>Catatan Utang tidak menyediakan fitur lampiran bukti transaksi/foto dan tidak menggunakan integrasi Google Drive untuk menyimpan atau mengambil foto. Layanan Firebase/Google memproses data yang diperlukan untuk autentikasi dan penyimpanan sesuai konfigurasi project serta ketentuan layanan penyedia tersebut.</p>
+<h2>Penggunaan data dan backup</h2>
+<p>Data digunakan untuk menampilkan dan mengelola catatan, pembayaran, tagihan, laporan, dan fungsi backup/restore. File backup yang Anda unduh dapat berisi informasi keuangan dan kontak; simpan di tempat yang aman dan jangan membagikannya kepada pihak yang tidak berwenang.</p>
+<h2>Keamanan dan tanggung jawab pengguna</h2>
+<p>Jaga kerahasiaan email, password, PIN, perangkat, serta file backup. Selalu keluar dari akun ketika menggunakan perangkat bersama. Keamanan juga bergantung pada konfigurasi Firebase, perlindungan akun, browser, dan perangkat Anda; tidak ada metode elektronik yang dapat dijamin aman secara mutlak.</p>
+<h2>Retensi dan penghapusan</h2>
+<p>Catatan tetap tersimpan di database sampai dihapus melalui fungsi aplikasi atau dihapus oleh pengelola project. Untuk pertanyaan terkait penghapusan akun/data atau privasi, hubungi pengelola aplikasi yang mengoperasikan project Firebase tersebut.</p>
 <h2>Perubahan kebijakan</h2>
-<p>Kebijakan ini dapat diperbarui jika fungsi atau cara pemrosesan data aplikasi berubah. Versi terbaru akan diterbitkan pada halaman ini.</p>
+<p>Kebijakan ini dapat diperbarui jika fungsi atau pemrosesan data berubah. Versi terbaru akan diterbitkan pada halaman ini.</p>
 <p><a href="./terms.html">Baca Ketentuan Penggunaan</a> · <a href="./index.html">Buka aplikasi</a></p>
 </main></body></html>

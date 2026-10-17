@@ -10,9 +10,6 @@ on:
       - "manifest.webmanifest"
       - "sw.js"
       - "offline.html"
-      - "privacy.html"
-      - "terms.html"
-      - "tentang.html"
       - "icons/**"
 
 permissions:

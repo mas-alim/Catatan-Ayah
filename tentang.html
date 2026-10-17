@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Catatan Utang Piutang adalah aplikasi pribadi untuk mencatat utang-piutang dan tagihan.">
-<title>Catatan Utang Piutang — Tentang Aplikasi</title>
+<meta name="description" content="Catatan Utang adalah aplikasi untuk mencatat utang-piutang dan tagihan.">
+<title>Catatan Utang — Tentang Aplikasi</title>
 <style>
-:root{color-scheme:light;--ink:#172033;--muted:#596579;--line:#dbe2ea;--accent:#2457c5}
+:root{color-scheme:light;--ink:#172033;--muted:#596579;--line:#dbe2ea;--accent:#166534}
 *{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:var(--ink);font:16px/1.65 system-ui,-apple-system,Segoe UI,sans-serif}
 main{max-width:780px;margin:48px auto;padding:32px;background:#fff;border:1px solid var(--line);border-radius:18px}
 h1{line-height:1.2;font-size:2.2rem;margin:0 0 12px}h2{margin-top:28px;font-size:1.2rem}
@@ -17,16 +17,23 @@ footer{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);font-si
 </style>
 </head>
 <body><main>
-<h1>Catatan Utang Piutang</h1>
-<p><strong>Aplikasi pencatatan utang-piutang dan tagihan pribadi.</strong></p>
-<p>Catatan Utang Piutang membantu pengelola mencatat transaksi, memantau pembayaran, dan menyimpan catatan pendukung agar riwayat utang-piutang dan tagihan lebih mudah ditinjau kembali.</p>
-<h2>Penyimpanan data dan foto</h2>
-<p>Data catatan aplikasi disimpan menggunakan layanan Firebase yang dikonfigurasi oleh pengelola. Jika pengguna memilih menyimpan foto, aplikasi dapat mengunggah file foto yang dipilih ke folder pribadi bernama “Catatan Ayah” di Google Drive akun Google yang dihubungkan. Aplikasi meminta izin Google Drive terbatas untuk file yang dibuat atau digunakan oleh aplikasi.</p>
-<p>Gunakan aplikasi hanya untuk data yang memang berhak Anda kelola. Jaga keamanan akun Google dan perangkat yang digunakan untuk mengakses aplikasi.</p>
+<h1>Catatan Utang</h1>
+<p><strong>Aplikasi pencatatan utang-piutang, pembayaran, cicilan, tagihan, dan laporan pribadi.</strong></p>
+<p>Catatan Utang menyediakan akun Firebase dan ruang data privat per akun. Catatan dapat disinkronkan melalui Firebase Realtime Database dan digunakan pada perangkat yang memiliki koneksi internet.</p>
+<h2>Fitur utama</h2>
+<ul>
+<li>Pencatatan transaksi utang dan piutang.</li>
+<li>Pencatatan pembayaran dan status tagihan.</li>
+<li>Laporan serta ekspor dan pemulihan backup.</li>
+<li>Akses multi-tenant dengan pemisahan data berdasarkan UID akun.</li>
+</ul>
+<h2>Penyimpanan data</h2>
+<p>Data disimpan pada Firebase project yang dikonfigurasi untuk aplikasi. Catatan Utang tidak menyediakan lampiran bukti transaksi/foto dan tidak menggunakan Google Drive untuk menyimpan lampiran.</p>
+<p>Gunakan aplikasi hanya untuk data yang berhak Anda kelola. Jaga keamanan akun, PIN, perangkat, dan file backup.</p>
 <div class="actions">
-<a href="./index.html">Buka aplikasi Catatan Utang Piutang</a>
+<a href="./index.html">Buka aplikasi Catatan Utang</a>
 <a href="./privacy.html">Kebijakan Privasi</a>
 <a href="./terms.html">Ketentuan Penggunaan</a>
 </div>
-<footer>Halaman informasi resmi aplikasi Catatan Utang Piutang.</footer>
+<footer>Halaman informasi Catatan Utang.</footer>
 </main></body></html>
