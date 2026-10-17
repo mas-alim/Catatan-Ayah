@@ -27,18 +27,22 @@ URL Realtime Database sudah dimasukkan. Aturan yang aktif di Firebase Console ha
 
 ## Persetujuan akun oleh pemilik
 
-Aplikasi tidak mengirim email verifikasi. Pengguna boleh membuat akun Firebase, tetapi akun baru hanya membuat permintaan akses berstatus `pending`. Pengguna tidak bisa membaca atau menulis tenant sampai pemilik menyetujui permintaan dari **Pengaturan → Persetujuan Akun**. Pemilik juga dapat menolak atau mencabut akses; Security Rules yang menjadi pengunci sebenarnya.
+Aplikasi tidak mengirim email verifikasi. Pengguna boleh membuat akun Firebase, tetapi akun baru hanya membuat permintaan akses berstatus `pending`. Pengguna tidak dapat membaca atau menulis tenant sampai pemilik menyetujui permintaan melalui **Pengaturan → Persetujuan Akun**. Pemilik juga dapat menolak atau mencabut akses. Security Rules, bukan hanya kontrol antarmuka, yang menjadi pengunci akses data.
 
-**Penting: atur admin pertama sebelum memublikasikan versi ini.**
+UID admin untuk project `catatan-utang-prod` sudah dimasukkan ke konstanta `ADMIN_UID` di `index.html` dan ke aturan di `database.rules.json`.
 
-1. Buka Firebase Console → **Authentication → Users → Add user** dan buat akun pemilik secara manual. Jangan gunakan tombol pendaftaran publik untuk membuat akun admin pertama.
-2. Salin **UID** akun pemilik dari tabel Users.
-3. Ganti `GANTI_ADMIN_FIREBASE_UID` dengan UID tersebut pada konstanta `ADMIN_UID` di `index.html` dan di setiap kemunculan string admin pada `database.rules.json`.
-4. Publikasikan isi `database.rules.json` melalui **Realtime Database → Rules**. Pastikan semua kemunculan placeholder sudah diganti sebelum Publish.
-5. Setelah aturan terpasang, deploy aset aplikasi. Login pertama admin memakai email/password yang dibuat di Firebase Console; kemudian admin membuat PIN lokal.
-6. Pengguna umum membuat akun dan otomatis masuk ke layar **Menunggu Persetujuan Pengelola**. Pemilik yang sedang login dan membuka aplikasi akan melihat jumlah permintaan yang menunggu serta pemberitahuan di dalam aplikasi ketika permintaan baru masuk; pemberitahuan ini hanya aktif saat aplikasi pengelola terbuka dan tidak terkunci. Admin membuka **Pengaturan → Persetujuan Akun** untuk menyetujui atau menolak. Setelah disetujui, pengguna menekan **Periksa Status Persetujuan** dan dapat membuat PIN.
+**Urutan wajib sebelum deployment:**
 
-Jangan menerbitkan file aturan yang masih berisi placeholder. Tanpa UID admin yang benar, admin tidak dapat menyetujui permintaan. Membuat akun dari Firebase Console tidak mengirim tautan verifikasi email oleh aplikasi ini.
+1. Pastikan akun admin dengan UID yang sudah dikonfigurasi memang ada di Firebase Console → **Authentication → Users**.
+2. Buka Firebase Console → **Realtime Database → Rules** untuk project `catatan-utang-prod`.
+3. Ganti aturan yang ada dengan seluruh isi file `database.rules.json` dari branch `catatan-utang-approval`, lalu periksa bahwa UID admin sudah terisi dan tidak ada teks `GANTI_ADMIN_FIREBASE_UID`.
+4. Klik **Publish** dan tunggu konfirmasi sukses.
+5. Setelah aturan baru dipublikasikan, baru deploy aset aplikasi. Login admin memakai email/password akun yang dibuat melalui Firebase Console; kemudian admin membuat PIN lokal.
+6. Pengguna umum membuat akun dan otomatis masuk ke layar **Menunggu Persetujuan Pengelola**. Pemilik yang sedang login dan membuka aplikasi akan melihat jumlah permintaan yang menunggu serta pemberitahuan dalam aplikasi ketika permintaan baru masuk. Pemberitahuan ini aktif ketika aplikasi pemilik terbuka dan tidak terkunci.
+7. Admin membuka **Pengaturan → Persetujuan Akun** untuk menyetujui atau menolak permintaan. Setelah disetujui, pengguna menekan **Periksa Status Persetujuan** dan dapat membuat PIN.
+
+Jangan deploy versi aplikasi persetujuan sebelum aturan persetujuan akun terpublikasi. Bila aturan dipasang lebih dulu dan belum benar, akses akan ditolak secara default; periksa kembali UID admin sebelum menekan Publish.
+
 
 ## Deployment ke Firebase Hosting
 
