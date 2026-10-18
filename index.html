@@ -117,7 +117,9 @@
                     <label for="auth-password" class="block text-sm font-medium text-gray-700 mb-1">Password akun</label>
                     <input type="password" id="auth-password" required autocomplete="current-password" placeholder="Password Firebase Authentication" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none">
                 </div>
+                <button id="btn-auth-forgot" type="button" onclick="sendPasswordResetFromLogin()" class="text-xs font-bold text-green-700 hover:underline">Lupa password?</button>
                 <p id="auth-error" role="alert" class="text-red-600 text-xs font-medium hidden bg-red-50 p-3 rounded-lg"></p>
+                <p id="auth-feedback" role="status" class="text-green-700 text-xs font-medium hidden bg-green-50 p-3 rounded-lg"></p>
                 <button id="btn-auth-login" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3 active:scale-[.99] transition shadow-lg shadow-green-200">Masuk</button>
             </form>
             <button id="btn-auth-create" type="button" onclick="authCreateAccount()" class="w-full mt-3 border border-green-200 text-green-800 bg-green-50 font-bold rounded-xl py-3 active:scale-[.99] transition">Buat Akun Baru</button>
@@ -299,7 +301,10 @@
             </div>
             <div class="space-y-3">
                 <div class="bg-green-50 border border-green-100 rounded-2xl p-4"><div class="flex items-start gap-3"><div class="w-10 h-10 rounded-xl bg-green-600 text-white flex items-center justify-center flex-shrink-0"><i class="ph-bold ph-cloud-check text-lg"></i></div><div><p class="font-bold text-sm text-gray-800">Sinkronisasi Cloud</p><p class="text-[11px] text-gray-500 mt-0.5">Data disimpan di Firebase pada ruang privat akun yang sedang login. Data transaksi tidak disimpan untuk akses offline.</p></div></div></div>
+                <button id="btn-user-profile" onclick="openUserProfile()" class="hidden w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-user-circle text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Profil Pengguna</p><p class="text-[11px] text-gray-500">Lihat dan perbarui nama profil Anda.</p></div></button>
+                <button id="btn-user-reset-password" onclick="sendPasswordResetFromSettings()" class="hidden w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center"><i class="ph-bold ph-key text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Reset Password</p><p class="text-[11px] text-gray-500">Kirim tautan untuk mengatur ulang sandi akun.</p></div></button>
                 <button id="btn-admin-approvals" onclick="openAccessAdmin()" class="hidden w-full flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center"><i class="ph-bold ph-user-check text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Persetujuan Akun</p><p class="text-[11px] text-gray-500">Tinjau, setujui, atau tolak permintaan akses.</p></div><span id="access-pending-count" class="ml-auto rounded-full bg-amber-200 px-2 py-1 text-[10px] font-black text-amber-900">0</span></button>
+                <button id="btn-admin-users" onclick="openAdminUsers()" class="hidden w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center"><i class="ph-bold ph-users-three text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Kelola Pengguna</p><p class="text-[11px] text-gray-500">Lihat daftar pelanggan, email, dan status akun.</p></div><i class="ph-bold ph-caret-right text-gray-400 ml-auto"></i></button>
                 <button onclick="downloadBackup()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-download-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Backup Data</p><p class="text-[11px] text-gray-500">Simpan transaksi dan tagihan ke file JSON.</p></div></button>
                 <button onclick="document.getElementById('restore-file').click()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><i class="ph-bold ph-upload-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Restore Data</p><p class="text-[11px] text-gray-500">Impor backup JSON dan mengganti data saat ini.</p></div></button>
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
@@ -307,6 +312,36 @@
                 <button onclick="logoutFirebaseAccount()" class="w-full flex items-center justify-center gap-2 p-3.5 bg-red-50 text-red-700 border border-red-100 rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-sign-out"></i> Keluar dari Akun</button>
                 <p class="text-center text-[10px] text-gray-400 pt-1">Catatan Utang • Rekonstruksi 2026 • Firebase Auth + PIN lokal.</p>
             </div>
+        </div>
+    </div>
+
+    <!-- USER PROFILE MODAL -->
+    <div id="modal-user-profile" class="fixed inset-0 bg-black/60 z-[106] hidden flex-col justify-end backdrop-blur-sm">
+        <div class="bg-white rounded-t-3xl w-full max-h-[92vh] overflow-y-auto p-5 slide-up safe-bottom">
+            <div class="flex justify-between items-center mb-4">
+                <div><p class="text-[10px] uppercase tracking-widest text-blue-700 font-black">Akun Saya</p><h2 class="text-lg font-bold text-gray-800">Profil Pengguna</h2></div>
+                <button onclick="closeModal('modal-user-profile')" class="p-2 text-gray-500 rounded-full bg-gray-100" aria-label="Tutup profil"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            <form id="form-user-profile" onsubmit="saveUserProfile(event)" class="space-y-4">
+                <div><label for="profile-display-name" class="block text-sm font-bold text-gray-700 mb-1">Nama pengguna</label><input id="profile-display-name" name="displayName" type="text" maxlength="80" required autocomplete="name" placeholder="Masukkan nama Anda" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
+                <div><label for="profile-email" class="block text-sm font-bold text-gray-700 mb-1">Email akun</label><input id="profile-email" type="email" readonly aria-readonly="true" class="w-full border border-gray-200 bg-gray-50 text-gray-500 rounded-xl p-3 text-sm"></div>
+                <p class="text-xs text-gray-500">Email ditampilkan dari Firebase Authentication dan tidak dapat diubah dari formulir profil ini.</p>
+                <button id="btn-save-user-profile" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3 active:scale-[.99] transition">Simpan Profil</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADMIN MANAGE CUSTOMERS MODAL -->
+    <div id="modal-admin-users" class="fixed inset-0 bg-black/60 z-[106] hidden flex-col justify-end backdrop-blur-sm">
+        <div class="bg-white rounded-t-3xl w-full max-h-[92vh] overflow-y-auto p-5 slide-up safe-bottom">
+            <div class="flex justify-between items-center mb-3">
+                <div><p class="text-[10px] uppercase tracking-widest text-indigo-700 font-black">Pengelola</p><h2 class="text-lg font-bold text-gray-800">Kelola Pengguna</h2></div>
+                <button onclick="closeModal('modal-admin-users')" class="p-2 text-gray-500 rounded-full bg-gray-100" aria-label="Tutup daftar pengguna"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">Daftar pelanggan yang tercatat melalui pendaftaran aplikasi, beserta email dan status persetujuannya.</p>
+            <div class="flex gap-2 mb-3"><input id="managed-users-search" type="search" oninput="filterManagedUsers(this.value)" placeholder="Cari nama, email, atau UID..." class="min-w-0 flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm"><button onclick="refreshManagedUsers()" class="shrink-0 border border-gray-200 bg-gray-50 text-gray-700 rounded-xl px-3 py-2 text-sm font-bold" aria-label="Muat ulang daftar"><i class="ph-bold ph-arrows-clockwise"></i></button></div>
+            <p id="managed-users-count" class="text-xs text-gray-500 mb-3">Memuat daftar pengguna...</p>
+            <div id="managed-users-list" class="space-y-3"><div class="text-center text-sm text-gray-400 py-8">Memuat daftar pengguna...</div></div>
         </div>
     </div>
 
@@ -329,7 +364,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, onValue, runTransaction, get, set, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // Configure this object with the Firebase Web App settings for a NEW Catatan Utang project.
@@ -376,6 +411,8 @@ let currentAuthUser = null;
 let authReady = false;
 let approvalStatusCheckInProgress = false;
 let accessRequestsUnsubscribe = null;
+let managedUsersCache = [];
+let managedUsersSearch = "";
 let knownPendingRequestIds = new Set();
 let accessNotificationsInitialized = false;
 let explicitFirebaseLoginPending = false;
@@ -600,9 +637,65 @@ function hideProtectedScreens() {
 
 function setAuthError(message) {
     const el = document.getElementById('auth-error');
+    if (el) {
+        el.textContent = message || '';
+        el.classList.toggle('hidden', !message);
+    }
+    const feedback = document.getElementById('auth-feedback');
+    if (feedback) {
+        feedback.textContent = '';
+        feedback.classList.add('hidden');
+    }
+}
+
+function setAuthFeedback(message) {
+    const el = document.getElementById('auth-feedback');
     if (!el) return;
     el.textContent = message || '';
     el.classList.toggle('hidden', !message);
+}
+
+async function sendPasswordResetFromLogin() {
+    if (!isFirebaseConfigured()) {
+        setAuthError('Konfigurasi Firebase belum lengkap. Reset password belum dapat diproses.');
+        return;
+    }
+    const email = (document.getElementById('auth-email')?.value || '').trim();
+    if (!email) {
+        setAuthError('Masukkan email akun terlebih dahulu, lalu pilih “Lupa password?”.');
+        document.getElementById('auth-email')?.focus();
+        return;
+    }
+    setAuthError('');
+    setAuthFeedback('Memproses permintaan reset password...');
+    try {
+        await sendPasswordResetEmail(auth, email);
+        setAuthFeedback('Jika email terdaftar, instruksi reset password akan dikirim. Periksa Kotak Masuk dan folder Spam.');
+    } catch (error) {
+        console.warn('Password reset request failed:', error);
+        const code = String(error?.code || '');
+        setAuthFeedback(code.includes('network-request-failed')
+            ? 'Koneksi bermasalah. Periksa internet lalu coba lagi.'
+            : 'Permintaan reset belum dapat diproses. Periksa alamat email dan coba lagi beberapa saat.');
+    }
+}
+
+async function sendPasswordResetFromSettings() {
+    if (!requireUnlockedApp()) return;
+    const email = String(currentAuthUser?.email || auth.currentUser?.email || '').trim();
+    if (!email) {
+        showToast('Email akun tidak tersedia. Silakan hubungi pengelola.');
+        return;
+    }
+    try {
+        await sendPasswordResetEmail(auth, email);
+        showToast('Permintaan reset diproses. Periksa email dan folder Spam.');
+    } catch (error) {
+        console.warn('Settings password reset request failed:', error);
+        showToast(String(error?.code || '').includes('network-request-failed')
+            ? 'Koneksi bermasalah. Periksa internet lalu coba lagi.'
+            : 'Reset password gagal diproses. Coba lagi beberapa saat.');
+    }
 }
 
 function isFirebaseConfigured() {
@@ -1619,10 +1712,166 @@ function buildKebutuhan(){
     return html;
 }
 
+async function openUserProfile() {
+    if (!requireUnlockedApp()) return;
+    if (!currentAuthUser || isAppAdmin()) {
+        showToast('Menu profil pelanggan tidak tersedia untuk akun pengelola.');
+        return;
+    }
+    const user = currentAuthUser;
+    closeModal('modal-settings');
+    const nameInput = document.getElementById('profile-display-name');
+    const emailInput = document.getElementById('profile-email');
+    if (nameInput) nameInput.value = user.displayName || '';
+    if (emailInput) emailInput.value = user.email || '';
+    openModal('modal-user-profile');
+    try {
+        const snapshot = await get(ref(db, `userProfiles/${user.uid}`));
+        if (auth.currentUser?.uid !== user.uid) return;
+        const profile = snapshot.val() || {};
+        if (nameInput) nameInput.value = profile.displayName || user.displayName || '';
+    } catch (error) {
+        console.warn('User profile could not be loaded:', error);
+        showToast('Profil belum termuat. Pastikan Security Rules profil sudah diterbitkan.');
+    }
+}
+
+async function saveUserProfile(event) {
+    event.preventDefault();
+    if (!requireUnlockedApp()) return;
+    const user = auth.currentUser;
+    if (!user || !currentAuthUser || user.uid !== currentAuthUser.uid || isAppAdmin()) {
+        showToast('Akses profil tidak tersedia.');
+        return;
+    }
+    const nameInput = document.getElementById('profile-display-name');
+    const displayName = String(nameInput?.value || '').trim();
+    if (!displayName || displayName.length > 80) {
+        showToast('Nama wajib diisi dan maksimal 80 karakter.');
+        nameInput?.focus();
+        return;
+    }
+    const button = document.getElementById('btn-save-user-profile');
+    if (button) { button.disabled = true; button.textContent = 'Menyimpan...'; }
+    try {
+        await set(ref(db, `userProfiles/${user.uid}`), {
+            displayName,
+            email: String(user.email || ''),
+            updatedAt: Date.now()
+        });
+        currentAuthUser = { ...currentAuthUser, displayName };
+        showToast('Profil pengguna berhasil diperbarui.');
+        closeModal('modal-user-profile');
+    } catch (error) {
+        console.error('Saving user profile failed:', error);
+        showToast('Profil gagal disimpan. Pastikan Security Rules terbaru sudah diterbitkan.');
+    } finally {
+        if (button) { button.disabled = false; button.textContent = 'Simpan Profil'; }
+    }
+}
+
+async function openAdminUsers() {
+    if (!isAppAdmin()) {
+        showToast('Menu ini hanya untuk pengelola aplikasi.');
+        return;
+    }
+    if (!isAppUnlocked()) {
+        showToast('Buka aplikasi dengan PIN sebelum mengelola pengguna.');
+        return;
+    }
+    closeModal('modal-settings');
+    openModal('modal-admin-users');
+    await refreshManagedUsers();
+}
+
+async function refreshManagedUsers() {
+    if (!isAppAdmin() || !isAppUnlocked()) {
+        showToast('Akses pengelola tidak tersedia.');
+        return;
+    }
+    const list = document.getElementById('managed-users-list');
+    const count = document.getElementById('managed-users-count');
+    if (!list) return;
+    list.innerHTML = '<div class="text-center text-sm text-gray-400 py-8">Memuat daftar pengguna...</div>';
+    if (count) count.textContent = 'Memuat daftar pengguna...';
+    try {
+        const [requestsSnapshot, accessSnapshot, profilesSnapshot] = await Promise.all([
+            get(ref(db, 'accessRequests')),
+            get(ref(db, 'userAccess')),
+            get(ref(db, 'userProfiles'))
+        ]);
+        const requests = requestsSnapshot.val() || {};
+        const access = accessSnapshot.val() || {};
+        const profiles = profilesSnapshot.val() || {};
+        const ids = new Set([...Object.keys(requests), ...Object.keys(access), ...Object.keys(profiles)]);
+        managedUsersCache = [...ids]
+            .filter(uid => uid !== ADMIN_UID)
+            .map(uid => {
+                const request = requests[uid] || {};
+                const profile = profiles[uid] || {};
+                const accessRecord = access[uid] || {};
+                const allowedStatus = ['approved', 'pending', 'rejected'];
+                const status = allowedStatus.includes(accessRecord.status)
+                    ? accessRecord.status
+                    : (allowedStatus.includes(request.status) ? request.status : 'pending');
+                return {
+                    uid,
+                    name: String(profile.displayName || '').trim(),
+                    email: String(request.email || profile.email || '').trim(),
+                    status,
+                    createdAt: Number(request.createdAt || 0)
+                };
+            })
+            .sort((a, b) => {
+                const statusOrder = { pending: 0, approved: 1, rejected: 2 };
+                return statusOrder[a.status] - statusOrder[b.status] || b.createdAt - a.createdAt || a.email.localeCompare(b.email);
+            });
+        renderManagedUsers();
+    } catch (error) {
+        console.error('Customer directory could not be loaded:', error);
+        managedUsersCache = [];
+        list.innerHTML = '<div class="text-center text-sm text-red-600 bg-red-50 p-4 rounded-xl">Daftar pengguna gagal dimuat. Pastikan Security Rules terbaru sudah diterbitkan di Realtime Database.</div>';
+        if (count) count.textContent = 'Daftar pengguna belum tersedia';
+    }
+}
+
+function filterManagedUsers(value) {
+    managedUsersSearch = String(value || '');
+    renderManagedUsers();
+}
+
+function renderManagedUsers() {
+    const list = document.getElementById('managed-users-list');
+    const count = document.getElementById('managed-users-count');
+    if (!list) return;
+    const query = managedUsersSearch.trim().toLocaleLowerCase('id-ID');
+    const filtered = managedUsersCache.filter(user =>
+        [user.name, user.email, user.uid, user.status].join(' ').toLocaleLowerCase('id-ID').includes(query)
+    );
+    if (count) count.textContent = `${filtered.length} dari ${managedUsersCache.length} akun pelanggan`;
+    if (!filtered.length) {
+        list.innerHTML = '<div class="text-center text-sm text-gray-400 py-8 border border-dashed border-gray-200 rounded-xl">Tidak ada akun pelanggan yang cocok.</div>';
+        return;
+    }
+    list.innerHTML = filtered.map(user => {
+        const statusLabel = user.status === 'approved' ? 'Disetujui' : user.status === 'rejected' ? 'Ditolak' : 'Menunggu persetujuan';
+        const statusClass = user.status === 'approved' ? 'bg-green-50 text-green-700' : user.status === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800';
+        const date = user.createdAt > 0 ? new Date(user.createdAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Tanggal pendaftaran tidak tersedia';
+        return `<article class="border border-gray-200 rounded-xl p-3 bg-white"><div class="flex items-start gap-3"><div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0"><i class="ph-bold ph-user text-lg"></i></div><div class="min-w-0 flex-1"><p class="text-sm font-bold text-gray-800 break-words">${escapeHtml(user.name || 'Nama belum diisi')}</p><p class="text-sm text-gray-600 break-words">${escapeHtml(user.email || 'Email tidak tersedia')}</p><div class="flex flex-wrap items-center gap-2 mt-2"><span class="rounded-full px-2 py-1 text-[10px] font-bold ${statusClass}">${statusLabel}</span><span class="text-[10px] text-gray-400">${escapeHtml(date)}</span></div><p class="text-[10px] text-gray-400 mt-2 break-all">UID: ${escapeHtml(user.uid)}</p></div></div></article>`;
+    }).join('');
+}
+
 function openSettings() {
     if (!requireUnlockedApp()) return;
-    const adminButton = document.getElementById('btn-admin-approvals');
-    if (adminButton) adminButton.classList.toggle('hidden', !isAppAdmin());
+    const admin = isAppAdmin();
+    const adminApprovals = document.getElementById('btn-admin-approvals');
+    const adminUsers = document.getElementById('btn-admin-users');
+    const userProfile = document.getElementById('btn-user-profile');
+    const userReset = document.getElementById('btn-user-reset-password');
+    if (adminApprovals) adminApprovals.classList.toggle('hidden', !admin);
+    if (adminUsers) adminUsers.classList.toggle('hidden', !admin);
+    if (userProfile) userProfile.classList.toggle('hidden', admin);
+    if (userReset) userReset.classList.toggle('hidden', admin);
     openModal('modal-settings');
 }
 const MAX_BACKUP_FILE_BYTES = 100 * 1024 * 1024;
@@ -1804,7 +2053,7 @@ function initApp(){
     onAuthStateChanged(auth, user => { void handleAuthStateChanged(user); });
 }
 
-window.openSettings=openSettings; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
+window.openSettings=openSettings; window.openUserProfile=openUserProfile; window.saveUserProfile=saveUserProfile; window.sendPasswordResetFromSettings=sendPasswordResetFromSettings; window.sendPasswordResetFromLogin=sendPasswordResetFromLogin; window.openAdminUsers=openAdminUsers; window.refreshManagedUsers=refreshManagedUsers; window.filterManagedUsers=filterManagedUsers; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
 window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
 window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
