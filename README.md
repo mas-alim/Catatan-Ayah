@@ -37,7 +37,7 @@ UID admin untuk project `catatan-utang-prod` sudah dimasukkan ke konstanta `ADMI
 2. Buka Firebase Console → **Realtime Database → Rules** untuk project `catatan-utang-prod`.
 3. Ganti aturan yang ada dengan seluruh isi file `database.rules.json` dari branch `catatan-utang-approval`. UID admin sudah diisi; pastikan tidak ada teks placeholder sebelum Publish.
 4. Klik **Publish** dan tunggu konfirmasi sukses.
-5. Setelah aturan baru dipublikasikan, baru deploy aset aplikasi. Login admin memakai email/password akun yang dibuat melalui Firebase Console; tanpa pembuatan PIN lokal.
+5. Setelah aturan baru dipublikasikan, baru deploy aset aplikasi. Login admin memakai email/password akun yang dibuat melalui Firebase Console; tanpa meminta PIN lokal.
 6. Pengguna umum membuat akun dan otomatis masuk ke layar **Menunggu Persetujuan Pengelola**. Pemilik yang sedang login dan membuka aplikasi akan melihat jumlah permintaan yang menunggu serta pemberitahuan dalam aplikasi ketika permintaan baru masuk. Pemberitahuan ini aktif ketika aplikasi pemilik terbuka dan tidak terkunci.
 7. Admin membuka **Pengaturan → Persetujuan Akun** untuk menyetujui atau menolak permintaan. Setelah disetujui, pengguna menekan **Periksa Status Persetujuan** dan aplikasi akan memuat data otomatis setelah status akses terverifikasi.
 
