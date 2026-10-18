@@ -99,6 +99,68 @@
                 padding-bottom: 1.25rem;
             }
         }
+        /* Account/profile and password confirmation dialogs use explicit layer and panel styles. */
+        .account-dialog-overlay {
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 10050 !important;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            overflow: hidden;
+            padding: env(safe-area-inset-top, 0px) 0 0;
+            background: rgba(15, 23, 42, .64) !important;
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
+        }
+        .account-dialog-overlay:not(.hidden) {
+            display: flex !important;
+        }
+        .account-dialog-panel {
+            position: relative;
+            z-index: 1;
+            box-sizing: border-box;
+            width: min(100%, 480px);
+            max-height: calc(100vh - env(safe-area-inset-top, 0px) - 8px);
+            max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            background: #fff !important;
+            color: #1f2937;
+            border: 1px solid rgba(226, 232, 240, .98);
+            border-radius: 1.5rem 1.5rem 0 0;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, .3);
+            padding: 1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+        }
+        .account-confirm-overlay {
+            justify-content: center;
+            padding: 16px;
+        }
+        .account-confirm-panel {
+            width: min(100%, 420px);
+            max-height: calc(100dvh - 32px);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+        }
+        .account-dialog-panel button:disabled {
+            cursor: wait;
+            opacity: .65;
+        }
+        @media (min-width: 640px) {
+            .profile-dialog-overlay {
+                justify-content: center;
+                padding: 24px;
+            }
+            .profile-dialog-panel {
+                width: min(460px, 96vw);
+                max-height: calc(100dvh - 48px);
+                border-radius: 1.5rem;
+                padding-bottom: 1.25rem;
+            }
+        }
         .app-content-scroll { padding-bottom:7rem; }
         .disabled { pointer-events:none; opacity:.6; }
         /* Bottom navigation: FAB berada di slot tengah antara Transaksi dan Tagihan. */
@@ -383,10 +445,10 @@
     </div>
 
     <!-- USER PROFILE MODAL -->
-    <div id="modal-user-profile" class="fixed inset-0 bg-black/60 z-[106] hidden flex-col justify-end backdrop-blur-sm">
-        <div class="bg-white rounded-t-3xl w-full max-h-[92vh] overflow-y-auto p-5 slide-up safe-bottom">
-            <div class="flex justify-between items-center mb-4">
-                <div><p class="text-[10px] uppercase tracking-widest text-blue-700 font-black">Akun Saya</p><h2 class="text-lg font-bold text-gray-800">Profil Pengguna</h2></div>
+    <div id="modal-user-profile" class="account-dialog-overlay profile-dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="profile-dialog-title">
+        <div class="account-dialog-panel profile-dialog-panel slide-up">
+            <div class="flex justify-between items-center gap-3 mb-5">
+                <div><p class="text-[10px] uppercase tracking-widest text-blue-700 font-black">Akun Saya</p><h2 id="profile-dialog-title" class="text-lg font-bold text-gray-900">Profil Pengguna</h2></div>
                 <button onclick="closeModal('modal-user-profile')" class="p-2 text-gray-500 rounded-full bg-gray-100" aria-label="Tutup profil"><i class="ph ph-x text-lg"></i></button>
             </div>
             <form id="form-user-profile" onsubmit="saveUserProfile(event)" class="space-y-4">
@@ -395,6 +457,29 @@
                 <p class="text-xs text-gray-500">Email ditampilkan dari Firebase Authentication dan tidak dapat diubah dari formulir profil ini.</p>
                 <button id="btn-save-user-profile" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3 active:scale-[.99] transition">Simpan Profil</button>
             </form>
+        </div>
+    </div>
+
+    <!-- PASSWORD RESET CONFIRMATION AND RESULT DIALOG -->
+    <div id="modal-reset-password-confirm" class="account-dialog-overlay account-confirm-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="reset-password-heading">
+        <div class="account-dialog-panel account-confirm-panel">
+            <div class="flex items-start gap-3 mb-4">
+                <div class="w-11 h-11 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center flex-shrink-0"><i class="ph-bold ph-key text-xl"></i></div>
+                <div class="min-w-0 flex-1">
+                    <h2 id="reset-password-heading" class="text-lg font-bold text-gray-900">Konfirmasi Reset Password</h2>
+                    <p id="reset-password-description" class="text-sm text-gray-600 mt-1">Apakah Anda yakin ingin mereset password akun ini?</p>
+                </div>
+                <button type="button" onclick="cancelPasswordResetConfirmation()" class="p-2 -mt-1 -mr-1 rounded-full bg-gray-100 text-gray-500" aria-label="Tutup konfirmasi"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            <div id="reset-password-email-wrap" class="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 mb-4">
+                <p class="text-[10px] uppercase tracking-wide font-bold text-gray-500 mb-1">Email tujuan</p>
+                <p id="reset-password-email" class="text-sm font-semibold text-gray-800 break-all"></p>
+            </div>
+            <p id="reset-password-status" role="status" aria-live="polite" class="hidden text-sm text-gray-700 bg-green-50 border border-green-100 rounded-xl p-3 mb-4"></p>
+            <div class="flex flex-col-reverse sm:flex-row gap-2">
+                <button id="btn-reset-password-cancel" type="button" onclick="cancelPasswordResetConfirmation()" class="flex-1 border border-gray-200 bg-gray-50 text-gray-700 font-bold rounded-xl py-3">Cancel</button>
+                <button id="btn-reset-password-ok" type="button" onclick="handlePasswordResetOk()" class="flex-1 bg-green-600 text-white font-bold rounded-xl py-3 shadow-sm">OK</button>
+            </div>
         </div>
     </div>
 
@@ -480,6 +565,10 @@ let approvalStatusCheckInProgress = false;
 let accessRequestsUnsubscribe = null;
 let managedUsersCache = [];
 let managedUsersSearch = "";
+let pendingPasswordResetEmail = "";
+let pendingPasswordResetSource = "login";
+let passwordResetResultShown = false;
+let passwordResetResultMessage = "";
 let knownPendingRequestIds = new Set();
 let accessNotificationsInitialized = false;
 let explicitFirebaseLoginPending = false;
@@ -722,6 +811,126 @@ function setAuthFeedback(message) {
     el.classList.toggle('hidden', !message);
 }
 
+function openPasswordResetConfirmation(email, source = 'login') {
+    const normalizedEmail = String(email || '').trim();
+    if (!normalizedEmail) return false;
+    pendingPasswordResetEmail = normalizedEmail;
+    pendingPasswordResetSource = source;
+    passwordResetResultShown = false;
+    passwordResetResultMessage = '';
+
+    const heading = document.getElementById('reset-password-heading');
+    const description = document.getElementById('reset-password-description');
+    const emailEl = document.getElementById('reset-password-email');
+    const emailWrap = document.getElementById('reset-password-email-wrap');
+    const status = document.getElementById('reset-password-status');
+    const cancelButton = document.getElementById('btn-reset-password-cancel');
+    const okButton = document.getElementById('btn-reset-password-ok');
+
+    if (heading) heading.textContent = 'Konfirmasi Reset Password';
+    if (description) description.textContent = 'Apakah Anda yakin ingin mereset password akun ini? Jika memilih OK, kami akan mengirim tautan reset ke alamat email berikut.';
+    if (emailEl) emailEl.textContent = normalizedEmail;
+    if (emailWrap) emailWrap.classList.remove('hidden');
+    if (status) {
+        status.textContent = '';
+        status.classList.add('hidden');
+    }
+    if (cancelButton) {
+        cancelButton.disabled = false;
+        cancelButton.classList.remove('hidden');
+        cancelButton.textContent = 'Cancel';
+    }
+    if (okButton) {
+        okButton.disabled = false;
+        okButton.textContent = 'OK';
+    }
+    openModal('modal-reset-password-confirm');
+    return true;
+}
+
+function resetPasswordConfirmationState() {
+    pendingPasswordResetEmail = '';
+    pendingPasswordResetSource = 'login';
+    passwordResetResultShown = false;
+    passwordResetResultMessage = '';
+}
+
+function cancelPasswordResetConfirmation() {
+    if (passwordResetResultShown) {
+        finishPasswordResetNotification();
+        return;
+    }
+    resetPasswordConfirmationState();
+    closeModal('modal-reset-password-confirm');
+}
+
+function finishPasswordResetNotification() {
+    const source = pendingPasswordResetSource;
+    const feedbackMessage = passwordResetResultMessage;
+    resetPasswordConfirmationState();
+    closeModal('modal-reset-password-confirm');
+    if (source === 'login' && feedbackMessage) setAuthFeedback(feedbackMessage);
+}
+
+async function handlePasswordResetOk() {
+    if (passwordResetResultShown) {
+        finishPasswordResetNotification();
+        return;
+    }
+    const email = String(pendingPasswordResetEmail || '').trim();
+    if (!email) {
+        cancelPasswordResetConfirmation();
+        return;
+    }
+
+    const okButton = document.getElementById('btn-reset-password-ok');
+    const cancelButton = document.getElementById('btn-reset-password-cancel');
+    const heading = document.getElementById('reset-password-heading');
+    const description = document.getElementById('reset-password-description');
+    const emailWrap = document.getElementById('reset-password-email-wrap');
+    const status = document.getElementById('reset-password-status');
+
+    if (okButton) { okButton.disabled = true; okButton.textContent = 'Mengirim...'; }
+    if (cancelButton) cancelButton.disabled = true;
+
+    let feedback = '';
+    let success = false;
+    try {
+        await sendPasswordResetEmail(auth, email);
+        success = true;
+        feedback = 'Jika alamat email tersebut terdaftar, tautan reset password telah dikirim. Silakan periksa Kotak Masuk dan folder Spam.';
+    } catch (error) {
+        console.warn('Password reset request failed:', error);
+        const code = String(error?.code || '');
+        feedback = code.includes('network-request-failed')
+            ? 'Permintaan reset belum berhasil karena koneksi bermasalah. Periksa internet, lalu coba lagi.'
+            : code.includes('invalid-email')
+                ? 'Format email tidak valid. Tutup dialog ini, periksa email, lalu coba kembali.'
+                : 'Permintaan reset tidak dapat diproses saat ini. Silakan coba lagi beberapa saat.';
+    }
+
+    passwordResetResultShown = true;
+    passwordResetResultMessage = feedback;
+    if (heading) heading.textContent = success ? 'Periksa Email Anda' : 'Reset Password Belum Berhasil';
+    if (description) description.textContent = success
+        ? 'Permintaan telah diproses. Jika email terdaftar, tautan untuk mengatur ulang password akan dikirim.'
+        : 'Kami belum dapat menyelesaikan permintaan reset password.';
+    if (emailWrap) emailWrap.classList.toggle('hidden', !success);
+    if (status) {
+        status.textContent = feedback;
+        status.classList.remove('hidden');
+        status.classList.toggle('bg-green-50', success);
+        status.classList.toggle('border-green-100', success);
+        status.classList.toggle('bg-red-50', !success);
+        status.classList.toggle('border-red-100', !success);
+    }
+    if (cancelButton) cancelButton.classList.add('hidden');
+    if (okButton) {
+        okButton.disabled = false;
+        okButton.textContent = 'Selesai';
+    }
+}
+
 async function sendPasswordResetFromLogin() {
     if (!isFirebaseConfigured()) {
         setAuthError('Konfigurasi Firebase belum lengkap. Reset password belum dapat diproses.');
@@ -734,17 +943,8 @@ async function sendPasswordResetFromLogin() {
         return;
     }
     setAuthError('');
-    setAuthFeedback('Memproses permintaan reset password...');
-    try {
-        await sendPasswordResetEmail(auth, email);
-        setAuthFeedback('Jika email terdaftar, instruksi reset password akan dikirim. Periksa Kotak Masuk dan folder Spam.');
-    } catch (error) {
-        console.warn('Password reset request failed:', error);
-        const code = String(error?.code || '');
-        setAuthFeedback(code.includes('network-request-failed')
-            ? 'Koneksi bermasalah. Periksa internet lalu coba lagi.'
-            : 'Permintaan reset belum dapat diproses. Periksa alamat email dan coba lagi beberapa saat.');
-    }
+    setAuthFeedback('');
+    openPasswordResetConfirmation(email, 'login');
 }
 
 async function sendPasswordResetFromSettings() {
@@ -754,15 +954,7 @@ async function sendPasswordResetFromSettings() {
         showToast('Email akun tidak tersedia. Silakan hubungi pengelola.');
         return;
     }
-    try {
-        await sendPasswordResetEmail(auth, email);
-        showToast('Permintaan reset diproses. Periksa email dan folder Spam.');
-    } catch (error) {
-        console.warn('Settings password reset request failed:', error);
-        showToast(String(error?.code || '').includes('network-request-failed')
-            ? 'Koneksi bermasalah. Periksa internet lalu coba lagi.'
-            : 'Reset password gagal diproses. Coba lagi beberapa saat.');
-    }
+    openPasswordResetConfirmation(email, 'settings');
 }
 
 function isFirebaseConfigured() {
@@ -2119,7 +2311,7 @@ function initApp(){
     onAuthStateChanged(auth, user => { void handleAuthStateChanged(user); });
 }
 
-window.openSettings=openSettings; window.openUserProfile=openUserProfile; window.saveUserProfile=saveUserProfile; window.sendPasswordResetFromSettings=sendPasswordResetFromSettings; window.sendPasswordResetFromLogin=sendPasswordResetFromLogin; window.openAdminUsers=openAdminUsers; window.refreshManagedUsers=refreshManagedUsers; window.filterManagedUsers=filterManagedUsers; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
+window.openSettings=openSettings; window.openUserProfile=openUserProfile; window.saveUserProfile=saveUserProfile; window.sendPasswordResetFromSettings=sendPasswordResetFromSettings; window.sendPasswordResetFromLogin=sendPasswordResetFromLogin; window.openPasswordResetConfirmation=openPasswordResetConfirmation; window.cancelPasswordResetConfirmation=cancelPasswordResetConfirmation; window.handlePasswordResetOk=handlePasswordResetOk; window.openAdminUsers=openAdminUsers; window.refreshManagedUsers=refreshManagedUsers; window.filterManagedUsers=filterManagedUsers; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
 window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
 window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
