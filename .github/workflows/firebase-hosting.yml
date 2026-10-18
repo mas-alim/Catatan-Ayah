@@ -35,19 +35,19 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const html = fs.readFileSync('index.html', 'utf8');
-          const blocks = [...html.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/gi)];
+          const blocks = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
           let checked = 0;
           for (const match of blocks) {
             const attributes = match[1] || '';
             const source = match[2] || '';
-            if (/\\bsrc\\s*=/.test(attributes) || !source.trim()) continue;
-            const moduleScript = /\\btype\\s*=\\s*["']module["']/i.test(attributes);
+            if (/\bsrc\s*=/.test(attributes) || !source.trim()) continue;
+            const moduleScript = /\btype\s*=\s*["']module["']/i.test(attributes);
             const extension = moduleScript ? 'mjs' : 'js';
-            fs.writeFileSync(`/tmp/catatan-utang-inline-${checked}.${extension}`, source);
+            fs.writeFileSync('/tmp/catatan-utang-inline-' + checked + '.' + extension, source);
             checked++;
           }
           if (!checked) throw new Error('No inline JavaScript blocks were found.');
-          console.log(`Prepared ${checked} inline JavaScript block(s) for syntax validation.`);
+          console.log('Prepared ' + checked + ' inline JavaScript block(s) for syntax validation.');
           NODE
           for script in /tmp/catatan-utang-inline-*.mjs /tmp/catatan-utang-inline-*.js; do
             [ -f "$script" ] || continue
