@@ -39,7 +39,6 @@
             position: fixed !important;
             inset: 0 !important;
             z-index: 10000 !important;
-            display: flex;
             box-sizing: border-box;
             align-items: stretch;
             justify-content: flex-end;
@@ -48,6 +47,9 @@
             -webkit-backdrop-filter: blur(4px);
             backdrop-filter: blur(4px);
             padding: env(safe-area-inset-top, 0px) 0 0;
+        }
+        .admin-scroll-modal:not(.hidden) {
+            display: flex !important;
         }
         .admin-scroll-panel {
             position: relative;
