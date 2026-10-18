@@ -8,7 +8,7 @@ Aplikasi pencatatan utang-piutang, pembayaran/cicilan, tagihan, laporan, serta b
 - Setiap tenant menyimpan data di `tenants/{uid}/catatan_keuangan_v1`.
 - UID ruang data diambil dari sesi Firebase Authentication, bukan dari input pengguna.
 - Security Rules hanya memberi akses ke `tenants/{uid}` ketika UID tersebut sama dengan UID yang terautentikasi.
-- PIN lokal disimpan terpisah per UID pada perangkat.
+- Login dan akses data menggunakan Firebase Authentication Email/Password; tidak ada PIN lokal. Pengguna diminta login kembali jika keluar atau sesi berakhir otomatis setelah 15 menit tanpa aktivitas.
 - Data Catatan-Ayah tidak dimigrasikan atau dihapus otomatis. Untuk membawa data lama, buat backup dari aplikasi asal lalu pulihkan secara sadar di akun Catatan Utang yang dituju. Field lampiran lama diabaikan.
 
 ## Siapkan Firebase untuk Catatan Utang
@@ -37,9 +37,9 @@ UID admin untuk project `catatan-utang-prod` sudah dimasukkan ke konstanta `ADMI
 2. Buka Firebase Console → **Realtime Database → Rules** untuk project `catatan-utang-prod`.
 3. Ganti aturan yang ada dengan seluruh isi file `database.rules.json` dari branch `catatan-utang-approval`. UID admin sudah diisi; pastikan tidak ada teks placeholder sebelum Publish.
 4. Klik **Publish** dan tunggu konfirmasi sukses.
-5. Setelah aturan baru dipublikasikan, baru deploy aset aplikasi. Login admin memakai email/password akun yang dibuat melalui Firebase Console; kemudian admin membuat PIN lokal.
+5. Setelah aturan baru dipublikasikan, baru deploy aset aplikasi. Login admin memakai email/password akun yang dibuat melalui Firebase Console; tanpa pembuatan PIN lokal.
 6. Pengguna umum membuat akun dan otomatis masuk ke layar **Menunggu Persetujuan Pengelola**. Pemilik yang sedang login dan membuka aplikasi akan melihat jumlah permintaan yang menunggu serta pemberitahuan dalam aplikasi ketika permintaan baru masuk. Pemberitahuan ini aktif ketika aplikasi pemilik terbuka dan tidak terkunci.
-7. Admin membuka **Pengaturan → Persetujuan Akun** untuk menyetujui atau menolak permintaan. Setelah disetujui, pengguna menekan **Periksa Status Persetujuan** dan dapat membuat PIN.
+7. Admin membuka **Pengaturan → Persetujuan Akun** untuk menyetujui atau menolak permintaan. Setelah disetujui, pengguna menekan **Periksa Status Persetujuan** dan aplikasi akan memuat data otomatis setelah status akses terverifikasi.
 
 Jangan deploy versi aplikasi persetujuan sebelum aturan persetujuan akun terpublikasi. Bila aturan dipasang lebih dulu dan belum benar, akses akan ditolak secara default; periksa kembali UID admin sebelum menekan Publish.
 
@@ -61,7 +61,7 @@ URL live yang diharapkan: `https://catatan-utang-prod.web.app` (setelah deployme
 
 ## Uji isolasi tenant sebelum publikasi
 
-1. Buat akun A melalui tombol **Buat Akun Baru**, buat PIN, dan catat transaksi uji.
+1. Buat akun A melalui tombol **Buat Akun Baru**, tunggu persetujuan, lalu catat transaksi uji.
 2. Keluar dari akun A. Buat akun B menggunakan email berbeda.
 3. Pastikan akun B membuka ruang data kosong dan tidak dapat membaca/mengubah data akun A.
 4. Uji tambah/edit transaksi, pembayaran cicilan/lunas, tagihan, laporan, ekspor CSV, backup, dan restore pada masing-masing akun.
