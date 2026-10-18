@@ -365,6 +365,22 @@
         }
         .auth-field input::placeholder { color: #66696d; opacity: 1; }
         .auth-field input:focus { outline: none; box-shadow: none; }
+        /* Keep browser-saved credentials visually consistent with the white pill fields. */
+        .auth-field input:-webkit-autofill,
+        .auth-field input:-webkit-autofill:hover,
+        .auth-field input:-webkit-autofill:focus,
+        .auth-field input:-webkit-autofill:active {
+            -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+            box-shadow: 0 0 0 1000px #fff inset !important;
+            -webkit-text-fill-color: #171b21 !important;
+            caret-color: #171b21;
+            transition: background-color 9999s ease-out 0s;
+        }
+        .auth-field input:-moz-autofill {
+            background-color: #fff !important;
+            color: #171b21 !important;
+            filter: none !important;
+        }
         .auth-password-toggle {
             display: grid;
             place-items: center;
