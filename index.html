@@ -85,6 +85,14 @@
         #modal-access-admin #access-requests-list {
             width: 100%;
         }
+        .activity-history-list {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: .5rem;
+        }
         @media (min-width: 640px) {
             .admin-scroll-modal {
                 align-items: center;
@@ -404,6 +412,18 @@
         </div>
     </div>
 
+    <!-- TENANT ACTIVITY HISTORY MODAL -->
+    <div id="modal-activity-history" class="admin-scroll-modal fixed inset-0 bg-black/60 z-[106] hidden flex-col justify-end backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="activity-history-heading">
+        <div class="admin-scroll-panel bg-white rounded-t-3xl w-full max-h-[92vh] p-5 slide-up safe-bottom">
+            <div class="flex justify-between items-center gap-3 mb-3 flex-shrink-0">
+                <div><p class="text-[10px] uppercase tracking-widest text-slate-700 font-black">Data Akun Ini</p><h2 id="activity-history-heading" class="text-lg font-bold text-gray-900">Riwayat Aktivitas</h2></div>
+                <button onclick="closeModal('modal-activity-history')" class="p-2 text-gray-500 rounded-full bg-gray-100" aria-label="Tutup riwayat aktivitas"><i class="ph ph-x text-lg"></i></button>
+            </div>
+            <p class="text-xs text-gray-500 mb-3 flex-shrink-0">Menampilkan hingga 500 aktivitas terbaru di ruang data akun ini. Jejak ini membantu penelusuran, tetapi bukan catatan audit yang tidak dapat diubah.</p>
+            <div id="activity-history-list" class="activity-history-list space-y-2"><div class="text-center text-sm text-gray-400 py-8">Memuat riwayat aktivitas...</div></div>
+        </div>
+    </div>
+
     <!-- PAYMENT RECEIPT MODAL -->
     <div id="modal-payment-receipt" class="account-dialog-overlay receipt-dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="payment-receipt-modal-title">
         <div class="account-dialog-panel receipt-dialog-panel">
@@ -439,6 +459,7 @@
                 <p id="backup-reminder-info" class="text-[10px] text-gray-500 px-1" aria-live="polite">Memeriksa jadwal backup...</p>
                 <button onclick="document.getElementById('restore-file').click()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><i class="ph-bold ph-upload-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Restore Data</p><p class="text-[11px] text-gray-500">Impor backup JSON dan mengganti data saat ini.</p></div></button>
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
+                <button onclick="openActivityHistory()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-slate-50 text-slate-700 flex items-center justify-center"><i class="ph-bold ph-clock-counter-clockwise text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Riwayat Aktivitas</p><p class="text-[11px] text-gray-500">Lihat perubahan transaksi, pembayaran, dan tagihan.</p></div><i class="ph-bold ph-caret-right text-gray-400 ml-auto"></i></button>
                 <button onclick="logoutFirebaseAccount()" class="w-full flex items-center justify-center gap-2 p-3.5 bg-red-50 text-red-700 border border-red-100 rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-sign-out"></i> Keluar dari Akun</button>
                 <p class="text-center text-[10px] text-gray-400 pt-1">Catatan Utang • Firebase Authentication • Login Email/Password.</p>
             </div>
@@ -1329,13 +1350,95 @@ function mergeCollectionById(remoteList, baselineList, desiredList) {
     }
     return [...remote.values()];
 }
+const ACTIVITY_LOG_LIMIT = 500;
+
+function normalizeActivityLog(value) {
+    let entries = [];
+    if (Array.isArray(value)) entries = value;
+    else if (value && typeof value === 'object') {
+        entries = Object.entries(value).map(([key, item]) => item && typeof item === 'object' ? ({ ...item, id: item.id || key }) : null).filter(Boolean);
+    }
+    return entries.filter(item => item && typeof item === 'object' && typeof item.timestamp === 'string');
+}
+
+function mergeActivityLog(remoteValue, desiredValue) {
+    const merged = new Map();
+    const add = value => {
+        normalizeActivityLog(value).forEach(event => {
+            const key = String(event.id || (event.timestamp + '|' + event.action + '|' + event.summary));
+            if (!merged.has(key)) merged.set(key, JSON.parse(JSON.stringify({ ...event, id: key })));
+        });
+    };
+    add(remoteValue);
+    add(desiredValue);
+    return [...merged.values()]
+        .sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || '')))
+        .slice(-ACTIVITY_LOG_LIMIT);
+}
+
+function recordActivity(action, summary, targetType = '', targetId = '', amount = null) {
+    const event = {
+        id: generateId(),
+        action: String(action || 'updated'),
+        summary: String(summary || 'Aktivitas data'),
+        targetType: String(targetType || ''),
+        targetId: String(targetId || ''),
+        amount: amount !== null && Number.isFinite(Number(amount)) ? Number(amount) : null,
+        timestamp: new Date().toISOString(),
+        actorEmail: String(currentAuthUser?.email || '')
+    };
+    data.activityLog = mergeActivityLog(data.activityLog, [event]);
+}
+
+function activityActionLabel(action) {
+    const labels = {
+        transaction_created: 'Transaksi dibuat',
+        transaction_updated: 'Transaksi diperbarui',
+        payment_recorded: 'Pembayaran dicatat',
+        need_created: 'Tagihan dibuat',
+        need_updated: 'Tagihan diperbarui',
+        need_status_changed: 'Status tagihan berubah',
+        record_deleted: 'Data dihapus',
+        backup_restored: 'Backup dipulihkan'
+    };
+    return labels[action] || 'Aktivitas';
+}
+
+function renderActivityHistory() {
+    const list = document.getElementById('activity-history-list');
+    if (!list) return;
+    const events = normalizeActivityLog(data.activityLog)
+        .slice()
+        .sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')));
+    if (!events.length) {
+        list.innerHTML = '<div class="text-center text-sm text-gray-400 py-8 border border-dashed border-gray-200 rounded-xl">Belum ada aktivitas yang tercatat. Aktivitas berikutnya akan tampil di sini.</div>';
+        return;
+    }
+    list.innerHTML = events.map(event => {
+        const parsedDate = new Date(event.timestamp);
+        const dateText = Number.isNaN(parsedDate.getTime()) ? 'Waktu tidak tersedia' : parsedDate.toLocaleString('id-ID');
+        const hasAmount = event.amount !== null && event.amount !== undefined && Number.isFinite(Number(event.amount));
+        const amountMarkup = hasAmount ? '<span class="shrink-0 text-xs font-black text-gray-800">' + escapeHtml(formatRupiah(Number(event.amount))) + '</span>' : '';
+        const actor = event.actorEmail ? ' · ' + escapeHtml(event.actorEmail) : '';
+        return '<article class="border border-gray-200 rounded-xl p-3 bg-white"><div class="flex items-start gap-3"><div class="w-9 h-9 rounded-lg bg-slate-50 text-slate-700 flex items-center justify-center shrink-0"><i class="ph-bold ph-clock-counter-clockwise"></i></div><div class="min-w-0 flex-1"><p class="text-[10px] uppercase tracking-wide font-bold text-slate-500">' + escapeHtml(activityActionLabel(event.action)) + '</p><p class="text-sm font-semibold text-gray-800 mt-1 break-words">' + escapeHtml(event.summary || 'Aktivitas') + '</p><p class="text-[10px] text-gray-400 mt-1">' + escapeHtml(dateText) + actor + '</p></div>' + amountMarkup + '</div></article>';
+    }).join('');
+}
+
+function openActivityHistory() {
+    if (!requireUnlockedApp()) return;
+    closeModal('modal-settings');
+    renderActivityHistory();
+    openModal('modal-activity-history');
+}
+
 function mergeLocalChanges(remoteValue, baseline, desired) {
     const remoteObject = remoteValue && typeof remoteValue === 'object' ? remoteValue : {};
     const remote = normalizeData(remoteObject);
     const merged = {
         ...remoteObject,
         transactions: mergeCollectionById(remote.transactions, baseline.transactions, desired.transactions),
-        needs: mergeCollectionById(remote.needs, baseline.needs, desired.needs)
+        needs: mergeCollectionById(remote.needs, baseline.needs, desired.needs),
+        activityLog: mergeActivityLog(remoteObject.activityLog, desired.activityLog)
     };
     return merged;
 }
@@ -1349,7 +1452,10 @@ async function saveData({ replaceAll = false } = {}) {
     setSyncState('saving');
     try {
         const result = await runTransaction(dbRef, current => {
-            if (replaceAll) return candidate;
+            if (replaceAll) {
+                const remote = current && typeof current === 'object' ? current : {};
+                return { ...candidate, activityLog: mergeActivityLog(remote.activityLog, candidate.activityLog) };
+            }
             return mergeLocalChanges(current, baseline, candidate);
         }, { applyLocally: false });
         if (!result.committed) throw new Error('TRANSACTION_NOT_COMMITTED');
@@ -1407,6 +1513,7 @@ function setupFirebaseListener() {
             if (dataChanged && isAppUnlocked()) {
                 scheduleRemoteRender();
                 maybeShowDueDateReminder();
+                if (!document.getElementById('modal-activity-history')?.classList.contains('hidden')) renderActivityHistory();
             }
         }, error => {
             console.warn('Firebase listener error', error);
@@ -2412,7 +2519,7 @@ function initApp(){
     onAuthStateChanged(auth, user => { void handleAuthStateChanged(user); });
 }
 
-window.openSettings=openSettings; window.openPaymentReceipt=openPaymentReceipt; window.printPaymentReceipt=printPaymentReceipt; window.openUserProfile=openUserProfile; window.saveUserProfile=saveUserProfile; window.sendPasswordResetFromSettings=sendPasswordResetFromSettings; window.sendPasswordResetFromLogin=sendPasswordResetFromLogin; window.openPasswordResetConfirmation=openPasswordResetConfirmation; window.cancelPasswordResetConfirmation=cancelPasswordResetConfirmation; window.handlePasswordResetOk=handlePasswordResetOk; window.openAdminUsers=openAdminUsers; window.refreshManagedUsers=refreshManagedUsers; window.filterManagedUsers=filterManagedUsers; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
+window.openSettings=openSettings; window.openActivityHistory=openActivityHistory; window.openPaymentReceipt=openPaymentReceipt; window.printPaymentReceipt=printPaymentReceipt; window.openUserProfile=openUserProfile; window.saveUserProfile=saveUserProfile; window.sendPasswordResetFromSettings=sendPasswordResetFromSettings; window.sendPasswordResetFromLogin=sendPasswordResetFromLogin; window.openPasswordResetConfirmation=openPasswordResetConfirmation; window.cancelPasswordResetConfirmation=cancelPasswordResetConfirmation; window.handlePasswordResetOk=handlePasswordResetOk; window.openAdminUsers=openAdminUsers; window.refreshManagedUsers=refreshManagedUsers; window.filterManagedUsers=filterManagedUsers; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
 window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
 window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
