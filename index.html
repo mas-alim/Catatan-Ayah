@@ -476,7 +476,9 @@
             <form id="form-user-profile" onsubmit="saveUserProfile(event)" class="space-y-4">
                 <div><label for="profile-display-name" class="block text-sm font-bold text-gray-700 mb-1">Nama pengguna</label><input id="profile-display-name" name="displayName" type="text" maxlength="80" required autocomplete="name" placeholder="Masukkan nama Anda" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
                 <div><label for="profile-email" class="block text-sm font-bold text-gray-700 mb-1">Email akun</label><input id="profile-email" type="email" readonly aria-readonly="true" class="w-full border border-gray-200 bg-gray-50 text-gray-500 rounded-xl p-3 text-sm"></div>
-                <p class="text-xs text-gray-500">Email ditampilkan dari Firebase Authentication dan tidak dapat diubah dari formulir profil ini.</p>
+                <div><label for="profile-status" class="block text-sm font-bold text-gray-700 mb-1">Status akun</label><input id="profile-status" type="text" readonly aria-readonly="true" class="w-full border border-gray-200 bg-gray-50 text-gray-500 rounded-xl p-3 text-sm"></div>
+                <div><label for="profile-created-at" class="block text-sm font-bold text-gray-700 mb-1">Tanggal bergabung</label><input id="profile-created-at" type="text" readonly aria-readonly="true" class="w-full border border-gray-200 bg-gray-50 text-gray-500 rounded-xl p-3 text-sm"></div>
+                <p class="text-xs text-gray-500">Email, status akun, dan tanggal bergabung ditampilkan dari data akun. Untuk mengubah email, diperlukan alur keamanan akun tersendiri.</p>
                 <button id="btn-save-user-profile" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3 active:scale-[.99] transition">Simpan Profil</button>
             </form>
         </div>
@@ -2289,17 +2291,36 @@ async function openUserProfile() {
     closeModal('modal-settings');
     const nameInput = document.getElementById('profile-display-name');
     const emailInput = document.getElementById('profile-email');
+    const statusInput = document.getElementById('profile-status');
+    const joinedInput = document.getElementById('profile-created-at');
     if (nameInput) nameInput.value = user.displayName || '';
     if (emailInput) emailInput.value = user.email || '';
+    if (statusInput) statusInput.value = 'Memuat status...';
+    if (joinedInput) joinedInput.value = 'Memuat tanggal...';
     openModal('modal-user-profile');
     try {
-        const snapshot = await get(ref(db, `userProfiles/${user.uid}`));
+        const [profileSnapshot, accessSnapshot, requestSnapshot] = await Promise.all([
+            get(ref(db, `userProfiles/${user.uid}`)),
+            get(ref(db, `userAccess/${user.uid}`)),
+            get(ref(db, `accessRequests/${user.uid}`))
+        ]);
         if (auth.currentUser?.uid !== user.uid) return;
-        const profile = snapshot.val() || {};
+        const profile = profileSnapshot.val() || {};
+        const access = accessSnapshot.val() || {};
+        const request = requestSnapshot.val() || {};
         if (nameInput) nameInput.value = profile.displayName || user.displayName || '';
+        const status = String(access.status || request.status || 'approved');
+        const statusLabel = status === 'approved' ? 'Disetujui' : status === 'rejected' ? 'Ditolak' : 'Menunggu persetujuan';
+        if (statusInput) statusInput.value = statusLabel;
+        const createdAt = Number(request.createdAt || 0);
+        if (joinedInput) joinedInput.value = createdAt > 0
+            ? new Date(createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+            : 'Tidak tersedia';
     } catch (error) {
         console.warn('User profile could not be loaded:', error);
-        showToast('Profil belum termuat. Pastikan Security Rules profil sudah diterbitkan.');
+        if (statusInput) statusInput.value = 'Belum dapat diperiksa';
+        if (joinedInput) joinedInput.value = 'Tidak tersedia';
+        showToast('Sebagian detail profil belum termuat. Periksa Security Rules profil dan akses akun.');
     }
 }
 
