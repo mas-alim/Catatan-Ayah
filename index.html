@@ -282,37 +282,6 @@
         </div>
     </div>
 
-    <!-- SETUP PIN -->
-    <div id="screen-setup" class="fixed inset-0 bg-green-600 z-[100] flex flex-col justify-center items-center px-4 hidden safe-top safe-bottom">
-        <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-sm text-center slide-up">
-            <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="ph ph-lock-key-open text-3xl"></i>
-            </div>
-            <h2 class="text-xl font-bold text-gray-800 mb-2">Buat PIN Keamanan</h2>
-            <p class="text-sm text-gray-500 mb-6">Buat 6 digit angka untuk mengamankan Catatan Utang.</p>
-            <form onsubmit="savePin(event)">
-                <input type="password" id="setup-pin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="••••••" autocomplete="new-password" class="w-full text-center tracking-[1em] font-bold text-2xl border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-green-500 outline-none mb-4">
-                <button type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3 active:scale-95 transition-transform shadow-lg shadow-green-200">Simpan PIN</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- LOGIN -->
-    <div id="screen-login" class="fixed inset-0 bg-green-600 z-[100] flex flex-col justify-center items-center px-4 hidden safe-top safe-bottom">
-        <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-sm text-center slide-up">
-            <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="ph ph-shield-check text-3xl"></i>
-            </div>
-            <h2 class="text-xl font-bold text-gray-800 mb-2">Masukkan PIN</h2>
-            <p class="text-sm text-gray-500 mb-6">Buka kunci untuk melihat catatan keuangan.</p>
-            <form onsubmit="login(event)">
-                <input type="password" id="login-pin" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required placeholder="••••••" autocomplete="current-password" class="w-full text-center tracking-[1em] font-bold text-2xl border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-green-500 outline-none mb-4">
-                <p id="login-error" class="text-red-500 text-xs font-medium mb-4 hidden bg-red-50 py-2 rounded-lg">PIN salah, silakan coba lagi!</p>
-                <button type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3 active:scale-95 transition-transform shadow-lg shadow-green-200">Buka Catatan</button>
-            </form>
-        </div>
-    </div>
-
     <!-- MAIN APP -->
     <div id="app-content" class="hidden flex flex-col min-h-screen flex-1">
         <header class="bg-green-600 text-white px-4 pb-4 safe-top sticky top-0 z-30 shadow-md rounded-b-2xl">
@@ -332,7 +301,7 @@
                     <button onclick="openSettings()" title="Pengaturan" class="w-9 h-9 rounded-full bg-white/15 border border-white/20 flex items-center justify-center active:scale-95 transition">
                         <i class="ph-bold ph-gear text-base"></i>
                     </button>
-                    <button onclick="lockApp()" title="Kunci aplikasi" class="w-9 h-9 rounded-full bg-white/15 border border-white/20 flex items-center justify-center active:scale-95 transition">
+                    <button onclick="lockApp()" title="Kunci aplikasi dan keluar dari akun" class="w-9 h-9 rounded-full bg-white/15 border border-white/20 flex items-center justify-center active:scale-95 transition">
                         <i class="ph-bold ph-lock-key text-base"></i>
                     </button>
                 </div>
@@ -430,7 +399,7 @@
                 <button onclick="closeModal('modal-settings')" class="p-2 text-gray-500 rounded-full bg-gray-100"><i class="ph ph-x text-lg"></i></button>
             </div>
             <div class="space-y-3">
-                <div class="bg-green-50 border border-green-100 rounded-2xl p-4"><div class="flex items-start gap-3"><div class="w-10 h-10 rounded-xl bg-green-600 text-white flex items-center justify-center flex-shrink-0"><i class="ph-bold ph-cloud-check text-lg"></i></div><div><p class="font-bold text-sm text-gray-800">Sinkronisasi Cloud</p><p class="text-[11px] text-gray-500 mt-0.5">Data disimpan di Firebase pada ruang privat akun yang sedang login. Data transaksi tidak disimpan untuk akses offline.</p></div></div></div>
+                <div class="bg-green-50 border border-green-100 rounded-2xl p-4"><div class="flex items-start gap-3"><div class="w-10 h-10 rounded-xl bg-green-600 text-white flex items-center justify-center flex-shrink-0"><i class="ph-bold ph-cloud-check text-lg"></i></div><div><p class="font-bold text-sm text-gray-800">Sinkronisasi Cloud</p><p class="text-[11px] text-gray-500 mt-0.5">Data tersimpan di Firebase pada ruang privat akun yang sedang login. Catatan baru memerlukan koneksi internet. Sesi akan berakhir otomatis setelah 15 menit tanpa aktivitas.</p><p id="last-sync-info" class="text-[10px] text-gray-500 mt-2" aria-live="polite">Memeriksa status sinkronisasi...</p></div></div></div>
                 <button id="btn-user-profile" onclick="openUserProfile()" class="hidden w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-user-circle text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Profil Pengguna</p><p class="text-[11px] text-gray-500">Lihat dan perbarui nama profil Anda.</p></div></button>
                 <button id="btn-user-reset-password" onclick="sendPasswordResetFromSettings()" class="hidden w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center"><i class="ph-bold ph-key text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Reset Password</p><p class="text-[11px] text-gray-500">Kirim tautan untuk mengatur ulang sandi akun.</p></div></button>
                 <button id="btn-admin-approvals" onclick="openAccessAdmin()" class="hidden w-full flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center"><i class="ph-bold ph-user-check text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Persetujuan Akun</p><p class="text-[11px] text-gray-500">Tinjau, setujui, atau tolak permintaan akses.</p></div><span id="access-pending-count" class="ml-auto rounded-full bg-amber-200 px-2 py-1 text-[10px] font-black text-amber-900">0</span></button>
@@ -438,9 +407,8 @@
                 <button onclick="downloadBackup()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-download-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Backup Data</p><p class="text-[11px] text-gray-500">Simpan transaksi dan tagihan ke file JSON.</p></div></button>
                 <button onclick="document.getElementById('restore-file').click()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><i class="ph-bold ph-upload-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Restore Data</p><p class="text-[11px] text-gray-500">Impor backup JSON dan mengganti data saat ini.</p></div></button>
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
-                <button onclick="lockApp(); closeModal('modal-settings')" class="w-full flex items-center justify-center gap-2 p-3.5 bg-gray-900 text-white rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-lock-key"></i> Kunci Aplikasi (PIN)</button>
                 <button onclick="logoutFirebaseAccount()" class="w-full flex items-center justify-center gap-2 p-3.5 bg-red-50 text-red-700 border border-red-100 rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-sign-out"></i> Keluar dari Akun</button>
-                <p class="text-center text-[10px] text-gray-400 pt-1">Catatan Utang • Rekonstruksi 2026 • Firebase Auth + PIN lokal.</p>
+                <p class="text-center text-[10px] text-gray-400 pt-1">Catatan Utang • Firebase Authentication • Login Email/Password.</p>
             </div>
         </div>
     </div>
@@ -541,9 +509,6 @@ const auth = getAuth(app);
 const db = isFirebaseConfigured() ? getDatabase(app) : null;
 let dbRef = null; // Bound to the signed-in tenant's private data root.
 const LEGACY_LOCAL_DATA_KEY = 'catatanKeuanganApp';
-function pinStorageKey(uid = currentAuthUser?.uid) {
-    return uid ? `catatanUtangPin:${uid}` : 'catatanUtangPin:anonymous';
-}
 
 let currentTab = 'beranda';
 let txFilter = 'semua';
@@ -572,7 +537,6 @@ let passwordResetResultShown = false;
 let passwordResetResultMessage = "";
 let knownPendingRequestIds = new Set();
 let accessNotificationsInitialized = false;
-let explicitFirebaseLoginPending = false;
 let appUnlocked = false;
 let saveInProgress = false;
 let txSearchRenderTimer = null;
@@ -654,84 +618,6 @@ function cloneData(input) {
     return normalizeData(copy);
 }
 
-const PIN_PBKDF2_ITERATIONS = 210000;
-
-function bytesToHex(bytes) {
-    return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
-function fallbackPinHash(pin) {
-    let h = 2166136261;
-    for (let i = 0; i < pin.length; i++) { h ^= pin.charCodeAt(i); h = Math.imul(h, 16777619); }
-    return 'fallback:' + (h >>> 0).toString(16);
-}
-
-async function legacySha256Pin(pin) {
-    if (!globalThis.crypto?.subtle) return null;
-    const encoded = new TextEncoder().encode(pin);
-    const buffer = await crypto.subtle.digest('SHA-256', encoded);
-    return 'sha256:' + bytesToHex(new Uint8Array(buffer));
-}
-
-async function derivePinDigest(pin, salt, iterations) {
-    const material = await crypto.subtle.importKey(
-        'raw',
-        new TextEncoder().encode(pin),
-        'PBKDF2',
-        false,
-        ['deriveBits']
-    );
-    const bits = await crypto.subtle.deriveBits(
-        { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
-        material,
-        256
-    );
-    return bytesToHex(new Uint8Array(bits));
-}
-
-async function hashPin(pin) {
-    if (!globalThis.crypto?.subtle || !globalThis.crypto?.getRandomValues) {
-        throw new Error('PIN_CRYPTO_UNAVAILABLE');
-    }
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const digest = await derivePinDigest(pin, salt, PIN_PBKDF2_ITERATIONS);
-    return 'pbkdf2-sha256$' + PIN_PBKDF2_ITERATIONS + '$' + bytesToHex(salt) + '$' + digest;
-}
-
-function constantTimeHexEqual(left, right) {
-    if (typeof left !== 'string' || typeof right !== 'string' || left.length !== right.length) return false;
-    let difference = 0;
-    for (let i = 0; i < left.length; i++) difference |= left.charCodeAt(i) ^ right.charCodeAt(i);
-    return difference === 0;
-}
-
-async function verifyPin(pin, stored) {
-    if (typeof stored !== 'string' || !stored) return false;
-
-    if (stored.startsWith('pbkdf2-sha256$')) {
-        const parts = stored.split('$');
-        if (parts.length !== 4) return false;
-        const iterations = Number(parts[1]);
-        const saltHex = parts[2];
-        const expectedHex = parts[3];
-        if (!Number.isInteger(iterations) || iterations < 100000 || iterations > 500000) return false;
-        if (!/^[a-f0-9]{32}$/i.test(saltHex) || !/^[a-f0-9]{64}$/i.test(expectedHex)) return false;
-        if (!globalThis.crypto?.subtle) throw new Error('PIN_CRYPTO_UNAVAILABLE');
-        const salt = new Uint8Array(saltHex.match(/.{2}/g).map(byte => parseInt(byte, 16)));
-        const actualHex = await derivePinDigest(pin, salt, iterations);
-        return constantTimeHexEqual(actualHex, expectedHex.toLowerCase());
-    }
-
-    // Backward compatibility: verify old SHA-256, fallback-hash, or plain legacy PIN.
-    if (stored.startsWith('sha256:')) {
-        const oldDigest = await legacySha256Pin(pin);
-        return oldDigest !== null && constantTimeHexEqual(oldDigest, stored);
-    }
-    if (stored.startsWith('fallback:')) return constantTimeHexEqual(fallbackPinHash(pin), stored);
-    return pin === stored;
-}
-
-
 function showToast(message) {
     const toast=document.getElementById('toast');
     const inner=document.getElementById('toast-inner');
@@ -741,12 +627,83 @@ function showToast(message) {
     showToast.timer=setTimeout(()=>toast.classList.add('hidden'),2600);
 }
 
+function syncTimestampStorageKey(uid = currentAuthUser?.uid) {
+    return uid ? `catatanUtangLastSync:${uid}` : '';
+}
+function renderLastSyncInfo() {
+    const el = document.getElementById('last-sync-info');
+    if (!el) return;
+    let timestamp = 0;
+    try {
+        const key = syncTimestampStorageKey();
+        timestamp = key ? Number(localStorage.getItem(key) || 0) : 0;
+    } catch (error) {
+        console.warn('Last-sync metadata is unavailable:', error);
+    }
+    el.textContent = timestamp > 0 && Number.isFinite(timestamp)
+        ? 'Sinkronisasi terakhir berhasil: ' + new Date(timestamp).toLocaleString('id-ID')
+        : 'Sinkronisasi terakhir belum tercatat di perangkat ini.';
+}
+function recordSuccessfulSync() {
+    const key = syncTimestampStorageKey();
+    if (key) {
+        try { localStorage.setItem(key, String(Date.now())); }
+        catch (error) { console.warn('Last-sync metadata could not be stored:', error); }
+    }
+    renderLastSyncInfo();
+}
 function setSyncState(mode) {
     const icon=document.getElementById('sync-icon'), text=document.getElementById('sync-text');
     if(!icon||!text) return;
-    if(mode==='saving'){ icon.className='ph-bold ph-cloud-arrow-up text-yellow-200 text-sm'; text.textContent='Menyimpan'; }
-    else if(mode==='offline'){ icon.className='ph-bold ph-cloud-slash text-orange-200 text-sm'; text.textContent='Offline'; }
-    else { icon.className='ph-bold ph-cloud-check text-green-300 text-sm'; text.textContent='Tersinkron'; }
+    if(mode==='saving'){
+        icon.className='ph-bold ph-cloud-arrow-up text-yellow-200 text-sm';
+        text.textContent='Menyimpan';
+        document.getElementById('sync-status')?.setAttribute('title','Perubahan sedang dikirim ke Firebase.');
+    } else if(mode==='offline'){
+        icon.className='ph-bold ph-cloud-slash text-orange-200 text-sm';
+        text.textContent='Tidak tersambung';
+        document.getElementById('sync-status')?.setAttribute('title','Koneksi/database tidak tersedia. Pastikan perubahan terakhir berhasil disimpan.');
+        renderLastSyncInfo();
+    } else {
+        icon.className='ph-bold ph-cloud-check text-green-300 text-sm';
+        text.textContent='Tersinkron';
+        document.getElementById('sync-status')?.setAttribute('title','Data telah dikonfirmasi oleh Firebase.');
+        recordSuccessfulSync();
+    }
+}
+const IDLE_LOCK_TIMEOUT_MS = 15 * 60 * 1000;
+let idleLockTimer = null;
+let pendingLogoutNotice = '';
+function clearIdleLockTimer() {
+    if (idleLockTimer !== null) clearTimeout(idleLockTimer);
+    idleLockTimer = null;
+}
+function scheduleIdleLock(delay = IDLE_LOCK_TIMEOUT_MS) {
+    clearIdleLockTimer();
+    if (!isAppUnlocked()) return;
+    idleLockTimer = setTimeout(() => {
+        idleLockTimer = null;
+        if (!isAppUnlocked()) return;
+        if (saveInProgress) {
+            scheduleIdleLock(60 * 1000);
+            return;
+        }
+        void logoutFirebaseAccount('idle');
+    }, delay);
+}
+function recordUserActivity() {
+    if (isAppUnlocked()) scheduleIdleLock();
+}
+function clearLegacyPinStorage() {
+    // Delete old local PIN verifier entries after migration to email/password only.
+    try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('catatanUtangPin:')) localStorage.removeItem(key);
+        }
+    } catch (error) {
+        console.warn('Legacy local PIN cleanup skipped:', error);
+    }
 }
 
 function clearSensitiveLocalCache() {
@@ -781,12 +738,12 @@ function isAppUnlocked() {
 
 function requireUnlockedApp() {
     if (isAppUnlocked()) return true;
-    showToast('Silakan login Firebase dan buka PIN aplikasi terlebih dahulu.');
+    showToast('Silakan masuk dengan email dan password yang disetujui pengelola.');
     return false;
 }
 
 function hideProtectedScreens() {
-    ['screen-setup','screen-login','screen-data-loading','screen-pending','app-content'].forEach(id => {
+    ['screen-data-loading','screen-pending','app-content'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -999,19 +956,11 @@ function showAccessPendingScreen(user, status = 'pending', detail = '') {
 async function activateAuthorizedSession(user) {
     currentAuthUser = user;
     dbRef = ref(db, `tenants/${user.uid}/catatan_keuangan_v1`);
-    if (!localStorage.getItem(pinStorageKey(user.uid)) && !explicitFirebaseLoginPending) {
-        currentAuthUser = null; dbRef = null; authReady = false; appUnlocked = false;
-        stopFirebaseListener(); clearSensitiveInMemoryData(); hideProtectedScreens();
-        document.getElementById('screen-auth').classList.remove('hidden');
-        setAuthError('PIN lokal untuk akun ini tidak ditemukan. Masuk ulang dengan email dan password untuk membuat PIN baru.');
-        await signOut(auth).catch(error => console.warn('Sign-out before PIN recovery failed:', error));
-        return;
-    }
-    explicitFirebaseLoginPending = false;
     authReady = true;
     document.getElementById('screen-pending').classList.add('hidden');
     document.getElementById('screen-auth').classList.add('hidden');
-    updatePinScreens();
+    renderLastSyncInfo();
+    await unlockApp();
 }
 
 function authErrorMessage(error) {
@@ -1038,14 +987,12 @@ async function authLogin(e) {
     const button = document.getElementById('btn-auth-login');
     if (!email || !password) { setAuthError('Masukkan email dan password.'); return; }
     setAuthError('');
-    explicitFirebaseLoginPending = true;
     if (button) { button.disabled = true; button.textContent = 'Memeriksa akun...'; }
     try {
         await signInWithEmailAndPassword(auth, email, password);
         if (passwordEl) passwordEl.value = '';
     } catch (error) {
-        explicitFirebaseLoginPending = false;
-        console.warn('Firebase Authentication login failed:', error);
+            console.warn('Firebase Authentication login failed:', error);
         setAuthError(authErrorMessage(error));
     } finally {
         if (button) { button.disabled = false; button.textContent = 'Masuk'; }
@@ -1064,15 +1011,13 @@ async function authCreateAccount() {
     if (!email || !password) { setAuthError('Isi email dan password untuk membuat akun.'); return; }
     if (password.length < 8) { setAuthError('Password akun baru minimal 8 karakter.'); return; }
     setAuthError('');
-    explicitFirebaseLoginPending = true;
     if (button) { button.disabled = true; button.textContent = 'Membuat akun...'; }
     try {
         await createUserWithEmailAndPassword(auth, email, password);
         if (passwordEl) passwordEl.value = '';
         showToast('Akun berhasil dibuat. Permintaan akses menunggu persetujuan pengelola.');
     } catch (error) {
-        explicitFirebaseLoginPending = false;
-        console.warn('Firebase account creation failed:', error);
+            console.warn('Firebase account creation failed:', error);
         setAuthError(authErrorMessage(error));
     } finally {
         if (button) { button.disabled = false; button.textContent = 'Buat Akun Baru'; }
@@ -1090,16 +1035,21 @@ async function handleAuthStateChanged(user) {
         return;
     }
     if (!user) {
+        clearIdleLockTimer();
         currentAuthUser = null; dbRef = null; authReady = false; appUnlocked = false;
-        explicitFirebaseLoginPending = false;
         stopFirebaseListener(); clearSensitiveInMemoryData(); hideProtectedScreens();
         closeModal('modal-access-admin');
         document.getElementById('screen-auth').classList.remove('hidden');
+        setAuthError('');
+        const notice = pendingLogoutNotice;
+        pendingLogoutNotice = '';
+        if (notice) setAuthFeedback(notice);
         return;
     }
 
     currentAuthUser = user;
     appUnlocked = false;
+    clearIdleLockTimer();
     stopFirebaseListener();
     clearSensitiveInMemoryData();
     hideProtectedScreens();
@@ -1123,8 +1073,7 @@ async function handleAuthStateChanged(user) {
 
         if (access.status === 'rejected') {
             showAccessPendingScreen(user, 'rejected');
-            explicitFirebaseLoginPending = false;
-            return;
+                    return;
         }
 
         const requestRef = ref(db, `accessRequests/${user.uid}`);
@@ -1144,16 +1093,14 @@ async function handleAuthStateChanged(user) {
         } else {
             showAccessPendingScreen(user, 'pending');
         }
-        explicitFirebaseLoginPending = false;
-    } catch (error) {
+        } catch (error) {
         console.error('Approval status check failed; data access remains blocked:', error);
         showAccessPendingScreen(
             user,
             'error',
             'Status persetujuan belum dapat diperiksa. Akses data tetap terkunci. Pastikan pengelola sudah menerbitkan Security Rules versi persetujuan akun, lalu coba lagi.'
         );
-        explicitFirebaseLoginPending = false;
-    }
+        }
 }
 
 async function checkMyApprovalStatus() {
@@ -1168,9 +1115,7 @@ async function checkMyApprovalStatus() {
     const button = document.getElementById('btn-check-approval');
     if (button) { button.disabled = true; button.textContent = 'Memeriksa...'; }
     try {
-        // This explicit user action also permits PIN setup on the device just approved.
-        explicitFirebaseLoginPending = true;
-        await handleAuthStateChanged(user);
+            await handleAuthStateChanged(user);
     } finally {
         approvalStatusCheckInProgress = false;
         if (button && !document.getElementById('screen-pending').classList.contains('hidden')) {
@@ -1212,7 +1157,7 @@ async function openAccessAdmin() {
         return;
     }
     if (!isAppUnlocked()) {
-        showToast('Buka aplikasi dengan PIN sebelum mengelola persetujuan akun.');
+        showToast('Masuk dengan email dan password sebelum mengelola persetujuan akun.');
         return;
     }
     closeModal('modal-settings');
@@ -1325,7 +1270,7 @@ function mergeLocalChanges(remoteValue, baseline, desired) {
 }
 
 async function saveData({ replaceAll = false } = {}) {
-    if (!isAppUnlocked()) throw new Error('Login Firebase, PIN aplikasi, dan pemuatan data diperlukan sebelum menyimpan.');
+    if (!isAppUnlocked()) throw new Error('Login Email/Password, persetujuan akun, dan pemuatan data diperlukan sebelum menyimpan.');
 
     const candidate = cloneData(data);
     const baseline = cloneData(lastStableData || { transactions: [], needs: [] });
@@ -1401,11 +1346,7 @@ function setupFirebaseListener() {
                 firstSnapshotHandled = true;
                 reject(error);
             } else {
-                appUnlocked = false;
-                document.getElementById('app-content').classList.add('hidden');
-                if (isTenantAuthenticated()) document.getElementById('screen-login').classList.remove('hidden');
-                else document.getElementById('screen-auth').classList.remove('hidden');
-                showToast('Akses database terputus. Catatan dikunci untuk melindungi data.');
+                void logoutFirebaseAccount('connection');
             }
         });
     });
@@ -1421,73 +1362,16 @@ function stopFirebaseListener() {
     firebaseInitialLoadPromise = null;
 }
 
-function updatePinScreens() {
+async function unlockApp() {
     if (!isTenantAuthenticated()) {
+        appUnlocked = false;
         hideProtectedScreens();
         document.getElementById('screen-auth').classList.remove('hidden');
         return;
     }
-    document.getElementById('screen-auth').classList.add('hidden');
-    const stored = localStorage.getItem(pinStorageKey());
-    document.getElementById('screen-setup').classList.toggle('hidden', !!stored);
-    document.getElementById('screen-login').classList.toggle('hidden', !stored);
-    document.getElementById('app-content').classList.add('hidden');
-}
-
-async function savePin(e) {
-    e.preventDefault();
-    if (!isTenantAuthenticated()) { updatePinScreens(); return; }
-    const input = document.getElementById('setup-pin');
-    const pin = input.value.trim();
-    if (!/^\d{6}$/.test(pin)) { showToast('PIN harus 6 digit angka.'); return; }
-    try {
-        const verifier = await hashPin(pin);
-        localStorage.setItem(pinStorageKey(), verifier);
-        input.value = '';
-        unlockApp();
-        showToast('PIN berhasil dibuat.');
-    } catch (error) {
-        console.error('PIN setup failed:', error);
-        showToast('PIN tidak dapat disimpan. Pastikan aplikasi dibuka melalui HTTPS dan browser mendukung Web Crypto.');
-    }
-}
-
-async function login(e) {
-    e.preventDefault();
-    if (!isTenantAuthenticated()) { updatePinScreens(); return; }
-    const input = document.getElementById('login-pin');
-    const pin = input.value.trim();
-    const stored = localStorage.getItem(pinStorageKey());
-    const error = document.getElementById('login-error');
-    if (!stored) { updatePinScreens(); return; }
-
-    let ok = false;
-    try {
-        ok = await verifyPin(pin, stored);
-        // Upgrade older PIN records after successful verification, without blocking login
-        // if browser storage or Web Crypto prevents the migration.
-        if (ok && !stored.startsWith('pbkdf2-sha256$')) {
-            try {
-                localStorage.setItem(pinStorageKey(), await hashPin(pin));
-            } catch (migrationError) {
-                console.warn('Legacy PIN verifier migration skipped:', migrationError);
-            }
-        }
-    } catch (verificationError) {
-        console.error('PIN verification failed:', verificationError);
-        input.value = '';
-        showToast('Verifikasi PIN gagal karena fitur keamanan browser tidak tersedia. Buka aplikasi melalui HTTPS.');
-        return;
-    }
-
-    if (ok) { error.classList.add('hidden'); input.value = ''; unlockApp(); }
-    else { error.classList.remove('hidden'); input.value = ''; input.focus(); }
-}
-
-
-async function unlockApp() {
-    if (!isTenantAuthenticated()) { updatePinScreens(); return; }
-    appUnlocked = false; firebaseDataReady = false;
+    appUnlocked = false;
+    clearIdleLockTimer();
+    firebaseDataReady = false;
     hideProtectedScreens();
     document.getElementById('screen-auth').classList.add('hidden');
     document.getElementById('screen-data-loading').classList.remove('hidden');
@@ -1496,54 +1380,62 @@ async function unlockApp() {
         if (!isTenantAuthenticated() || !firebaseDataReady) throw new Error('DATA_NOT_READY');
         appUnlocked = true;
         document.getElementById('screen-data-loading').classList.add('hidden');
-        document.getElementById('screen-setup').classList.add('hidden');
-        document.getElementById('screen-login').classList.add('hidden');
         document.getElementById('app-content').classList.remove('hidden');
+        renderLastSyncInfo();
         renderApp();
         startAccessRequestNotifications();
+        scheduleIdleLock();
     } catch (error) {
         console.error('Initial Firebase data load failed:', error);
-        appUnlocked = false; stopFirebaseListener();
+        appUnlocked = false;
+        stopFirebaseListener();
+        clearIdleLockTimer();
         document.getElementById('screen-data-loading').classList.add('hidden');
-        if (isTenantAuthenticated()) document.getElementById('screen-login').classList.remove('hidden');
-        else document.getElementById('screen-auth').classList.remove('hidden');
-        showToast('Data Firebase tidak bisa dimuat. Periksa koneksi, akun, dan Security Rules.');
+        clearSensitiveInMemoryData();
+        pendingLogoutNotice = 'Data tidak dapat dimuat dari Firebase. Periksa koneksi internet dan coba masuk kembali.';
+        try {
+            if (auth.currentUser) await signOut(auth);
+        } catch (signOutError) {
+            console.warn('Sign-out after initial data failure failed:', signOutError);
+        }
+        document.getElementById('screen-auth').classList.remove('hidden');
+        setAuthError('');
+        setAuthFeedback(pendingLogoutNotice || 'Data Firebase tidak bisa dimuat. Periksa koneksi dan coba lagi.');
+        pendingLogoutNotice = '';
     }
 }
-
 function lockApp() {
+    return logoutFirebaseAccount('manual');
+}
+async function logoutFirebaseAccount(reason = 'manual') {
     if (saveInProgress) {
-        showToast('Penyimpanan masih berlangsung. Tunggu sampai selesai sebelum mengunci aplikasi.');
+        showToast('Penyimpanan masih berlangsung. Tunggu sampai selesai sebelum keluar.');
+        scheduleIdleLock(60 * 1000);
         return;
     }
+    clearIdleLockTimer();
     appUnlocked = false;
     stopFirebaseListener();
     stopAccessRequestNotifications();
     clearSensitiveInMemoryData();
     document.getElementById('app-content').classList.add('hidden');
     document.getElementById('screen-data-loading').classList.add('hidden');
-    if (isTenantAuthenticated()) document.getElementById('screen-login').classList.remove('hidden');
-    else document.getElementById('screen-auth').classList.remove('hidden');
-    document.getElementById('login-error').classList.add('hidden');
-}
-
-async function logoutFirebaseAccount() {
-    if (saveInProgress) {
-        showToast('Penyimpanan masih berlangsung. Tunggu sampai selesai sebelum keluar.');
-        return;
-    }
-    appUnlocked = false;
-    stopFirebaseListener();
-    stopAccessRequestNotifications();
-    clearSensitiveInMemoryData();
-    document.getElementById('app-content').classList.add('hidden');
     closeModal('modal-settings');
+
+    pendingLogoutNotice = reason === 'idle'
+        ? 'Sesi berakhir otomatis setelah 15 menit tanpa aktivitas. Masuk kembali menggunakan email dan password.'
+        : reason === 'connection'
+            ? 'Sesi dihentikan karena koneksi atau akses database terputus. Periksa koneksi dan masuk kembali.'
+            : '';
+
     try {
         await signOut(auth);
+        if (reason === 'manual') showToast('Anda telah keluar dari akun.');
     } catch (error) {
+        pendingLogoutNotice = '';
         console.error('Firebase sign-out failed:', error);
-        showToast('Tidak dapat keluar dari akun. Aplikasi tetap terkunci; silakan buka kembali dengan PIN.');
-        if (isTenantAuthenticated()) document.getElementById('screen-login').classList.remove('hidden');
+        document.getElementById('screen-auth').classList.remove('hidden');
+        setAuthError('Sesi tidak dapat diakhiri secara normal. Periksa koneksi, lalu coba keluar kembali.');
     }
 }
 
@@ -2306,15 +2198,19 @@ function renderApp(){ if(!isAppUnlocked()) return; const c=document.getElementBy
 function initApp(){
     const dateEl=document.getElementById('current-date');
     if(dateEl) dateEl.textContent=new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-    
+
+    clearLegacyPinStorage();
     document.getElementById('screen-auth').classList.remove('hidden');
     hideProtectedScreens();
+    ['pointerdown','keydown','touchstart','scroll'].forEach(eventName => {
+        window.addEventListener(eventName, recordUserActivity, { passive: true });
+    });
     onAuthStateChanged(auth, user => { void handleAuthStateChanged(user); });
 }
 
 window.openSettings=openSettings; window.openUserProfile=openUserProfile; window.saveUserProfile=saveUserProfile; window.sendPasswordResetFromSettings=sendPasswordResetFromSettings; window.sendPasswordResetFromLogin=sendPasswordResetFromLogin; window.openPasswordResetConfirmation=openPasswordResetConfirmation; window.cancelPasswordResetConfirmation=cancelPasswordResetConfirmation; window.handlePasswordResetOk=handlePasswordResetOk; window.openAdminUsers=openAdminUsers; window.refreshManagedUsers=refreshManagedUsers; window.filterManagedUsers=filterManagedUsers; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
 window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
-window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.savePin=savePin; window.login=login; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
+window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
 document.addEventListener('DOMContentLoaded', initApp);
 </script>
