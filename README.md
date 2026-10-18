@@ -11,6 +11,18 @@ Aplikasi pencatatan utang-piutang, pembayaran/cicilan, tagihan, laporan, serta b
 - Login dan akses data menggunakan Firebase Authentication Email/Password; tidak ada PIN lokal. Pengguna diminta login kembali jika keluar atau sesi berakhir otomatis setelah 15 menit tanpa aktivitas.
 - Data Catatan-Ayah tidak dimigrasikan atau dihapus otomatis. Untuk membawa data lama, buat backup dari aplikasi asal lalu pulihkan secara sadar di akun Catatan Utang yang dituju. Field lampiran lama diabaikan.
 
+## Fitur akun dan data pada rilis saat ini
+
+- **Login:** Firebase Authentication Email/Password. Tidak menggunakan PIN lokal. Sesi berakhir otomatis setelah 15 menit tanpa aktivitas; pada pembaruan dari versi lama, browser yang masih menyimpan sesi sebelumnya akan meminta login Email/Password sekali.
+- **Persetujuan pengguna:** akun pelanggan harus disetujui Admin sebelum dapat membuka ruang data.
+- **Sinkronisasi:** data transaksi dan tagihan tersimpan di Firebase Realtime Database dan diperbarui real-time antarperangkat saat online. Perubahan transaksi secara offline belum didukung.
+- **Status sinkronisasi:** aplikasi menampilkan status simpan/koneksi dan waktu sinkronisasi terakhir yang berhasil pada perangkat tersebut.
+- **Pengingat:** pengingat jatuh tempo muncul di dalam aplikasi saat ada item yang jatuh tempo atau mendekati tenggat. Pengingat backup disimpan per perangkat/browser. Notifikasi push saat aplikasi tertutup belum disiapkan.
+- **Backup/restore:** backup JSON membawa checksum SHA-256 untuk pemeriksaan integritas. Buat backup berkala dan simpan di lokasi aman.
+- **Laporan:** laporan ringkasan bulanan/tahunan dapat diekspor ke CSV.
+- **Kuitansi:** kuitansi pembayaran dapat dicetak atau disimpan sebagai PDF dari dialog print browser; kuitansi bukan bukti transfer bank.
+- **Riwayat aktivitas:** hingga 500 aktivitas terbaru disimpan dan ikut tersinkron. Karena penulisannya dilakukan dari aplikasi/browser, ini adalah jejak bantu penelusuran, bukan log audit yang anti-manipulasi.
+
 ## Siapkan Firebase untuk Catatan Utang
 
 **Gunakan Firebase project baru khusus Catatan Utang. Jangan deploy aturan dari branch ini ke project produksi `catatan-ayah`** karena aplikasi asal masih memakai project tersebut.
