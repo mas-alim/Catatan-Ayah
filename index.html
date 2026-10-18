@@ -1759,7 +1759,6 @@ async function saveUserProfile(event) {
             email: String(user.email || ''),
             updatedAt: Date.now()
         });
-        currentAuthUser = { ...currentAuthUser, displayName };
         showToast('Profil pengguna berhasil diperbarui.');
         closeModal('modal-user-profile');
     } catch (error) {
