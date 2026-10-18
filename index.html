@@ -1108,6 +1108,10 @@ async function authCreateAccount() {
     }
 }
 
+function emailPasswordMigrationKey(uid) {
+    return uid ? 'catatanUtangEmailPasswordMigrationV1:' + uid : '';
+}
+
 async function handleAuthStateChanged(user) {
     stopAccessRequestNotifications();
     if (user && !explicitEmailPasswordLoginInProgress && isIdleSessionExpired(user.uid)) {
@@ -1119,6 +1123,37 @@ async function handleAuthStateChanged(user) {
             console.warn('Expired Firebase session sign-out failed:', error);
         }
         return;
+    }
+
+    if (user) {
+        const migrationKey = emailPasswordMigrationKey(user.uid);
+        let migrationStorageAvailable = true;
+        let migrationDone = false;
+        try {
+            migrationDone = localStorage.getItem(migrationKey) === 'done';
+        } catch (error) {
+            migrationStorageAvailable = false;
+            console.warn('Email/password migration state could not be read:', error);
+        }
+
+        if (explicitEmailPasswordLoginInProgress) {
+            try { localStorage.setItem(migrationKey, 'done'); }
+            catch (error) { console.warn('Email/password migration state could not be saved:', error); }
+        } else if (migrationStorageAvailable && !migrationDone) {
+            try {
+                localStorage.setItem(migrationKey, 'done');
+                pendingLogoutNotice = 'Pembaruan keamanan selesai. Masuk kembali dengan email dan password untuk melanjutkan.';
+                clearIdleLockTimer();
+                await signOut(auth);
+                return;
+            } catch (error) {
+                pendingLogoutNotice = '';
+                console.warn('Existing Firebase session migration sign-out failed:', error);
+                document.getElementById('screen-auth').classList.remove('hidden');
+                setAuthFeedback('Pembaruan keamanan memerlukan login ulang. Silakan masuk dengan email dan password.');
+                return;
+            }
+        }
     }
     explicitEmailPasswordLoginInProgress = false;
     if (user && (!isFirebaseConfigured() || !db)) {
