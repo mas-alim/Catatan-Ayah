@@ -230,7 +230,7 @@
 </head>
 <body class="text-gray-800 font-sans selection:bg-green-200">
 <div class="app-wrapper">
-    <!-- FIREBASE AUTH LOGIN: SERVER-SIDE IDENTITY BEFORE LOCAL PIN -->
+    <!-- FIREBASE AUTH LOGIN: EMAIL/PASSWORD IDENTITY -->
     <div id="screen-auth" class="fixed inset-0 bg-green-700 z-[120] flex flex-col justify-center items-center px-4 hidden safe-top safe-bottom">
         <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-sm text-center slide-up">
             <div class="w-16 h-16 bg-green-100 text-green-700 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1927,7 +1927,7 @@ async function openAdminUsers() {
         return;
     }
     if (!isAppUnlocked()) {
-        showToast('Buka aplikasi dengan PIN sebelum mengelola pengguna.');
+        showToast('Masuk dengan email dan password sebelum mengelola pengguna.');
         return;
     }
     closeModal('modal-settings');
