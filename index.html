@@ -32,6 +32,57 @@
         .app-wrapper { max-width:520px; margin:0 auto; background:#f9fafb; min-height:100vh; min-height:100dvh; position:relative; box-shadow:0 0 20px rgba(0,0,0,.08); display:flex; flex-direction:column; }
         .safe-bottom { padding-bottom:calc(1rem + env(safe-area-inset-bottom,0px)); }
         .safe-top { padding-top:env(safe-area-inset-top,0px); }
+
+        /* Admin sheets: reserve the viewport, keep titles visible, and scroll long lists internally. */
+        .admin-scroll-modal {
+            box-sizing: border-box;
+            align-items: stretch;
+            justify-content: flex-end;
+            overflow: hidden;
+            padding: env(safe-area-inset-top, 0px) 0 0;
+        }
+        .admin-scroll-panel {
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            flex: 0 1 auto;
+            width: 100%;
+            height: 92vh;
+            height: 92dvh;
+            max-height: calc(100vh - env(safe-area-inset-top, 0px) - 8px);
+            max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px);
+            min-height: 0;
+            overflow: hidden;
+            border-radius: 1.5rem 1.5rem 0 0;
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+        }
+        #access-requests-list, #managed-users-list {
+            min-height: 0;
+            flex: 1 1 auto;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: .5rem;
+        }
+        #modal-admin-users #managed-users-list,
+        #modal-access-admin #access-requests-list {
+            width: 100%;
+        }
+        @media (min-width: 640px) {
+            .admin-scroll-modal {
+                align-items: center;
+                justify-content: center;
+                padding: 24px;
+            }
+            .admin-scroll-panel {
+                width: min(680px, 96vw);
+                height: min(86vh, 800px);
+                height: min(86dvh, 800px);
+                max-height: calc(100dvh - 48px);
+                border-radius: 1.5rem;
+                padding-bottom: 1.25rem;
+            }
+        }
         .app-content-scroll { padding-bottom:7rem; }
         .disabled { pointer-events:none; opacity:.6; }
         /* Bottom navigation: FAB berada di slot tengah antara Transaksi dan Tagihan. */
@@ -332,9 +383,9 @@
     </div>
 
     <!-- ADMIN MANAGE CUSTOMERS MODAL -->
-    <div id="modal-admin-users" class="fixed inset-0 bg-black/60 z-[106] hidden flex-col justify-end backdrop-blur-sm">
-        <div class="bg-white rounded-t-3xl w-full max-h-[92vh] overflow-y-auto p-5 slide-up safe-bottom">
-            <div class="flex justify-between items-center mb-3">
+    <div id="modal-admin-users" class="admin-scroll-modal fixed inset-0 bg-black/60 z-[106] hidden flex-col justify-end backdrop-blur-sm">
+        <div class="admin-scroll-panel bg-white rounded-t-3xl w-full max-h-[92vh] p-5 slide-up safe-bottom">
+            <div class="flex justify-between items-center mb-3 flex-shrink-0">
                 <div><p class="text-[10px] uppercase tracking-widest text-indigo-700 font-black">Pengelola</p><h2 class="text-lg font-bold text-gray-800">Kelola Pengguna</h2></div>
                 <button onclick="closeModal('modal-admin-users')" class="p-2 text-gray-500 rounded-full bg-gray-100" aria-label="Tutup daftar pengguna"><i class="ph ph-x text-lg"></i></button>
             </div>
@@ -346,9 +397,9 @@
     </div>
 
     <!-- ADMIN ACCESS-APPROVAL MODAL -->
-    <div id="modal-access-admin" class="fixed inset-0 bg-black/60 z-[105] hidden flex-col justify-end backdrop-blur-sm">
-        <div class="bg-white rounded-t-3xl w-full max-h-[92vh] overflow-y-auto p-5 slide-up safe-bottom">
-            <div class="flex justify-between items-center mb-3">
+    <div id="modal-access-admin" class="admin-scroll-modal fixed inset-0 bg-black/60 z-[105] hidden flex-col justify-end backdrop-blur-sm">
+        <div class="admin-scroll-panel bg-white rounded-t-3xl w-full max-h-[92vh] p-5 slide-up safe-bottom">
+            <div class="flex justify-between items-center mb-3 flex-shrink-0">
                 <div><p class="text-[10px] uppercase tracking-widest text-amber-700 font-black">Pengelola</p><h2 class="text-lg font-bold text-gray-800">Persetujuan Akun</h2></div>
                 <button onclick="closeModal('modal-access-admin')" class="p-2 text-gray-500 rounded-full bg-gray-100"><i class="ph ph-x text-lg"></i></button>
             </div>
