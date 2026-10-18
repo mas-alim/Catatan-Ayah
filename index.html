@@ -35,13 +35,23 @@
 
         /* Admin sheets: reserve the viewport, keep titles visible, and scroll long lists internally. */
         .admin-scroll-modal {
+            /* Explicit layer styles: these must not depend on Tailwind arbitrary classes. */
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 10000 !important;
+            display: flex;
             box-sizing: border-box;
             align-items: stretch;
             justify-content: flex-end;
             overflow: hidden;
+            background: rgba(15, 23, 42, .62) !important;
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
             padding: env(safe-area-inset-top, 0px) 0 0;
         }
         .admin-scroll-panel {
+            position: relative;
+            z-index: 1;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -53,7 +63,11 @@
             max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px);
             min-height: 0;
             overflow: hidden;
+            background: #fff !important;
+            color: #1f2937;
+            border: 1px solid rgba(226, 232, 240, .98);
             border-radius: 1.5rem 1.5rem 0 0;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
             padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
         }
         #access-requests-list, #managed-users-list {
