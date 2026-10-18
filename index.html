@@ -406,6 +406,7 @@
                 <button id="btn-admin-approvals" onclick="openAccessAdmin()" class="hidden w-full flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center"><i class="ph-bold ph-user-check text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Persetujuan Akun</p><p class="text-[11px] text-gray-500">Tinjau, setujui, atau tolak permintaan akses.</p></div><span id="access-pending-count" class="ml-auto rounded-full bg-amber-200 px-2 py-1 text-[10px] font-black text-amber-900">0</span></button>
                 <button id="btn-admin-users" onclick="openAdminUsers()" class="hidden w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center"><i class="ph-bold ph-users-three text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Kelola Pengguna</p><p class="text-[11px] text-gray-500">Lihat daftar pelanggan, email, dan status akun.</p></div><i class="ph-bold ph-caret-right text-gray-400 ml-auto"></i></button>
                 <button onclick="downloadBackup()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-download-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Backup Data</p><p class="text-[11px] text-gray-500">Simpan transaksi dan tagihan ke file JSON.</p></div></button>
+                <p id="backup-reminder-info" class="text-[10px] text-gray-500 px-1" aria-live="polite">Memeriksa jadwal backup...</p>
                 <button onclick="document.getElementById('restore-file').click()" class="w-full flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-2xl text-left active:scale-[.99] transition"><div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center"><i class="ph-bold ph-upload-simple text-lg"></i></div><div class="min-w-0"><p class="font-bold text-sm text-gray-800">Restore Data</p><p class="text-[11px] text-gray-500">Impor backup JSON dan mengganti data saat ini.</p></div></button>
                 <input id="restore-file" type="file" accept="application/json,.json" class="hidden" onchange="restoreBackup(event)">
                 <button onclick="logoutFirebaseAccount()" class="w-full flex items-center justify-center gap-2 p-3.5 bg-red-50 text-red-700 border border-red-100 rounded-2xl font-bold text-sm active:scale-[.99] transition"><i class="ph-bold ph-sign-out"></i> Keluar dari Akun</button>
@@ -1373,7 +1374,10 @@ function setupFirebaseListener() {
                 firstSnapshotHandled = true;
                 resolve(true);
             }
-            if (dataChanged && isAppUnlocked()) scheduleRemoteRender();
+            if (dataChanged && isAppUnlocked()) {
+                scheduleRemoteRender();
+                maybeShowDueDateReminder();
+            }
         }, error => {
             console.warn('Firebase listener error', error);
             firebaseListening = false;
@@ -1425,6 +1429,7 @@ async function unlockApp() {
         renderApp();
         startAccessRequestNotifications();
         recordUserActivity();
+        maybeShowDueDateReminder();
     } catch (error) {
         console.error('Initial Firebase data load failed:', error);
         appUnlocked = false;
@@ -2063,11 +2068,52 @@ function openSettings() {
     if (adminUsers) adminUsers.classList.toggle('hidden', !admin);
     if (userProfile) userProfile.classList.toggle('hidden', admin);
     if (userReset) userReset.classList.toggle('hidden', admin);
+    renderBackupReminderInfo();
+    renderLastSyncInfo();
     openModal('modal-settings');
 }
 const MAX_BACKUP_FILE_BYTES = 100 * 1024 * 1024;
 const MAX_BACKUP_RECORDS = 50000;
 const MAX_BACKUP_AMOUNT = 1e15;
+const BACKUP_REMINDER_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function backupTimestampStorageKey(uid = currentAuthUser?.uid) {
+    return uid ? `catatanUtangLastBackup:${uid}` : '';
+}
+
+function renderBackupReminderInfo() {
+    const el = document.getElementById('backup-reminder-info');
+    if (!el) return;
+    let timestamp = 0;
+    try {
+        const key = backupTimestampStorageKey();
+        timestamp = key ? Number(localStorage.getItem(key) || 0) : 0;
+    } catch (error) {
+        console.warn('Backup reminder metadata is unavailable:', error);
+    }
+    if (!timestamp || !Number.isFinite(timestamp)) {
+        el.textContent = 'Belum ada backup tercatat di perangkat ini. Disarankan membuat backup secara berkala.';
+        el.style.color = '#b45309';
+        return;
+    }
+    const when = new Date(timestamp).toLocaleString('id-ID');
+    if (Date.now() - timestamp >= BACKUP_REMINDER_INTERVAL_MS) {
+        el.textContent = `Backup terakhir: ${when}. Sudah 7 hari atau lebih—disarankan membuat backup baru.`;
+        el.style.color = '#b45309';
+    } else {
+        el.textContent = `Backup terakhir: ${when}.`;
+        el.style.color = '#6b7280';
+    }
+}
+
+function recordBackupCreated() {
+    const key = backupTimestampStorageKey();
+    if (key) {
+        try { localStorage.setItem(key, String(Date.now())); }
+        catch (error) { console.warn('Backup reminder metadata could not be stored:', error); }
+    }
+    renderBackupReminderInfo();
+}
 
 async function sha256Hex(value) {
     if (!globalThis.crypto?.subtle) throw new Error('CRYPTO_UNAVAILABLE');
@@ -2150,6 +2196,7 @@ async function downloadBackup() {
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1500);
+        recordBackupCreated();
         showToast(`Backup berhasil dibuat: ${backupData.transactions.length} transaksi, ${backupData.needs.length} tagihan.`);
     } catch (err) {
         console.error(err);
@@ -2224,6 +2271,27 @@ async function restoreBackup(e) {
         }
     }
 }
+function maybeShowDueDateReminder() {
+    if (!isAppUnlocked() || !currentAuthUser?.uid) return;
+    const dueTransactions = data.transactions.filter(tx =>
+        getTxRemaining(tx) > 0 && tx.dueDate && daysDiff(tx.dueDate) <= 3
+    ).length;
+    const dueNeeds = data.needs.filter(need =>
+        need.status !== 'Lunas' && need.dueDate && daysDiff(need.dueDate) <= 3
+    ).length;
+    const total = dueTransactions + dueNeeds;
+    if (!total) return;
+
+    const key = `catatanUtangDueReminder:${currentAuthUser.uid}:${todayStr()}`;
+    try {
+        if (localStorage.getItem(key) === 'shown') return;
+        localStorage.setItem(key, 'shown');
+    } catch (error) {
+        console.warn('Due reminder metadata is unavailable:', error);
+    }
+    showToast(`Pengingat jatuh tempo: ada ${total} utang/piutang atau tagihan yang jatuh tempo maupun perlu diperhatikan dalam 3 hari.`);
+}
+
 function scheduleRemoteRender() {
     if (remoteRenderScheduled) return;
     remoteRenderScheduled = true;
