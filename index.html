@@ -568,6 +568,8 @@ let txFilter = 'semua';
 let txStatus = 'semua';
 let txSearch = '';
 let reportSearch = '';
+let reportPeriodMode = 'month';
+let reportPeriodValue = monthKey(todayStr());
 let reportSearchRenderTimer = null;
 let data = { transactions: [], needs: [] };
 let deleteTarget = null;
@@ -2063,6 +2065,108 @@ function buildReportTypeCard(type,totals){
     const debt=type==='hutang';
     return `<div class="report-type-card ${debt?'debt':'credit'}"><div class="report-type-title"><i class="ph-bold ${debt?'ph-arrow-down-left':'ph-arrow-up-right'}"></i><span>${debt?'Utang Saya':'Piutang Saya'}</span></div><div class="report-type-metrics"><div><div class="report-type-metric-label">Nominal awal</div><div class="report-type-metric-value">${formatRupiah(totals.principal)}</div></div><div><div class="report-type-metric-label">Sudah dibayar</div><div class="report-type-metric-value">${formatRupiah(totals.paid)}</div></div><div><div class="report-type-metric-label">Sisa ${debt?'utang':'piutang'}</div><div class="report-type-metric-value" style="color:${debt?'#b91c1c':'#15803d'}">${formatRupiah(totals.remaining)}</div></div><div><div class="report-type-metric-label">Aktif / lunas</div><div class="report-type-metric-value">${totals.open} / ${totals.settled}</div><div class="report-kpi-note">${totals.count} transaksi</div></div></div></div>`;
 }
+function setReportPeriodMode(mode) {
+    reportPeriodMode = mode === 'year' ? 'year' : 'month';
+    reportPeriodValue = reportPeriodMode === 'month' ? monthKey(todayStr()) : String(new Date().getFullYear());
+    renderApp();
+}
+
+function setReportPeriodValue(value) {
+    const clean = String(value || '').trim();
+    if (reportPeriodMode === 'month') {
+        if (!/^\d{4}-\d{2}$/.test(clean)) return;
+        const month = Number(clean.slice(5, 7));
+        if (month < 1 || month > 12) return;
+        reportPeriodValue = clean;
+    } else {
+        if (!/^\d{4}$/.test(clean)) return;
+        reportPeriodValue = clean;
+    }
+    renderApp();
+}
+
+function getReportPeriodSummary() {
+    let incoming = 0, outgoing = 0, transactionCount = 0, paymentCount = 0;
+    const matchesPeriod = dateValue => {
+        const value = String(dateValue || '').slice(0, reportPeriodMode === 'month' ? 7 : 4);
+        return value && value === reportPeriodValue;
+    };
+    data.transactions.forEach(tx => {
+        if (matchesPeriod(tx.txDate || tx.createdAt)) {
+            transactionCount++;
+            if (tx.type === 'hutang') incoming += Number(tx.amount || 0);
+            else outgoing += Number(tx.amount || 0);
+        }
+        (tx.payments || []).forEach(payment => {
+            if (!matchesPeriod(payment.date)) return;
+            paymentCount++;
+            if (tx.type === 'hutang') outgoing += Number(payment.amount || 0);
+            else incoming += Number(payment.amount || 0);
+        });
+    });
+    return { incoming, outgoing, net: incoming - outgoing, transactionCount, paymentCount };
+}
+
+function buildReportPeriodSummary() {
+    const summary = getReportPeriodSummary();
+    const label = reportPeriodMode === 'month' ? monthLabel(reportPeriodValue) : 'Tahun ' + reportPeriodValue;
+    const periodControl = reportPeriodMode === 'month'
+        ? `<input aria-label="Pilih bulan laporan" type="month" value="${escapeHtml(reportPeriodValue)}" onchange="setReportPeriodValue(this.value)" class="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white text-gray-800 min-w-0">`
+        : (() => {
+            const years = new Set([String(new Date().getFullYear()), reportPeriodValue]);
+            data.transactions.forEach(tx => {
+                const dateValue = String(tx.txDate || tx.createdAt || '').slice(0, 4);
+                if (/^\d{4}$/.test(dateValue)) years.add(dateValue);
+                (tx.payments || []).forEach(payment => {
+                    const paymentYear = String(payment.date || '').slice(0, 4);
+                    if (/^\d{4}$/.test(paymentYear)) years.add(paymentYear);
+                });
+            });
+            const options = [...years].sort((a,b) => Number(b) - Number(a)).map(year =>
+                `<option value="${escapeHtml(year)}" ${year === reportPeriodValue ? 'selected' : ''}>${escapeHtml(year)}</option>`
+            ).join('');
+            return `<select aria-label="Pilih tahun laporan" onchange="setReportPeriodValue(this.value)" class="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white text-gray-800">${options}</select>`;
+        })();
+    return `<section class="report-card">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div><h3 class="report-card-title">Ringkasan Periode</h3><p class="report-card-subtitle">Arus uang berdasarkan tanggal transaksi dan pembayaran.</p></div>
+            <div class="flex flex-wrap gap-2 items-center">
+                <select aria-label="Mode periode laporan" onchange="setReportPeriodMode(this.value)" class="border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white text-gray-800">
+                    <option value="month" ${reportPeriodMode === 'month' ? 'selected' : ''}>Bulanan</option>
+                    <option value="year" ${reportPeriodMode === 'year' ? 'selected' : ''}>Tahunan</option>
+                </select>
+                ${periodControl}
+            </div>
+        </div>
+        <p class="text-xs font-bold text-gray-600 mt-3">${escapeHtml(label)}</p>
+        <div class="grid grid-cols-2 gap-2 mt-3">
+            <div class="rounded-xl bg-green-50 border border-green-100 p-3"><p class="text-[10px] text-green-700 uppercase font-bold">Uang Masuk</p><p class="text-sm font-black text-gray-900 mt-1">${formatRupiah(summary.incoming)}</p></div>
+            <div class="rounded-xl bg-red-50 border border-red-100 p-3"><p class="text-[10px] text-red-700 uppercase font-bold">Uang Keluar</p><p class="text-sm font-black text-gray-900 mt-1">${formatRupiah(summary.outgoing)}</p></div>
+            <div class="rounded-xl bg-gray-50 border border-gray-200 p-3"><p class="text-[10px] text-gray-500 uppercase font-bold">Arus Bersih</p><p class="text-sm font-black ${summary.net >= 0 ? 'text-green-700' : 'text-red-700'} mt-1">${formatRupiah(summary.net)}</p></div>
+            <div class="rounded-xl bg-blue-50 border border-blue-100 p-3"><p class="text-[10px] text-blue-700 uppercase font-bold">Aktivitas</p><p class="text-sm font-black text-gray-900 mt-1">${summary.transactionCount} transaksi · ${summary.paymentCount} pembayaran</p></div>
+        </div>
+        <button onclick="downloadPeriodReportCsv()" class="mt-3 w-full rounded-xl border border-green-200 bg-green-50 text-green-700 text-sm font-bold py-2.5"><i class="ph-bold ph-download-simple"></i> Unduh Ringkasan Periode CSV</button>
+        <p class="text-[10px] text-gray-400 mt-2">Uang masuk/keluar dihitung dari transaksi pokok serta cicilan/pelunasan pada periode yang dipilih.</p>
+    </section>`;
+}
+
+function downloadPeriodReportCsv() {
+    if (!requireUnlockedApp()) return;
+    const summary = getReportPeriodSummary();
+    const label = reportPeriodMode === 'month' ? monthLabel(reportPeriodValue) : 'Tahun ' + reportPeriodValue;
+    const rows = [
+        ['Laporan Catatan Utang', label],
+        ['Uang Masuk (IDR)', summary.incoming],
+        ['Uang Keluar (IDR)', summary.outgoing],
+        ['Arus Bersih (IDR)', summary.net],
+        ['Jumlah Transaksi Pokok', summary.transactionCount],
+        ['Jumlah Pembayaran', summary.paymentCount],
+        ['Diekspor Pada', new Date().toLocaleString('id-ID')]
+    ];
+    downloadCsv('Ringkasan_Catatan_Utang_' + reportPeriodValue + '.csv', rows);
+    showToast('Ringkasan periode berhasil diunduh.');
+}
+
 function buildLaporan(){
     const hutang=getReportTotals('hutang'), piutang=getReportTotals('piutang');
     const maxRemaining=Math.max(hutang.remaining,piutang.remaining,1);
@@ -2080,9 +2184,11 @@ function buildLaporan(){
         const creditChip=g.piutang?`<span class="report-balance-chip credit">Piutang ${formatRupiah(g.piutang)}</span>`:'';
         return `<div class="report-contact"><div class="report-contact-top"><div style="min-width:0"><div class="report-contact-name">${escapeHtml(g.name)}</div><div class="report-contact-meta">${txLabel} · Terbayar ${formatRupiah(g.paid)}</div></div><div class="report-contact-balances">${debtChip}${creditChip}${(!g.hutang&&!g.piutang)?'<span class="report-balance-chip" style="background:#f3f4f6;color:#6b7280">Lunas</span>':''}</div></div><div class="report-contact-actions"><button class="report-contact-action" onclick="openDetailModalByContact(${jsArg(g.key)})"><i class="ph-bold ph-eye"></i> Detail</button><button class="report-contact-action primary" onclick="downloadContactCsv(${jsArg(g.key)})"><i class="ph-bold ph-download-simple"></i> Unduh detail CSV</button></div></div>`;
     }).join(''):`<div class="report-empty"><i class="ph ph-magnifying-glass" style="font-size:22px;display:block;margin-bottom:6px"></i>${reportSearch.trim()?'Kontak tidak ditemukan.':'Belum ada transaksi yang dapat dilaporkan.'}</div>`;
+    const periodSummaryHtml = buildReportPeriodSummary();
     const reportLoadMore=groups.length>visibleGroups.length?`<div class="text-center space-y-2 py-3"><button id="btn-load-more-report-contacts" onclick="loadMoreReportContacts()" class="w-full rounded-xl border border-green-200 bg-green-50 text-green-700 text-sm font-bold py-3 active:scale-[.99]">Muat ${Math.min(CONTACTS_RENDER_PAGE_SIZE,groups.length-visibleGroups.length)} kontak berikutnya</button></div>`:'';
     return `<div class="report-page">
         <div class="report-page-header"><div><h2 class="report-page-title">Laporan Utang-Piutang</h2><p class="report-page-subtitle">Rekap sisa saldo, pembayaran, dan detail setiap kontak.</p></div><div style="width:40px;height:40px;flex:0 0 40px;border-radius:13px;background:#dcfce7;color:#15803d;display:flex;align-items:center;justify-content:center"><i class="ph-fill ph-chart-bar" style="font-size:22px"></i></div></div>
+        ${periodSummaryHtml}
         <div class="report-summary-grid"><div class="report-kpi"><div class="report-kpi-label">Total sisa utang + piutang</div><div class="report-kpi-value">${formatRupiah(allRemaining)}</div><div class="report-kpi-note">Total saldo yang belum selesai</div></div><div class="report-kpi"><div class="report-kpi-label">Saldo bersih</div><div class="report-kpi-value" style="color:${net<0?'#b91c1c':'#15803d'}">${net<0?'- ':''}${formatRupiah(Math.abs(net))}</div><div class="report-kpi-note">Sisa piutang dikurangi sisa utang</div></div></div>
         <section class="report-card"><h3 class="report-card-title">Grafik Sisa Utang &amp; Piutang</h3><p class="report-card-subtitle">Perbandingan saldo yang masih belum lunas saat ini.</p><div class="report-bar-row"><div class="report-bar-heading"><span><i class="ph-fill ph-circle" style="color:#dc2626;margin-right:4px"></i>Sisa utang</span><strong>${formatRupiah(hutang.remaining)}</strong></div><div class="report-bar-track" role="img" aria-label="Sisa utang ${formatRupiah(hutang.remaining)}"><div class="report-bar-fill debt" style="width:${debtPct}%"></div></div></div><div class="report-bar-row"><div class="report-bar-heading"><span><i class="ph-fill ph-circle" style="color:#16a34a;margin-right:4px"></i>Sisa piutang</span><strong>${formatRupiah(piutang.remaining)}</strong></div><div class="report-bar-track" role="img" aria-label="Sisa piutang ${formatRupiah(piutang.remaining)}"><div class="report-bar-fill credit" style="width:${creditPct}%"></div></div></div><div class="report-chart-legend"><span><i class="report-legend-dot" style="background:#dc2626"></i>Utang yang harus dibayar</span><span><i class="report-legend-dot" style="background:#16a34a"></i>Piutang yang akan diterima</span></div></section>
         <section><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 9px"><h3 class="report-card-title">Rekap Utang &amp; Piutang</h3><span style="font-size:9px;color:#9ca3af">Semua tanggal</span></div><div class="report-type-grid">${buildReportTypeCard('hutang',hutang)}${buildReportTypeCard('piutang',piutang)}</div></section>
@@ -2588,7 +2694,7 @@ function initApp(){
 }
 
 window.openSettings=openSettings; window.openActivityHistory=openActivityHistory; window.openPaymentReceipt=openPaymentReceipt; window.printPaymentReceipt=printPaymentReceipt; window.openUserProfile=openUserProfile; window.saveUserProfile=saveUserProfile; window.sendPasswordResetFromSettings=sendPasswordResetFromSettings; window.sendPasswordResetFromLogin=sendPasswordResetFromLogin; window.openPasswordResetConfirmation=openPasswordResetConfirmation; window.cancelPasswordResetConfirmation=cancelPasswordResetConfirmation; window.handlePasswordResetOk=handlePasswordResetOk; window.openAdminUsers=openAdminUsers; window.refreshManagedUsers=refreshManagedUsers; window.filterManagedUsers=filterManagedUsers; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
-window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
+window.setReportPeriodMode=setReportPeriodMode; window.setReportPeriodValue=setReportPeriodValue; window.downloadPeriodReportCsv=downloadPeriodReportCsv; window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
 window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
 document.addEventListener('DOMContentLoaded', initApp);
