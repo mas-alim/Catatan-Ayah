@@ -250,34 +250,299 @@
         .report-contact-action.primary { border-color:#bbf7d0; background:#f0fdf4; color:#15803d; }
         .report-empty { border:1px dashed #d1d5db; border-radius:13px; padding:25px 15px; text-align:center; color:#9ca3af; font-size:12px; }
         @media (min-width:420px) { .report-type-metrics { grid-template-columns:1fr 1fr; } .report-contact-toolbar { flex-direction:row; } .report-export-all { width:auto; flex-shrink:0; } }
+    
+        /* Authentication UI inspired by the supplied rounded-card reference. */
+        .auth-page {
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 120 !important;
+            box-sizing: border-box;
+            display: grid;
+            place-items: center;
+            overflow-y: auto;
+            padding: 24px 14px calc(24px + env(safe-area-inset-bottom, 0px));
+            background: #e1e4e6 !important;
+            color: #111827;
+            -webkit-overflow-scrolling: touch;
+        }
+        .auth-page.hidden { display: none !important; }
+        .auth-page:not(.hidden) { display: grid !important; }
+        .auth-card {
+            box-sizing: border-box;
+            width: min(100%, 460px);
+            margin: auto;
+            padding: 30px 24px 26px;
+            border: 1px solid rgba(255,255,255,.9);
+            border-radius: 36px;
+            background: #f8f9fa;
+            box-shadow: 0 22px 60px rgba(15,23,42,.07);
+        }
+        .auth-view { width: 100%; }
+        .auth-brand {
+            display: grid;
+            place-items: center;
+            width: 54px;
+            height: 54px;
+            margin: 0 auto 17px;
+            border-radius: 50%;
+            background: #e6f7ef;
+            color: #27a976;
+            font-size: 27px;
+        }
+        .auth-back-button {
+            display: grid;
+            place-items: center;
+            width: 43px;
+            height: 43px;
+            margin: -4px 0 22px;
+            border: 0;
+            border-radius: 50%;
+            background: #fff;
+            color: #111827;
+            box-shadow: 0 5px 15px rgba(15,23,42,.07);
+            cursor: pointer;
+            font-size: 21px;
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+        .auth-back-button:active { transform: scale(.95); }
+        .auth-heading {
+            margin: 0;
+            color: #10141c;
+            text-align: center;
+            font-size: clamp(30px, 6vw, 38px);
+            line-height: 1.16;
+            font-weight: 850;
+            letter-spacing: -.035em;
+        }
+        .auth-description {
+            max-width: 360px;
+            margin: 12px auto 28px;
+            color: #656a70;
+            text-align: center;
+            font-size: 15px;
+            line-height: 1.55;
+        }
+        .auth-form { display: flex; flex-direction: column; gap: 14px; }
+        .auth-field {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            min-height: 62px;
+            padding: 0 17px 0 22px;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            background: #fff;
+            box-shadow: 0 6px 19px rgba(15,23,42,.025);
+            transition: border-color .16s ease, box-shadow .16s ease;
+        }
+        .auth-field:focus-within {
+            border-color: #8bd8b8;
+            box-shadow: 0 0 0 3px rgba(57,181,130,.12);
+        }
+        .auth-field-icon {
+            flex: 0 0 auto;
+            width: 22px;
+            margin-right: 16px;
+            color: #62676b;
+            font-size: 20px;
+        }
+        .auth-field input {
+            display: block;
+            min-width: 0;
+            width: 100%;
+            height: 60px;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: #171b21;
+            font-size: 15px;
+            box-shadow: none;
+        }
+        .auth-field input::placeholder { color: #66696d; opacity: 1; }
+        .auth-field input:focus { outline: none; box-shadow: none; }
+        .auth-password-toggle {
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+            width: 34px;
+            height: 38px;
+            margin-left: 8px;
+            border: 0;
+            background: transparent;
+            color: #909397;
+            cursor: pointer;
+            font-size: 21px;
+        }
+        .auth-sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        .auth-links-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 2px; margin: -1px 0 4px; }
+        .auth-security-note { display: inline-flex; align-items: center; gap: 5px; color: #777d80; font-size: 12px; }
+        .auth-security-note i { color: #35ad7b; font-size: 15px; }
+        .auth-text-link {
+            display: inline;
+            border: 0;
+            background: transparent;
+            color: #24a874;
+            font-size: 13px;
+            font-weight: 750;
+            text-align: inherit;
+            cursor: pointer;
+        }
+        .auth-text-link:hover { color: #168a5d; text-decoration: underline; }
+        .auth-primary-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            min-height: 61px;
+            padding: 14px 20px;
+            border: 0;
+            border-radius: 999px;
+            background: #39b482;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            box-shadow: 0 10px 20px rgba(34,164,113,.18);
+            cursor: pointer;
+            transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
+        }
+        .auth-primary-button:hover { background: #2aa975; box-shadow: 0 12px 24px rgba(34,164,113,.24); }
+        .auth-primary-button:active { transform: scale(.99); }
+        .auth-primary-button:disabled { cursor: wait; opacity: .65; transform: none; }
+        .auth-switch-copy { margin: 25px 0 0; color: #666a6e; text-align: center; font-size: 13px; line-height: 1.6; }
+        .auth-divider { height: 1px; margin: 30px 0 18px; background: #d4d7da; }
+        .auth-footer-note { margin: 10px auto 0; color: #969a9e; text-align: center; font-size: 11px; line-height: 1.6; }
+        .auth-message { margin: 0; padding: 11px 13px; border-radius: 13px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+        .auth-message-error { border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; }
+        .auth-message-success { border: 1px solid #bbf7d0; background: #f0fdf4; color: #166534; }
+        #auth-view-create .auth-description { margin-bottom: 25px; }
+        #auth-view-create .auth-form { gap: 12px; }
+        #auth-view-create .auth-switch-copy { margin-top: 21px; }
+        #auth-view-create .auth-footer-note { margin-top: 20px; }
+        #auth-view-forgot .auth-description { margin-bottom: 30px; }
+        #auth-view-forgot .auth-switch-copy { margin-top: 23px; }
+        @media (max-width: 480px) {
+            .auth-page { padding: 12px 10px calc(12px + env(safe-area-inset-bottom, 0px)); }
+            .auth-card { padding: 27px 20px 24px; border-radius: 31px; }
+            .auth-description { margin-bottom: 24px; font-size: 14px; }
+            .auth-field { min-height: 59px; padding-left: 19px; }
+            .auth-field input { height: 57px; font-size: 14px; }
+            .auth-primary-button { min-height: 57px; }
+        }
+        @media (max-height: 680px) {
+            .auth-page { align-items: start; }
+            .auth-card { margin-top: 5px; margin-bottom: 5px; }
+            .auth-brand { width: 43px; height: 43px; margin-bottom: 12px; font-size: 23px; }
+            .auth-heading { font-size: 30px; }
+            .auth-description { margin-top: 8px; margin-bottom: 18px; }
+            .auth-field { min-height: 54px; }
+            .auth-field input { height: 52px; }
+            .auth-primary-button { min-height: 53px; }
+            .auth-switch-copy { margin-top: 17px; }
+            .auth-divider { margin-top: 20px; margin-bottom: 14px; }
+        }
+
     </style>
 </head>
 <body class="text-gray-800 font-sans selection:bg-green-200">
 <div class="app-wrapper">
-    <!-- FIREBASE AUTH LOGIN: EMAIL/PASSWORD IDENTITY -->
-    <div id="screen-auth" class="fixed inset-0 bg-green-700 z-[120] flex flex-col justify-center items-center px-4 hidden safe-top safe-bottom">
-        <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-sm text-center slide-up">
-            <div class="w-16 h-16 bg-green-100 text-green-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="ph ph-shield-check text-3xl"></i>
-            </div>
-            <h2 class="text-xl font-bold text-gray-800 mb-2">Login Catatan Utang</h2>
-            <p class="text-sm text-gray-500 mb-6">Masuk dengan akun yang disetujui pengelola. Akun baru menunggu persetujuan sebelum dapat mengakses data.</p>
-            <form id="form-auth-login" onsubmit="authLogin(event)" class="text-left space-y-3">
-                <div>
-                    <label for="auth-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" id="auth-email" required autocomplete="username" inputmode="email" placeholder="email@contoh.com" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none">
-                </div>
-                <div>
-                    <label for="auth-password" class="block text-sm font-medium text-gray-700 mb-1">Password akun</label>
-                    <input type="password" id="auth-password" required autocomplete="current-password" placeholder="Password Firebase Authentication" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none">
-                </div>
-                <button id="btn-auth-forgot" type="button" onclick="sendPasswordResetFromLogin()" class="text-xs font-bold text-green-700 hover:underline">Lupa password?</button>
-                <p id="auth-error" role="alert" class="text-red-600 text-xs font-medium hidden bg-red-50 p-3 rounded-lg"></p>
-                <p id="auth-feedback" role="status" class="text-green-700 text-xs font-medium hidden bg-green-50 p-3 rounded-lg"></p>
-                <button id="btn-auth-login" type="submit" class="w-full bg-green-600 text-white font-bold rounded-xl py-3 active:scale-[.99] transition shadow-lg shadow-green-200">Masuk</button>
-            </form>
-            <button id="btn-auth-create" type="button" onclick="authCreateAccount()" class="w-full mt-3 border border-green-200 text-green-800 bg-green-50 font-bold rounded-xl py-3 active:scale-[.99] transition">Buat Akun Baru</button>
-            <p class="text-[11px] text-gray-400 mt-4">Pembuatan akun tidak memerlukan verifikasi email, tetapi akses aplikasi wajib disetujui pengelola.</p>
+    <!-- AUTH SCREENS: LOGIN, CREATE ACCOUNT, AND PASSWORD RESET -->
+    <div id="screen-auth" class="auth-page fixed inset-0 z-[120] hidden safe-top safe-bottom">
+        <div class="auth-card fade-in">
+            <section id="auth-view-login" class="auth-view" aria-labelledby="auth-login-heading">
+                <div class="auth-brand" aria-hidden="true"><i class="ph-fill ph-wallet"></i></div>
+                <h2 id="auth-login-heading" class="auth-heading">Masuk</h2>
+                <p class="auth-description">Masuk dengan email dan password untuk mengelola catatan utang-piutang Anda.</p>
+
+                <form id="form-auth-login" class="auth-form" onsubmit="authLogin(event)">
+                    <div class="auth-field">
+                        <i class="ph ph-envelope-simple auth-field-icon" aria-hidden="true"></i>
+                        <label class="auth-sr-only" for="auth-email">Alamat email</label>
+                        <input type="email" id="auth-email" required autocomplete="username" inputmode="email" placeholder="Alamat email" aria-label="Alamat email">
+                    </div>
+                    <div class="auth-field">
+                        <i class="ph ph-lock-key auth-field-icon" aria-hidden="true"></i>
+                        <label class="auth-sr-only" for="auth-password">Password</label>
+                        <input type="password" id="auth-password" required autocomplete="current-password" placeholder="Password" aria-label="Password">
+                        <button class="auth-password-toggle" type="button" onclick="toggleAuthPassword('auth-password', this)" aria-label="Tampilkan password" title="Tampilkan password"><i class="ph ph-eye-slash" aria-hidden="true"></i></button>
+                    </div>
+                    <div class="auth-links-row">
+                        <span class="auth-security-note"><i class="ph ph-shield-check" aria-hidden="true"></i> Login aman</span>
+                        <button id="btn-auth-forgot" type="button" class="auth-text-link" onclick="openForgotPasswordView()">Lupa password?</button>
+                    </div>
+                    <p id="auth-error" role="alert" class="auth-message auth-message-error hidden"></p>
+                    <p id="auth-feedback" role="status" class="auth-message auth-message-success hidden"></p>
+                    <button id="btn-auth-login" type="submit" class="auth-primary-button">Masuk</button>
+                </form>
+
+                <p class="auth-switch-copy">Belum punya akun? <button type="button" onclick="showAuthView('create')" class="auth-text-link">Buat akun</button></p>
+                <div class="auth-divider"></div>
+                <p class="auth-footer-note">Akun baru harus disetujui pengelola sebelum dapat mengakses data.</p>
+            </section>
+
+            <section id="auth-view-create" class="auth-view hidden" aria-labelledby="auth-create-heading">
+                <button type="button" class="auth-back-button" onclick="showAuthView('login')" aria-label="Kembali ke halaman masuk" title="Kembali"><i class="ph ph-arrow-left" aria-hidden="true"></i></button>
+                <h2 id="auth-create-heading" class="auth-heading">Buat Akun</h2>
+                <p class="auth-description">Buat akun baru untuk mulai mencatat dan mengelola utang-piutang.</p>
+
+                <form id="form-auth-create" class="auth-form" onsubmit="authCreateAccount(event)">
+                    <div class="auth-field">
+                        <i class="ph ph-user auth-field-icon" aria-hidden="true"></i>
+                        <label class="auth-sr-only" for="auth-create-name">Nama</label>
+                        <input type="text" id="auth-create-name" required maxlength="80" autocomplete="name" placeholder="Nama lengkap" aria-label="Nama lengkap">
+                    </div>
+                    <div class="auth-field">
+                        <i class="ph ph-envelope-simple auth-field-icon" aria-hidden="true"></i>
+                        <label class="auth-sr-only" for="auth-create-email">Alamat email</label>
+                        <input type="email" id="auth-create-email" required autocomplete="email" inputmode="email" placeholder="Alamat email" aria-label="Alamat email">
+                    </div>
+                    <div class="auth-field">
+                        <i class="ph ph-lock-key auth-field-icon" aria-hidden="true"></i>
+                        <label class="auth-sr-only" for="auth-create-password">Password</label>
+                        <input type="password" id="auth-create-password" required minlength="8" autocomplete="new-password" placeholder="Password (minimal 8 karakter)" aria-label="Password baru">
+                        <button class="auth-password-toggle" type="button" onclick="toggleAuthPassword('auth-create-password', this)" aria-label="Tampilkan password" title="Tampilkan password"><i class="ph ph-eye-slash" aria-hidden="true"></i></button>
+                    </div>
+                    <div class="auth-field">
+                        <i class="ph ph-lock-key auth-field-icon" aria-hidden="true"></i>
+                        <label class="auth-sr-only" for="auth-create-password-confirm">Konfirmasi password</label>
+                        <input type="password" id="auth-create-password-confirm" required minlength="8" autocomplete="new-password" placeholder="Konfirmasi password" aria-label="Konfirmasi password">
+                        <button class="auth-password-toggle" type="button" onclick="toggleAuthPassword('auth-create-password-confirm', this)" aria-label="Tampilkan password" title="Tampilkan password"><i class="ph ph-eye-slash" aria-hidden="true"></i></button>
+                    </div>
+                    <p id="auth-create-error" role="alert" class="auth-message auth-message-error hidden"></p>
+                    <button id="btn-auth-create" type="submit" class="auth-primary-button">Buat Akun</button>
+                </form>
+
+                <p class="auth-switch-copy">Sudah punya akun? <button type="button" onclick="showAuthView('login')" class="auth-text-link">Masuk</button></p>
+                <p class="auth-footer-note">Setelah mendaftar, tunggu persetujuan pengelola. Data akun tetap terkunci sampai akses disetujui.</p>
+            </section>
+
+            <section id="auth-view-forgot" class="auth-view hidden" aria-labelledby="auth-forgot-heading">
+                <button type="button" class="auth-back-button" onclick="showAuthView('login')" aria-label="Kembali ke halaman masuk" title="Kembali"><i class="ph ph-arrow-left" aria-hidden="true"></i></button>
+                <h2 id="auth-forgot-heading" class="auth-heading">Lupa Password</h2>
+                <p class="auth-description">Masukkan alamat email untuk menerima tautan pengaturan ulang password.</p>
+
+                <form id="form-auth-forgot" class="auth-form" onsubmit="sendPasswordResetFromForgotScreen(event)">
+                    <div class="auth-field">
+                        <i class="ph ph-envelope-simple auth-field-icon" aria-hidden="true"></i>
+                        <label class="auth-sr-only" for="auth-forgot-email">Alamat email</label>
+                        <input type="email" id="auth-forgot-email" required autocomplete="email" inputmode="email" placeholder="Alamat email" aria-label="Alamat email">
+                    </div>
+                    <p id="auth-forgot-error" role="alert" class="auth-message auth-message-error hidden"></p>
+                    <p id="auth-forgot-feedback" role="status" class="auth-message auth-message-success hidden"></p>
+                    <button id="btn-auth-reset" type="submit" class="auth-primary-button">Kirim Tautan Reset</button>
+                </form>
+                <p class="auth-switch-copy">Ingat password Anda? <button type="button" onclick="showAuthView('login')" class="auth-text-link">Kembali masuk</button></p>
+            </section>
         </div>
     </div>
 
@@ -540,7 +805,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, updateProfile, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, onValue, runTransaction, get, set, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // Configure this object with the Firebase Web App settings for a NEW Catatan Utang project.
@@ -830,23 +1095,83 @@ function hideProtectedScreens() {
 }
 
 function setAuthError(message) {
-    const el = document.getElementById('auth-error');
-    if (el) {
+    ['auth-error', 'auth-create-error', 'auth-forgot-error'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
         el.textContent = message || '';
         el.classList.toggle('hidden', !message);
-    }
-    const feedback = document.getElementById('auth-feedback');
-    if (feedback) {
-        feedback.textContent = '';
-        feedback.classList.add('hidden');
-    }
+    });
+    setAuthFeedback('');
 }
 
 function setAuthFeedback(message) {
-    const el = document.getElementById('auth-feedback');
-    if (!el) return;
-    el.textContent = message || '';
-    el.classList.toggle('hidden', !message);
+    ['auth-feedback', 'auth-forgot-feedback'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = message || '';
+        el.classList.toggle('hidden', !message);
+    });
+}
+
+function showAuthView(view = 'login') {
+    const validViews = ['login', 'create', 'forgot'];
+    const selected = validViews.includes(view) ? view : 'login';
+    validViews.forEach(name => {
+        const section = document.getElementById('auth-view-' + name);
+        if (section) section.classList.toggle('hidden', name !== selected);
+    });
+    setAuthError('');
+    setAuthFeedback('');
+    const card = document.querySelector('.auth-card');
+    if (card) card.classList.remove('fade-in');
+    requestAnimationFrame(() => { if (card) card.classList.add('fade-in'); });
+}
+
+function openForgotPasswordView() {
+    const loginEmail = String(document.getElementById('auth-email')?.value || '').trim();
+    const forgotEmail = document.getElementById('auth-forgot-email');
+    if (forgotEmail && loginEmail) forgotEmail.value = loginEmail;
+    showAuthView('forgot');
+    if (forgotEmail) forgotEmail.focus();
+}
+
+function toggleAuthPassword(inputId, button) {
+    const input = document.getElementById(inputId);
+    if (!input || !button) return;
+    const showing = input.type === 'password';
+    input.type = showing ? 'text' : 'password';
+    const icon = button.querySelector('i');
+    if (icon) icon.className = showing ? 'ph ph-eye' : 'ph ph-eye-slash';
+    const label = showing ? 'Sembunyikan password' : 'Tampilkan password';
+    button.setAttribute('aria-label', label);
+    button.setAttribute('title', label);
+}
+
+async function sendPasswordResetFromForgotScreen(event) {
+    event?.preventDefault();
+    if (!isFirebaseConfigured()) {
+        setAuthError('Konfigurasi Firebase belum lengkap. Reset password belum dapat diproses.');
+        return;
+    }
+    const email = String(document.getElementById('auth-forgot-email')?.value || '').trim();
+    if (!email) {
+        setAuthError('Masukkan alamat email terlebih dahulu.');
+        document.getElementById('auth-forgot-email')?.focus();
+        return;
+    }
+    const button = document.getElementById('btn-auth-reset');
+    setAuthError('');
+    setAuthFeedback('');
+    if (button) { button.disabled = true; button.textContent = 'Mengirim tautan...'; }
+    try {
+        await sendPasswordResetEmail(auth, email);
+        setAuthFeedback('Jika alamat email terdaftar, tautan pengaturan ulang password akan dikirim. Periksa kotak masuk dan folder spam.');
+    } catch (error) {
+        console.warn('Password reset request failed:', error);
+        setAuthError(authErrorMessage(error));
+    } finally {
+        if (button) { button.disabled = false; button.textContent = 'Kirim Tautan Reset'; }
+    }
 }
 
 function openPasswordResetConfirmation(email, source = 'login') {
@@ -970,19 +1295,7 @@ async function handlePasswordResetOk() {
 }
 
 async function sendPasswordResetFromLogin() {
-    if (!isFirebaseConfigured()) {
-        setAuthError('Konfigurasi Firebase belum lengkap. Reset password belum dapat diproses.');
-        return;
-    }
-    const email = (document.getElementById('auth-email')?.value || '').trim();
-    if (!email) {
-        setAuthError('Masukkan email akun terlebih dahulu, lalu pilih “Lupa password?”.');
-        document.getElementById('auth-email')?.focus();
-        return;
-    }
-    setAuthError('');
-    setAuthFeedback('');
-    openPasswordResetConfirmation(email, 'login');
+    openForgotPasswordView();
 }
 
 async function sendPasswordResetFromSettings() {
@@ -1081,30 +1394,56 @@ async function authLogin(e) {
     }
 }
 
-async function authCreateAccount() {
+async function authCreateAccount(event) {
+    event?.preventDefault();
     if (!isFirebaseConfigured()) {
         setAuthError('Konfigurasi Firebase Catatan Utang belum diisi. Ikuti README.md sebelum membuat akun.');
         return;
     }
-    const email = (document.getElementById('auth-email')?.value || '').trim();
-    const passwordEl = document.getElementById('auth-password');
+    const name = String(document.getElementById('auth-create-name')?.value || '').trim();
+    const email = String(document.getElementById('auth-create-email')?.value || '').trim();
+    const passwordEl = document.getElementById('auth-create-password');
+    const confirmEl = document.getElementById('auth-create-password-confirm');
     const password = passwordEl?.value || '';
+    const confirmation = confirmEl?.value || '';
     const button = document.getElementById('btn-auth-create');
+
+    if (!name || name.length > 80) { setAuthError('Nama wajib diisi dan maksimal 80 karakter.'); return; }
     if (!email || !password) { setAuthError('Isi email dan password untuk membuat akun.'); return; }
-    if (password.length < 8) { setAuthError('Password akun baru minimal 8 karakter.'); return; }
+    if (password.length < 8) { setAuthError('Password akun baru minimal 8 karakter.'); passwordEl?.focus(); return; }
+    if (password !== confirmation) { setAuthError('Konfirmasi password tidak cocok.'); confirmEl?.focus(); return; }
+
     setAuthError('');
     explicitEmailPasswordLoginInProgress = true;
     if (button) { button.disabled = true; button.textContent = 'Membuat akun...'; }
     try {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const credential = await createUserWithEmailAndPassword(auth, email, password);
+        try {
+            await updateProfile(credential.user, { displayName: name });
+        } catch (profileError) {
+            console.warn('Firebase Auth display name could not be set:', profileError);
+        }
+        try {
+            await set(ref(db, 'userProfiles/' + credential.user.uid), {
+                displayName: name,
+                email: String(credential.user.email || email),
+                updatedAt: Date.now()
+            });
+        } catch (profileError) {
+            // Account registration must not be rolled back if optional profile metadata cannot be written.
+            console.warn('Initial profile metadata could not be saved:', profileError);
+        }
         if (passwordEl) passwordEl.value = '';
+        if (confirmEl) confirmEl.value = '';
+        const nameInput = document.getElementById('auth-create-name');
+        if (nameInput) nameInput.value = '';
         showToast('Akun berhasil dibuat. Permintaan akses menunggu persetujuan pengelola.');
     } catch (error) {
         explicitEmailPasswordLoginInProgress = false;
         console.warn('Firebase account creation failed:', error);
         setAuthError(authErrorMessage(error));
     } finally {
-        if (button) { button.disabled = false; button.textContent = 'Buat Akun Baru'; }
+        if (button) { button.disabled = false; button.textContent = 'Buat Akun'; }
     }
 }
 
@@ -1170,6 +1509,7 @@ async function handleAuthStateChanged(user) {
         stopFirebaseListener(); clearSensitiveInMemoryData(); hideProtectedScreens();
         closeModal('modal-access-admin');
         document.getElementById('screen-auth').classList.remove('hidden');
+        showAuthView('login');
         setAuthError('');
         const notice = pendingLogoutNotice;
         pendingLogoutNotice = '';
@@ -2751,7 +3091,7 @@ function initApp(){
 
 window.openSettings=openSettings; window.openActivityHistory=openActivityHistory; window.openPaymentReceipt=openPaymentReceipt; window.printPaymentReceipt=printPaymentReceipt; window.openUserProfile=openUserProfile; window.saveUserProfile=saveUserProfile; window.sendPasswordResetFromSettings=sendPasswordResetFromSettings; window.sendPasswordResetFromLogin=sendPasswordResetFromLogin; window.openPasswordResetConfirmation=openPasswordResetConfirmation; window.cancelPasswordResetConfirmation=cancelPasswordResetConfirmation; window.handlePasswordResetOk=handlePasswordResetOk; window.openAdminUsers=openAdminUsers; window.refreshManagedUsers=refreshManagedUsers; window.filterManagedUsers=filterManagedUsers; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
 window.setReportPeriodMode=setReportPeriodMode; window.setReportPeriodValue=setReportPeriodValue; window.downloadPeriodReportCsv=downloadPeriodReportCsv; window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
-window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
+window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.showAuthView=showAuthView; window.openForgotPasswordView=openForgotPasswordView; window.toggleAuthPassword=toggleAuthPassword; window.sendPasswordResetFromForgotScreen=sendPasswordResetFromForgotScreen; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
 document.addEventListener('DOMContentLoaded', initApp);
 </script>
