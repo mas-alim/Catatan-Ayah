@@ -538,6 +538,7 @@ let passwordResetResultMessage = "";
 let knownPendingRequestIds = new Set();
 let accessNotificationsInitialized = false;
 let appUnlocked = false;
+let explicitEmailPasswordLoginInProgress = false;
 let saveInProgress = false;
 let txSearchRenderTimer = null;
 let remoteRenderScheduled = false;
@@ -691,8 +692,30 @@ function scheduleIdleLock(delay = IDLE_LOCK_TIMEOUT_MS) {
         void logoutFirebaseAccount('idle');
     }, delay);
 }
+function activityTimestampStorageKey(uid = currentAuthUser?.uid) {
+    return uid ? `catatanUtangLastActivity:${uid}` : '';
+}
+
+function isIdleSessionExpired(uid = currentAuthUser?.uid) {
+    const key = activityTimestampStorageKey(uid);
+    if (!key) return false;
+    try {
+        const lastActivity = Number(localStorage.getItem(key) || 0);
+        return lastActivity > 0 && Number.isFinite(lastActivity) && Date.now() - lastActivity >= IDLE_LOCK_TIMEOUT_MS;
+    } catch (error) {
+        console.warn('Idle-session metadata is unavailable:', error);
+        return false;
+    }
+}
+
 function recordUserActivity() {
-    if (isAppUnlocked()) scheduleIdleLock();
+    if (!isAppUnlocked()) return;
+    const key = activityTimestampStorageKey();
+    if (key) {
+        try { localStorage.setItem(key, String(Date.now())); }
+        catch (error) { console.warn('Idle-session metadata could not be stored:', error); }
+    }
+    scheduleIdleLock();
 }
 function clearLegacyPinStorage() {
     // Delete old local PIN verifier entries after migration to email/password only.
@@ -987,12 +1010,14 @@ async function authLogin(e) {
     const button = document.getElementById('btn-auth-login');
     if (!email || !password) { setAuthError('Masukkan email dan password.'); return; }
     setAuthError('');
+    explicitEmailPasswordLoginInProgress = true;
     if (button) { button.disabled = true; button.textContent = 'Memeriksa akun...'; }
     try {
         await signInWithEmailAndPassword(auth, email, password);
         if (passwordEl) passwordEl.value = '';
     } catch (error) {
-            console.warn('Firebase Authentication login failed:', error);
+        explicitEmailPasswordLoginInProgress = false;
+        console.warn('Firebase Authentication login failed:', error);
         setAuthError(authErrorMessage(error));
     } finally {
         if (button) { button.disabled = false; button.textContent = 'Masuk'; }
@@ -1011,13 +1036,15 @@ async function authCreateAccount() {
     if (!email || !password) { setAuthError('Isi email dan password untuk membuat akun.'); return; }
     if (password.length < 8) { setAuthError('Password akun baru minimal 8 karakter.'); return; }
     setAuthError('');
+    explicitEmailPasswordLoginInProgress = true;
     if (button) { button.disabled = true; button.textContent = 'Membuat akun...'; }
     try {
         await createUserWithEmailAndPassword(auth, email, password);
         if (passwordEl) passwordEl.value = '';
         showToast('Akun berhasil dibuat. Permintaan akses menunggu persetujuan pengelola.');
     } catch (error) {
-            console.warn('Firebase account creation failed:', error);
+        explicitEmailPasswordLoginInProgress = false;
+        console.warn('Firebase account creation failed:', error);
         setAuthError(authErrorMessage(error));
     } finally {
         if (button) { button.disabled = false; button.textContent = 'Buat Akun Baru'; }
@@ -1026,6 +1053,17 @@ async function authCreateAccount() {
 
 async function handleAuthStateChanged(user) {
     stopAccessRequestNotifications();
+    if (user && !explicitEmailPasswordLoginInProgress && isIdleSessionExpired(user.uid)) {
+        pendingLogoutNotice = 'Sesi berakhir karena tidak ada aktivitas selama 15 menit. Silakan masuk kembali dengan email dan password.';
+        clearIdleLockTimer();
+        try {
+            await signOut(auth);
+        } catch (error) {
+            console.warn('Expired Firebase session sign-out failed:', error);
+        }
+        return;
+    }
+    explicitEmailPasswordLoginInProgress = false;
     if (user && (!isFirebaseConfigured() || !db)) {
         currentAuthUser = null; dbRef = null; authReady = false; appUnlocked = false;
         stopFirebaseListener(); clearSensitiveInMemoryData(); hideProtectedScreens();
@@ -1115,7 +1153,8 @@ async function checkMyApprovalStatus() {
     const button = document.getElementById('btn-check-approval');
     if (button) { button.disabled = true; button.textContent = 'Memeriksa...'; }
     try {
-            await handleAuthStateChanged(user);
+        explicitEmailPasswordLoginInProgress = true;
+        await handleAuthStateChanged(user);
     } finally {
         approvalStatusCheckInProgress = false;
         if (button && !document.getElementById('screen-pending').classList.contains('hidden')) {
@@ -1384,7 +1423,7 @@ async function unlockApp() {
         renderLastSyncInfo();
         renderApp();
         startAccessRequestNotifications();
-        scheduleIdleLock();
+        recordUserActivity();
     } catch (error) {
         console.error('Initial Firebase data load failed:', error);
         appUnlocked = false;
@@ -2204,6 +2243,11 @@ function initApp(){
     hideProtectedScreens();
     ['pointerdown','keydown','touchstart','scroll'].forEach(eventName => {
         window.addEventListener(eventName, recordUserActivity, { passive: true });
+    });
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible' || !isAppUnlocked()) return;
+        if (isIdleSessionExpired()) void logoutFirebaseAccount('idle');
+        else recordUserActivity();
     });
     onAuthStateChanged(auth, user => { void handleAuthStateChanged(user); });
 }
