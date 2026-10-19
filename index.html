@@ -2678,9 +2678,12 @@ async function executeDelete() {
         amount = need?.amount ?? null;
     }
     try {
-        if (target.type === 'contact') data.transactions = data.transactions.filter(item => (item.contact || '').trim().toLowerCase() !== target.key);
-        else if (target.type === 'transaction') data.transactions = data.transactions.filter(item => item.id !== target.id);
+        if (target.type === 'contact') {
+            data.transactions = data.transactions.filter(item => normalizeContactKey(item.contact) !== normalizeContactKey(target.key));
+            data.ledgerPayments = (data.ledgerPayments || []).filter(payment => normalizeContactKey(payment.contactKey || payment.contact) !== normalizeContactKey(target.key));
+        } else if (target.type === 'transaction') data.transactions = data.transactions.filter(item => item.id !== target.id);
         else if (target.type === 'need') data.needs = data.needs.filter(item => item.id !== target.id);
+        invalidateLedgerCalculationCache(data);
         recordActivity('record_deleted', summary, target.type, target.id || target.key || '', amount);
         await saveData();
         closeConfirmModal();
@@ -2757,85 +2760,152 @@ function deleteSelectedLedgerTransaction() {
     confirmDeleteTransaction(tx.id);
 }
 
-function openDetailModalByContact(contactKey, preferredTxId = ''){
+function openDetailModalByContact(contactKey, preferredTxId = '') {
     if (!requireUnlockedApp()) return;
-    contactKey = String(contactKey || '').trim().toLowerCase();
-    const contactTxs=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey);
-    if(!contactTxs.length) { closeModal('modal-detail-transaction'); activeLedgerContactKey=''; activeLedgerSelectedTxId=''; return; }
-    const ledgerModal=document.getElementById('modal-detail-transaction');
-    const sameOpenLedger=!!ledgerModal && !ledgerModal.classList.contains('hidden') && activeLedgerContactKey===contactKey;
-    const desiredTxId=String(preferredTxId || (sameOpenLedger ? activeLedgerSelectedTxId : '') || '');
-    const newestContactTxs=contactTxs.slice().sort((a,b)=>{
-        const da=new Date(a.txDate || a.createdAt || 0).getTime() || 0;
-        const db=new Date(b.txDate || b.createdAt || 0).getTime() || 0;
-        return db-da;
-    });
-    const selectedLedgerTx=newestContactTxs.find(tx=>String(tx.id)===desiredTxId) || null;
-    activeLedgerContactKey=contactKey;
-    activeLedgerSelectedTxId=selectedLedgerTx ? String(selectedLedgerTx.id) : '';
-    const selectedLedgerRemaining=selectedLedgerTx ? getTxRemaining(selectedLedgerTx) : 0;
-    const contactName=contactTxs[0].contact || 'Tanpa Nama';
-    let totalHutang=0,totalPiutang=0,totalBayarKeluar=0,totalBayarMasuk=0;
-    const items=[];
-    contactTxs.forEach(tx=>{
-        const isHutang=tx.type==='hutang'; const paid=getTxPaidAmount(tx); const remaining=getTxRemaining(tx);
-        if(isHutang){ totalHutang+=Number(tx.amount||0); totalBayarKeluar+=paid; } else { totalPiutang+=Number(tx.amount||0); totalBayarMasuk+=paid; }
-        items.push({kind:'tx',id:tx.id,date:tx.txDate||tx.createdAt,title:isHutang?'Pinjaman Diterima (Hutang)':'Pinjaman Diberikan (Piutang)',note:tx.note || (isHutang?'Hutang Baru':'Piutang Baru'),amount:Number(tx.amount||0),type:tx.type,status:deriveStatus(tx),remaining});
-        (tx.payments||[]).forEach(p=>items.push({kind:'payment',id:p.id||generateId(),txId:tx.id,date:p.date,title:p.mode==='lunas'?'Pelunasan Tagihan':'Pembayaran Cicilan',note:p.note||'Cicilan',amount:Number(p.amount||0),type:isHutang?'bayar_hutang':'terima_piutang'}));
-    });
-    items.sort((a,b)=>new Date(b.date)-new Date(a.date));
-    const sisaHutang=Math.max(0,totalHutang-totalBayarKeluar), sisaPiutang=Math.max(0,totalPiutang-totalBayarMasuk), netSisa=sisaHutang-sisaPiutang;
-    const totalPokok=totalHutang+totalPiutang,totalBayar=totalBayarKeluar+totalBayarMasuk,progress=totalPokok>0?Math.min(100,Math.round(totalBayar/totalPokok*100)):100;
-    const status=netSisa>0?`<span class="bg-rose-100 text-rose-700 text-[11px] font-black px-2.5 py-1 rounded-full border border-rose-200">Sisa Hutang: ${formatRupiah(netSisa)}</span>`:netSisa<0?`<span class="bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-1 rounded-full border border-emerald-200">Sisa Piutang: ${formatRupiah(Math.abs(netSisa))}</span>`:`<span class="bg-slate-100 text-slate-700 text-[11px] font-black px-2.5 py-1 rounded-full border border-slate-200">LUNAS (Rp 0)</span>`;
+    contactKey = normalizeContactKey(contactKey);
+    const contactTxs = data.transactions.filter(tx => normalizeContactKey(tx.contact) === contactKey);
+    if (!contactTxs.length) {
+        closeModal('modal-detail-transaction');
+        activeLedgerContactKey = ''; activeLedgerSelectedTxId = '';
+        return;
+    }
+    const ledgerModal = document.getElementById('modal-detail-transaction');
+    const sameOpenLedger = !!ledgerModal && !ledgerModal.classList.contains('hidden') && activeLedgerContactKey === contactKey;
+    const desiredTxId = String(preferredTxId || (sameOpenLedger ? activeLedgerSelectedTxId : '') || '');
+    const newestContactTxs = contactTxs.slice().sort((a,b) =>
+        String(b.txDate || b.createdAt || '').localeCompare(String(a.txDate || a.createdAt || '')) ||
+        String(b.id || '').localeCompare(String(a.id || ''))
+    );
+    const selectedLedgerTx = newestContactTxs.find(tx => String(tx.id) === desiredTxId) || null;
+    activeLedgerContactKey = contactKey;
+    activeLedgerSelectedTxId = selectedLedgerTx ? String(selectedLedgerTx.id) : '';
+    const contactName = String(contactTxs[0].contact || 'Tanpa Nama');
 
-    const transactionOptions=`<option value="" disabled ${!selectedLedgerTx?'selected':''}>Pilih tanggal transaksi...</option>` + newestContactTxs.map(tx=>{
-        const txDate=tx.txDate || tx.createdAt;
-        const txType=tx.type==='hutang'?'Hutang':'Piutang';
-        const txNote=String(tx.note || (tx.type==='hutang'?'Hutang Baru':'Piutang Baru')).trim();
-        const label=`${formatDateShort(txDate)} • ${txType} • ${formatRupiah(tx.amount)} • ${txNote || 'Tanpa catatan'}`;
-        return `<option value="${escapeHtml(tx.id)}" ${String(tx.id)===activeLedgerSelectedTxId?'selected':''}>${escapeHtml(label)}</option>`;
+    const totalHutang = getContactPrincipal(contactKey, 'hutang');
+    const totalPiutang = getContactPrincipal(contactKey, 'piutang');
+    const totalBayarKeluar = getContactPaidAmount(contactKey, 'hutang');
+    const totalBayarMasuk = getContactPaidAmount(contactKey, 'piutang');
+    const sisaHutang = getContactRemaining(contactKey, 'hutang');
+    const sisaPiutang = getContactRemaining(contactKey, 'piutang');
+    const totalPokok = totalHutang + totalPiutang;
+    const totalBayar = totalBayarKeluar + totalBayarMasuk;
+    const progress = totalPokok > 0 ? Math.min(100, Math.round(Math.min(totalBayar, totalPokok) / totalPokok * 100)) : 100;
+    const anyOutstanding = sisaHutang > 0 || sisaPiutang > 0;
+    const status = anyOutstanding
+        ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-black px-2.5 py-1 rounded-full border border-amber-200">BELUM LUNAS</span>'
+        : '<span class="bg-green-100 text-green-800 text-[10px] font-black px-2.5 py-1 rounded-full border border-green-200">LUNAS</span>';
+    const balanceCard = (label, remaining, paid, tone) => `<div class="bg-white p-3 rounded-xl border border-gray-100">
+        <span class="block text-[10px] font-bold uppercase tracking-wide text-gray-500">${label}</span>
+        <p class="text-base font-black ${tone} mt-1">${formatRupiah(remaining)}</p>
+        <p class="text-[10px] text-gray-500 mt-1">Status: <span class="font-bold ${remaining > 0 ? 'text-amber-700' : 'text-green-700'}">${remaining > 0 ? 'Belum Lunas' : 'Lunas'}</span></p>
+        <p class="text-[10px] text-gray-400 mt-0.5">Total pembayaran: ${formatRupiah(paid)}</p>
+    </div>`;
+    const balanceSummary = `<div class="grid grid-cols-2 gap-2">${balanceCard('Sisa Hutang', sisaHutang, totalBayarKeluar, 'text-rose-600')}${balanceCard('Sisa Piutang', sisaPiutang, totalBayarMasuk, 'text-green-700')}</div>`;
+
+    const events = [];
+    for (const tx of contactTxs) {
+        events.push({
+            kind: 'transaction', id: String(tx.id), date: tx.txDate || tx.createdAt || '',
+            title: tx.type === 'hutang' ? 'Utang dicatat' : 'Piutang dicatat',
+            note: String(tx.note || (tx.type === 'hutang' ? 'Pencatatan utang' : 'Pencatatan piutang')),
+            amount: Number(tx.amount || 0), type: tx.type
+        });
+    }
+    getContactLedgerPayments(contactKey).forEach(payment => {
+        events.push({
+            kind: 'payment', id: String(payment.id), date: payment.date || payment.createdAt || '',
+            title: payment.type === 'hutang'
+                ? (payment.mode === 'lunas' ? 'Pembayaran hutang · Lunas' : 'Pembayaran hutang · Cicil')
+                : (payment.mode === 'lunas' ? 'Penerimaan piutang · Lunas' : 'Penerimaan piutang · Cicil'),
+            note: String(payment.note || (payment.mode === 'lunas' ? 'Pelunasan saldo' : 'Pembayaran')),
+            amount: Number(payment.amount || 0), type: payment.type
+        });
+    });
+    events.sort((a,b) => String(b.date || '').localeCompare(String(a.date || '')) || (a.kind === 'payment' ? -1 : 1));
+
+    const transactionOptions = `<option value="" disabled ${!selectedLedgerTx ? 'selected' : ''}>Pilih tanggal transaksi...</option>` + newestContactTxs.map(tx => {
+        const date = tx.txDate || tx.createdAt;
+        const type = tx.type === 'hutang' ? 'Hutang' : 'Piutang';
+        const note = String(tx.note || (tx.type === 'hutang' ? 'Utang dicatat' : 'Piutang dicatat')).trim();
+        const label = `${formatDateShort(date)} • ${type} • ${formatRupiah(tx.amount)} • ${note || 'Tanpa catatan'}`;
+        return `<option value="${escapeHtml(tx.id)}" ${String(tx.id) === activeLedgerSelectedTxId ? 'selected' : ''}>${escapeHtml(label)}</option>`;
     }).join('');
-    const ledgerActions=`<section class="ledger-actions-card bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-3" aria-label="Aksi transaksi terpilih">
+    const ledgerActions = `<section class="ledger-actions-card bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-3" aria-label="Aksi transaksi kontak">
         <div class="flex items-start justify-between gap-3">
             <div><h3 class="text-sm font-extrabold text-gray-800">Kelola Transaksi</h3><p class="text-[10px] text-gray-500 mt-0.5">Pilih tanggal untuk Edit/Hapus. Bayar dihitung dari total saldo kontak.</p></div>
             <span class="text-[10px] text-green-700 bg-green-50 rounded-full px-2 py-1 font-bold whitespace-nowrap">Per kontak</span>
         </div>
         <label for="ledger-transaction-select" class="block text-[11px] font-bold text-gray-600">Transaksi berdasarkan tanggal</label>
         <select id="ledger-transaction-select" onchange="selectLedgerTransaction(this.value)" class="w-full min-w-0 border border-gray-200 bg-gray-50 text-gray-800 rounded-xl px-3 py-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-green-500">${transactionOptions}</select>
-        <p id="ledger-selected-summary" class="text-[10px] leading-relaxed text-gray-500">${selectedLedgerTx ? `${formatDateShort(selectedLedgerTx.txDate || selectedLedgerTx.createdAt)} · ${selectedLedgerTx.type==='hutang'?'Hutang':'Piutang'} · Sisa pembayaran: ${formatRupiah(selectedLedgerRemaining)}` : 'Belum ada transaksi dipilih.'}</p>
+        <p id="ledger-selected-summary" class="text-[10px] leading-relaxed text-gray-500">${selectedLedgerTx ? `${formatDateShort(selectedLedgerTx.txDate || selectedLedgerTx.createdAt)} · ${selectedLedgerTx.type === 'hutang' ? 'Hutang' : 'Piutang'} · ${formatRupiah(selectedLedgerTx.amount)} · ${String(selectedLedgerTx.note || 'Tanpa catatan')}` : 'Pilih tanggal transaksi untuk Edit/Hapus.'}</p>
         <div class="grid grid-cols-3 gap-2">
-            <button type="button" id="btn-ledger-action-edit" onclick="editSelectedLedgerTransaction()" ${selectedLedgerTx?'':'disabled'} class="ledger-action-button ledger-edit-action bg-indigo-50 text-indigo-700 border font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-pencil"></i> Edit</button>
-            <button type="button" id="btn-ledger-action-pay" onclick="paySelectedLedgerTransaction()" ${(sisaHutang+sisaPiutang)>0?'':'disabled'} class="ledger-action-button ledger-pay-action bg-green-600 text-white border font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-hand-coins"></i> Bayar</button>
-            <button type="button" id="btn-ledger-action-delete" onclick="deleteSelectedLedgerTransaction()" ${selectedLedgerTx?'':'disabled'} class="ledger-action-button ledger-delete-action bg-rose-50 text-rose-600 border font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-trash"></i> Hapus</button>
+            <button type="button" id="btn-ledger-action-edit" onclick="editSelectedLedgerTransaction()" ${selectedLedgerTx ? '' : 'disabled'} class="ledger-action-button ledger-edit-action bg-indigo-50 text-indigo-700 border font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-pencil"></i> Edit</button>
+            <button type="button" id="btn-ledger-action-pay" onclick="paySelectedLedgerTransaction()" ${anyOutstanding ? '' : 'disabled'} class="ledger-action-button ledger-pay-action bg-green-600 text-white border font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-hand-coins"></i> Bayar</button>
+            <button type="button" id="btn-ledger-action-delete" onclick="deleteSelectedLedgerTransaction()" ${selectedLedgerTx ? '' : 'disabled'} class="ledger-action-button ledger-delete-action bg-rose-50 text-rose-600 border font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-trash"></i> Hapus</button>
         </div>
     </section>`;
-    const timeline=items.map(item=>{
-        const isOrigin=item.kind==='tx'; let amountColor=isOrigin?(item.type==='hutang'?'text-rose-600':'text-teal-600'):'text-emerald-600'; let prefix=isOrigin?'+':'-'; let icon=isOrigin?(item.type==='hutang'?'ph-trend-down text-rose-500 bg-rose-100':'ph-trend-up text-teal-600 bg-teal-100'):'ph-check text-emerald-600 bg-emerald-100';
-        const action=isOrigin?`<div class="mt-2 flex flex-wrap items-center gap-1.5"><span class="px-2.5 py-1 rounded-lg bg-gray-50 text-gray-600 text-[10px] font-semibold">Sisa ${formatRupiah(item.remaining)}</span><span class="px-2.5 py-1 rounded-lg ${item.status===TX_STATUS.LUNAS?'bg-green-50 text-green-700':item.status===TX_STATUS.CICIL?'bg-orange-50 text-orange-700':'bg-amber-50 text-amber-700'} text-[10px] font-bold">${escapeHtml(item.status)}</span></div>`:`<div class="flex mt-2"><button onclick="openPaymentReceipt(${jsArg(item.txId)},${jsArg(item.id)})" class="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold"><i class="ph-bold ph-receipt"></i> Kuitansi</button></div>`;
-        return `<div class="relative pl-6 pb-4 border-l-2 border-gray-200 last:border-l-0 last:pb-0"><div class="absolute -left-[13px] top-0 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm ${icon}"><i class="ph-bold ${icon.split(' ').slice(0,2).join(' ')}"></i></div><div class="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm"><div class="flex justify-between items-start gap-2"><div><span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase block">${formatDateShort(item.date)}</span><h4 class="font-bold text-gray-800 text-xs mt-0.5">${escapeHtml(item.title)}</h4></div><span class="font-black text-sm ${amountColor} whitespace-nowrap">${prefix}${formatRupiah(item.amount)}</span></div><p class="text-xs text-gray-500 leading-relaxed bg-gray-50/80 p-2 rounded-xl mt-1.5 border border-gray-100">${escapeHtml(item.note)}</p>${action}</div></div>`;
+
+    const timeline = events.map(item => {
+        const isPayment = item.kind === 'payment';
+        const amountColor = isPayment ? 'text-emerald-600' : item.type === 'hutang' ? 'text-rose-600' : 'text-teal-600';
+        const amountPrefix = isPayment ? '−' : '+';
+        const iconClass = isPayment ? 'ph-check text-emerald-600 bg-emerald-100' : item.type === 'hutang' ? 'ph-trend-down text-rose-500 bg-rose-100' : 'ph-trend-up text-teal-600 bg-teal-100';
+        const action = isPayment
+            ? `<div class="mt-2"><button onclick="openPaymentReceipt('', ${jsArg(item.id)})" class="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold"><i class="ph-bold ph-receipt"></i> Kuitansi</button></div>`
+            : '';
+        return `<div class="relative pl-6 pb-4 border-l-2 border-gray-200 last:border-l-0 last:pb-0">
+            <div class="absolute -left-[13px] top-0 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm ${iconClass}"><i class="ph-bold ${iconClass.split(' ').slice(0,2).join(' ')}"></i></div>
+            <div class="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm">
+                <div class="flex justify-between items-start gap-2">
+                    <div class="min-w-0"><span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase block">${formatDateShort(item.date)}</span><h4 class="font-bold text-gray-800 text-xs mt-0.5">${escapeHtml(item.title)}</h4></div>
+                    <span class="font-black text-sm ${amountColor} whitespace-nowrap">${amountPrefix}${formatRupiah(item.amount)}</span>
+                </div>
+                <p class="text-xs text-gray-600 leading-relaxed bg-gray-50/80 p-2 rounded-xl mt-1.5 border border-gray-100">${escapeHtml(item.note)}</p>${action}
+            </div>
+        </div>`;
     }).join('');
-    document.getElementById('detail-content').innerHTML=`<div class="bg-gradient-to-br from-green-50 via-white to-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3"><div class="flex items-center justify-between gap-3"><div class="flex items-center gap-3 min-w-0"><div class="w-11 h-11 rounded-2xl bg-white text-green-700 shadow-sm border border-green-100 flex items-center justify-center font-black text-lg">${escapeHtml(contactName.charAt(0).toUpperCase())}</div><div class="min-w-0"><h3 class="text-base font-black text-gray-900 leading-tight truncate">${escapeHtml(contactName)}</h3><p class="text-[11px] text-gray-500 font-medium">${contactTxs.length} transaksi</p></div></div>${status}</div><div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm"><div class="flex justify-between text-[11px] font-bold"><span class="text-gray-500">Kemajuan pembayaran</span><span class="text-green-600">${progress}%</span></div><div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mt-2"><div class="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full" style="width:${progress}%"></div></div></div><div class="grid grid-cols-2 gap-2"><div class="bg-white p-2.5 rounded-xl border border-gray-100"><span class="text-[10px] text-gray-400 font-bold uppercase block">Total Akumulasi</span><span class="font-extrabold text-gray-800 text-sm">${formatRupiah(totalPokok)}</span></div><div class="bg-white p-2.5 rounded-xl border border-gray-100"><span class="text-[10px] text-gray-400 font-bold uppercase block">Total Dibayar</span><span class="font-extrabold text-green-600 text-sm">${formatRupiah(totalBayar)}</span></div></div></div>${ledgerActions}<div class="flex justify-between items-center px-1 pt-1"><h3 class="text-xs font-black text-gray-700 uppercase tracking-wider">Riwayat Transaksi</h3><button onclick="openTransactionModal('',${jsArg(contactName)})" class="text-[11px] font-bold text-green-600"><i class="ph-bold ph-plus-circle"></i> Tambah</button></div><div class="py-1">${timeline}</div><div class="pt-3 border-t border-gray-100"><div class="grid grid-cols-2 gap-2"><button onclick="downloadContactStatement(${jsArg(contactKey)})" class="bg-blue-50 text-blue-700 border border-blue-200 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-download-simple"></i> Download Nota</button><button onclick="confirmDeleteContact(${jsArg(contactKey)})" title="Hapus seluruh transaksi kontak ini" class="bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-trash"></i> Hapus Semua</button></div></div>`;
+
+    document.getElementById('detail-content').innerHTML = `
+        <div class="bg-gradient-to-br from-green-50 via-white to-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+            <div class="flex items-center justify-between gap-3"><div class="flex items-center gap-3 min-w-0"><div class="w-11 h-11 rounded-2xl bg-white text-green-700 shadow-sm border border-green-100 flex items-center justify-center font-black text-lg">${escapeHtml(contactName.charAt(0).toUpperCase())}</div><div class="min-w-0"><h3 class="text-base font-black text-gray-900 leading-tight truncate">${escapeHtml(contactName)}</h3><p class="text-[11px] text-gray-500 font-medium">${contactTxs.length} transaksi</p></div></div>${status}</div>
+            ${balanceSummary}
+            <div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                <div class="flex justify-between text-[11px] font-bold"><span class="text-gray-500">Kemajuan pembayaran</span><span class="text-green-600">${progress}%</span></div>
+                <div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mt-2"><div class="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full" style="width:${progress}%"></div></div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div class="bg-white p-2.5 rounded-xl border border-gray-100"><span class="text-[10px] text-gray-400 font-bold uppercase block">Total Akumulasi</span><span class="font-extrabold text-gray-800 text-sm">${formatRupiah(totalPokok)}</span></div>
+                <div class="bg-white p-2.5 rounded-xl border border-gray-100"><span class="text-[10px] text-gray-400 font-bold uppercase block">Total Dibayar</span><span class="font-extrabold text-green-600 text-sm">${formatRupiah(totalBayar)}</span></div>
+            </div>
+        </div>
+        ${ledgerActions}
+        <div class="flex justify-between items-center px-1 pt-1"><h3 class="text-xs font-black text-gray-700 uppercase tracking-wider">Riwayat Transaksi</h3><button onclick="openTransactionModal('', ${jsArg(contactName)})" class="text-[11px] font-bold text-green-600"><i class="ph-bold ph-plus-circle"></i> Tambah</button></div>
+        <div class="py-1">${timeline}</div>
+        <div class="pt-3 border-t border-gray-100"><div class="grid grid-cols-2 gap-2"><button onclick="downloadContactStatement(${jsArg(contactKey)})" class="bg-blue-50 text-blue-700 border border-blue-200 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-download-simple"></i> Download Nota</button><button onclick="confirmDeleteContact(${jsArg(contactKey)})" title="Hapus seluruh transaksi kontak ini" class="bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-trash"></i> Hapus Semua</button></div></div>`;
     openModal('modal-detail-transaction');
 }
 
 function openPaymentReceipt(txId, paymentId) {
     if (!requireUnlockedApp()) return;
-    const tx = data.transactions.find(item => String(item.id) === String(txId));
-    const payment = Array.isArray(tx?.payments) ? tx.payments.find(item => String(item.id) === String(paymentId)) : null;
-    if (!tx || !payment) {
-        showToast('Data pembayaran tidak ditemukan. Muat ulang detail transaksi dan coba kembali.');
+    const payment = (Array.isArray(data.ledgerPayments) ? data.ledgerPayments : []).find(item => String(item.id) === String(paymentId))
+        || data.transactions.find(item => String(item.id) === String(txId))?.payments?.find(item => String(item.id) === String(paymentId));
+    if (!payment) {
+        showToast('Data pembayaran tidak ditemukan. Muat ulang Detail Ledger lalu coba kembali.');
         return;
     }
-    const contact = String(tx.contact || 'Tanpa Nama');
+    const contact = String(payment.contact || data.transactions.find(item => String(item.id) === String(payment.legacyTransactionId || txId))?.contact || 'Tanpa Nama');
+    const contactKey = normalizeContactKey(payment.contactKey || contact);
+    const type = payment.type === 'piutang' ? 'piutang' : 'hutang';
     const receiptRef = 'CU-' + String(payment.id || paymentId).replace(/[^A-Za-z0-9_-]/g, '').slice(-18).toUpperCase();
-    const typeLabel = tx.type === 'hutang' ? 'Pembayaran atas utang' : 'Penerimaan pembayaran piutang';
-    const paymentMode = payment.mode === 'lunas' ? 'Pelunasan' : 'Pembayaran cicilan';
-    const currentRemaining = getTxRemaining(tx);
+    const typeLabel = type === 'hutang' ? 'Pembayaran atas utang' : 'Penerimaan pembayaran piutang';
+    const paymentMode = payment.mode === 'lunas' ? 'Pelunasan saldo' : 'Pembayaran cicilan';
+    const currentRemaining = getContactRemaining(contactKey, type);
+    const currentPrincipal = getContactPrincipal(contactKey, type);
+    const currentPaid = getContactPaidAmount(contactKey, type);
     const paymentNote = String(payment.note || (payment.mode === 'lunas' ? 'Pelunasan total' : 'Cicilan'));
     const dateText = formatDateShort(payment.date || todayStr());
     const email = String(currentAuthUser?.email || '');
     const field = (label, value) => `<div class="receipt-table-row"><span class="receipt-table-label">${escapeHtml(label)}</span><span class="receipt-table-value">${escapeHtml(value)}</span></div>`;
-
     const content = document.getElementById('payment-receipt-content');
     if (!content) return;
     content.innerHTML = `
@@ -2846,18 +2916,19 @@ function openPaymentReceipt(txId, paymentId) {
             </div>
         </div>
         <div class="rounded-2xl bg-green-50 border border-green-100 p-4 mb-5">
-            <p class="text-[10px] uppercase font-bold tracking-widest text-green-800">${paymentMode}</p>
+            <p class="text-[10px] uppercase font-bold tracking-widest text-green-800">${escapeHtml(paymentMode)}</p>
             <p class="text-3xl font-black text-gray-900 mt-1">${formatRupiah(Number(payment.amount || 0))}</p>
-            <p class="text-xs text-green-800 mt-2">Transaksi tercatat di Catatan Utang</p>
+            <p class="text-xs text-green-800 mt-2">Pembayaran tercatat pada saldo kontak</p>
         </div>
         <div class="mb-5">
             <h4 class="font-black text-sm mb-2">Rincian</h4>
             ${field('Pihak terkait',contact)}
-            ${field('Jenis transaksi',typeLabel)}
+            ${field('Jenis saldo',type === 'hutang' ? 'Hutang' : 'Piutang')}
             ${field('Tanggal pembayaran',dateText)}
             ${field('Nominal pembayaran',formatRupiah(Number(payment.amount || 0)))}
             ${field('Catatan',paymentNote)}
-            ${field('Nilai pokok transaksi',formatRupiah(Number(tx.amount || 0)))}
+            ${field('Total saldo awal',formatRupiah(currentPrincipal))}
+            ${field('Total pembayaran tercatat',formatRupiah(currentPaid))}
             ${field('Sisa saldo saat ini',formatRupiah(currentRemaining))}
             ${field('Dicatat oleh',email || 'Pemilik akun')}
         </div>
@@ -2865,7 +2936,7 @@ function openPaymentReceipt(txId, paymentId) {
             <div><div class="h-14 border-b border-gray-400 mb-2"></div><p class="font-bold">Pembayar / Penerima</p><p class="text-gray-500 mt-1">${escapeHtml(contact)}</p></div>
             <div><div class="h-14 border-b border-gray-400 mb-2"></div><p class="font-bold">Pencatat</p><p class="text-gray-500 mt-1">${escapeHtml(email || 'Pemilik akun')}</p></div>
         </div>
-        <p class="text-[10px] leading-relaxed text-gray-500 border-t border-gray-200 pt-3">Dokumen ini dibuat otomatis dari catatan aplikasi Catatan Utang. Dokumen ini merangkum transaksi yang dicatat dan bukan bukti transfer perbankan. “Sisa saldo saat ini” menunjukkan saldo terbaru pada saat kuitansi dibuka.</p>
+        <p class="text-[10px] leading-relaxed text-gray-500 border-t border-gray-200 pt-3">Dokumen ini dibuat otomatis dari catatan aplikasi Catatan Utang dan bukan bukti transfer perbankan. Sisa saldo menunjukkan saldo kontak terbaru saat kuitansi dibuka.</p>
     `;
     openModal('modal-payment-receipt');
 }
@@ -2879,14 +2950,36 @@ function printPaymentReceipt() {
     window.print();
 }
 
-function downloadContactStatement(contactKey){
+function downloadContactStatement(contactKey) {
     if (!requireUnlockedApp()) return;
-    const txs=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey); if(!txs.length) return; const name=txs[0].contact||'Kontak';
-    const canvas=document.createElement('canvas'); canvas.width=760; canvas.height=Math.max(900,280+txs.length*70); const ctx=canvas.getContext('2d');
-    ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#16a34a'; ctx.fillRect(0,0,canvas.width,110); ctx.fillStyle='#fff'; ctx.font='bold 28px sans-serif'; ctx.fillText('CATATAN UTANG',30,45); ctx.font='18px sans-serif'; ctx.fillText('Laporan: '+name,30,78); ctx.fillStyle='#374151'; ctx.font='bold 20px sans-serif'; ctx.fillText('Ringkasan Transaksi',30,155); let y=195,totalH=0,totalP=0;
-    txs.forEach((tx,i)=>{const paid=getTxPaidAmount(tx),rem=getTxRemaining(tx); if(tx.type==='hutang') totalH+=rem; else totalP+=rem; ctx.font='15px sans-serif'; ctx.fillStyle='#374151'; const type=tx.type==='hutang'?'Hutang':'Piutang'; ctx.fillText(`${i+1}. ${formatDateShort(tx.txDate||tx.createdAt)} • ${type} • ${tx.note||'-'}`,30,y); ctx.fillText(formatRupiah(tx.amount),560,y); y+=26; ctx.fillStyle='#6b7280'; ctx.font='13px sans-serif'; ctx.fillText(`Terbayar ${formatRupiah(paid)} • Sisa ${formatRupiah(rem)}`,50,y); y+=34; });
-    y+=8; ctx.strokeStyle='#d1d5db'; ctx.beginPath(); ctx.moveTo(30,y);ctx.lineTo(730,y);ctx.stroke(); y+=40; ctx.font='bold 19px sans-serif';ctx.fillStyle='#374151';ctx.fillText('Sisa Hutang:',30,y);ctx.fillText(formatRupiah(totalH),220,y); y+=32;ctx.fillText('Sisa Piutang:',30,y);ctx.fillText(formatRupiah(totalP),220,y);
-    const link=document.createElement('a'); link.download=`Nota_${name.replace(/[^a-z0-9_.-]/gi,'_')}.png`; link.href=canvas.toDataURL('image/png'); link.click();
+    contactKey = normalizeContactKey(contactKey);
+    const txs = data.transactions.filter(tx => normalizeContactKey(tx.contact) === contactKey);
+    if (!txs.length) return;
+    const name = txs[0].contact || 'Kontak';
+    const events = [
+        ...txs.map(tx => ({date:tx.txDate||tx.createdAt||'',label:(tx.type==='hutang'?'Utang':'Piutang')+' • '+String(tx.note||'Pencatatan'),amount:Number(tx.amount||0)})),
+        ...getContactLedgerPayments(contactKey).map(payment=>({date:payment.date||'',label:(payment.type==='hutang'?'Bayar Hutang':'Terima Piutang')+' • '+String(payment.note||''),amount:-Math.abs(Number(payment.amount||0))}))
+    ].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    const canvas=document.createElement('canvas'); canvas.width=760; canvas.height=Math.max(760,250+events.length*48+160);
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#16a34a'; ctx.fillRect(0,0,canvas.width,100);
+    ctx.fillStyle='#fff'; ctx.font='bold 26px sans-serif'; ctx.fillText('CATATAN UTANG',30,42);
+    ctx.font='17px sans-serif'; ctx.fillText('Ledger: '+name,30,74);
+    ctx.fillStyle='#374151'; ctx.font='bold 18px sans-serif'; ctx.fillText('Riwayat',30,140);
+    let y=180;
+    events.forEach(event=>{
+        ctx.font='12px sans-serif'; ctx.fillStyle='#6b7280'; ctx.fillText(formatDateShort(event.date),30,y);
+        ctx.font='14px sans-serif'; ctx.fillStyle='#374151';
+        let label=String(event.label||'-'); if(label.length>58)label=label.slice(0,55)+'...';
+        ctx.fillText(label,145,y);
+        ctx.textAlign='right';ctx.fillStyle=event.amount<0?'#15803d':'#374151';ctx.font='bold 14px sans-serif';
+        ctx.fillText((event.amount<0?'−':'')+formatRupiah(Math.abs(event.amount)),730,y);ctx.textAlign='left';y+=42;
+    });
+    y+=16;ctx.strokeStyle='#d1d5db';ctx.beginPath();ctx.moveTo(30,y);ctx.lineTo(730,y);ctx.stroke();y+=34;
+    ctx.font='bold 18px sans-serif';ctx.fillStyle='#374151';ctx.fillText('Sisa Hutang:',30,y);ctx.fillText(formatRupiah(getContactRemaining(contactKey,'hutang')),220,y);y+=31;
+    ctx.fillText('Sisa Piutang:',30,y);ctx.fillText(formatRupiah(getContactRemaining(contactKey,'piutang')),220,y);
+    const link=document.createElement('a');link.download=`Nota_${name.replace(/[^a-z0-9_.-]/gi,'_')}.png`;link.href=canvas.toDataURL('image/png');link.click();
 }
 
 function monthKey(dateStr){ return String(dateStr||'').slice(0,7); }
@@ -2895,7 +2988,11 @@ function buildMonthlySummary(){
     const key=monthKey(todayStr()); let incoming=0,outgoing=0,count=0;
     data.transactions.forEach(tx=>{
         if(monthKey(tx.txDate||tx.createdAt)===key){ count++; if(tx.type==='hutang') incoming+=Number(tx.amount||0); else outgoing+=Number(tx.amount||0); }
-        (tx.payments||[]).forEach(p=>{ if(monthKey(p.date)===key){ if(tx.type==='hutang') outgoing+=Number(p.amount||0); else incoming+=Number(p.amount||0); } });
+    });
+    (data.ledgerPayments||[]).forEach(payment=>{
+        if(monthKey(payment.date)!==key) return;
+        if(payment.type==='hutang') outgoing+=Number(payment.amount||0);
+        else incoming+=Number(payment.amount||0);
     });
     const net=incoming-outgoing;
     return `<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3"><div class="flex items-center justify-between"><div><p class="text-[10px] uppercase tracking-widest text-gray-400 font-black">Ringkasan Bulan Ini</p><h3 class="text-base font-black text-gray-800">${escapeHtml(monthLabel(key))}</h3></div><div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center"><i class="ph-bold ph-chart-line-up text-lg"></i></div></div><div class="grid grid-cols-2 gap-2"><div class="rounded-xl bg-green-50 border border-green-100 p-3"><p class="text-[10px] text-green-700 font-bold uppercase">Uang Masuk</p><p class="text-sm font-black text-gray-800 mt-1">${formatRupiah(incoming)}</p></div><div class="rounded-xl bg-red-50 border border-red-100 p-3"><p class="text-[10px] text-red-700 font-bold uppercase">Uang Keluar</p><p class="text-sm font-black text-gray-800 mt-1">${formatRupiah(outgoing)}</p></div></div><div class="flex items-center justify-between text-[11px] bg-gray-50 rounded-xl px-3 py-2"><span class="font-bold text-gray-500">Arus bersih</span><span class="font-black ${net>=0?'text-green-600':'text-red-600'}">${formatRupiah(net)}</span></div><p class="text-[10px] text-gray-400">${count} transaksi utama tercatat pada bulan ini.</p></div>`;
@@ -2951,17 +3048,16 @@ function getReportPeriodSummary() {
         return value && value === reportPeriodValue;
     };
     data.transactions.forEach(tx => {
-        if (matchesPeriod(tx.txDate || tx.createdAt)) {
-            transactionCount++;
-            if (tx.type === 'hutang') incoming += Number(tx.amount || 0);
-            else outgoing += Number(tx.amount || 0);
-        }
-        (tx.payments || []).forEach(payment => {
-            if (!matchesPeriod(payment.date)) return;
-            paymentCount++;
-            if (tx.type === 'hutang') outgoing += Number(payment.amount || 0);
-            else incoming += Number(payment.amount || 0);
-        });
+        if (!matchesPeriod(tx.txDate || tx.createdAt)) return;
+        transactionCount++;
+        if (tx.type === 'hutang') incoming += Number(tx.amount || 0);
+        else outgoing += Number(tx.amount || 0);
+    });
+    (data.ledgerPayments || []).forEach(payment => {
+        if (!matchesPeriod(payment.date)) return;
+        paymentCount++;
+        if (payment.type === 'hutang') outgoing += Number(payment.amount || 0);
+        else incoming += Number(payment.amount || 0);
     });
     return { incoming, outgoing, net: incoming - outgoing, transactionCount, paymentCount };
 }
@@ -2976,10 +3072,10 @@ function buildReportPeriodSummary() {
             data.transactions.forEach(tx => {
                 const dateValue = String(tx.txDate || tx.createdAt || '').slice(0, 4);
                 if (/^\d{4}$/.test(dateValue)) years.add(dateValue);
-                (tx.payments || []).forEach(payment => {
-                    const paymentYear = String(payment.date || '').slice(0, 4);
-                    if (/^\d{4}$/.test(paymentYear)) years.add(paymentYear);
-                });
+            });
+            (data.ledgerPayments || []).forEach(payment => {
+                const paymentYear = String(payment.date || '').slice(0, 4);
+                if (/^\d{4}$/.test(paymentYear)) years.add(paymentYear);
             });
             const options = [...years].sort((a,b) => Number(b) - Number(a)).map(year =>
                 `<option value="${escapeHtml(year)}" ${year === reportPeriodValue ? 'selected' : ''}>${escapeHtml(year)}</option>`
@@ -3062,14 +3158,28 @@ function csvCell(value){
 }
 function reportCsvRow(values){ return values.map(csvCell).join(','); }
 function createContactCsvRows(transactions){
-    const rows=[['Kontak','ID Transaksi','Jenis','Tanggal Transaksi','Catatan','Jatuh Tempo','Nominal Awal','Total Dibayar','Sisa','Status','Riwayat Pembayaran']];
-    const sorted=transactions.slice().sort((a,b)=>String(a.txDate||'').localeCompare(String(b.txDate||''))||String(a.contact||'').localeCompare(String(b.contact||''),'id'));
-    sorted.forEach(tx=>{
-        const payments=(Array.isArray(tx.payments)?tx.payments:[]).map((p,i)=>`${p.date||'-'}: ${formatRupiah(p.amount)}${p.note?' ('+String(p.note).replace(/[\r\n;]/g,' ')+')':''}`).join(' | ') || (getTxPaidAmount(tx)>0?'Pembayaran legacy tanpa rincian':'Belum ada pembayaran');
-        rows.push([tx.contact||'Tanpa Nama',tx.id||'',tx.type==='hutang'?'Utang':'Piutang',tx.txDate||'',tx.note||'',tx.dueDate||'',Number(tx.amount||0),getTxPaidAmount(tx),getTxRemaining(tx),tx.status||deriveStatus(tx),payments]);
+    const rows=[['Kontak','Jenis Catatan','ID','Jenis Saldo','Tanggal','Keterangan','Jatuh Tempo','Nominal','Total Dibayar Jenis Saldo','Sisa Jenis Saldo','Status Saldo']];
+    const txs=transactions.slice().sort((a,b)=>String(a.txDate||a.createdAt||'').localeCompare(String(b.txDate||b.createdAt||''))||String(a.contact||'').localeCompare(String(b.contact||''),'id'));
+    const contactKey=normalizeContactKey(txs[0]?.contact), contactKeys=new Set(txs.map(tx=>normalizeContactKey(tx.contact))), events=[];
+    txs.forEach(tx=>events.push({kind:'Utang/Piutang',id:tx.id||'',type:tx.type==='piutang'?'piutang':'hutang',date:tx.txDate||tx.createdAt||'',note:tx.note||'',dueDate:tx.dueDate||'',amount:Number(tx.amount||0),contact:tx.contact||'Tanpa Nama'}));
+    (data.ledgerPayments||[]).filter(payment=>contactKeys.has(normalizeContactKey(payment.contactKey||payment.contact))).forEach(payment=>events.push({
+        kind:payment.mode==='lunas'?'Pembayaran Lunas':'Pembayaran Cicil',id:payment.id||'',type:payment.type==='piutang'?'piutang':'hutang',
+        date:payment.date||'',note:payment.note||'',dueDate:'',amount:-Math.abs(Number(payment.amount||0)),contact:payment.contact||txs[0]?.contact||'Tanpa Nama'
+    }));
+    events.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.id||'').localeCompare(String(b.id||'')));
+    events.forEach(event=>{
+        const paid=getContactPaidAmount(contactKey,event.type),remaining=getContactRemaining(contactKey,event.type);
+        rows.push([event.contact,event.kind,event.id,event.type==='hutang'?'Utang':'Piutang',event.date,event.note,event.dueDate,event.amount,paid,remaining,remaining>0?'Belum Lunas':'Lunas']);
     });
+    rows.push(['','','','Saldo akhir','','','','','','','']);
+    ['hutang','piutang'].forEach(type=>rows.push([
+        txs[0]?.contact||'Tanpa Nama','Saldo Akhir','',type==='hutang'?'Utang':'Piutang','','','',
+        getContactPrincipal(contactKey,type),getContactPaidAmount(contactKey,type),getContactRemaining(contactKey,type),
+        getContactRemaining(contactKey,type)>0?'Belum Lunas':'Lunas'
+    ]));
     return rows;
 }
+
 function downloadCsv(filename,rows){
     if(!requireUnlockedApp()) return;
     const content='\uFEFF'+rows.map(reportCsvRow).join('\r\n');
@@ -3413,36 +3523,42 @@ function validateBackupCollection(value, label) {
 
 function validateBackupPayload(parsed) {
     if (!isPlainRecord(parsed)) throw new Error('BACKUP_ROOT_INVALID');
-    if (parsed.app && !['Catatan Ayah', 'Catatan Utang Piutang', 'Catatan Utang'].includes(parsed.app)) throw new Error('BACKUP_WRONG_APPLICATION');
-    if (Object.prototype.hasOwnProperty.call(parsed, 'data') && !isPlainRecord(parsed.data)) throw new Error('BACKUP_DATA_INVALID');
-    const source = Object.prototype.hasOwnProperty.call(parsed, 'data') ? parsed.data : parsed;
-    if (!isPlainRecord(source) || !Object.prototype.hasOwnProperty.call(source, 'transactions') || !Object.prototype.hasOwnProperty.call(source, 'needs')) {
-        throw new Error('BACKUP_MISSING_COLLECTIONS');
-    }
-    const transactions = validateBackupCollection(source.transactions, 'transactions');
-    const needs = validateBackupCollection(source.needs, 'needs');
-    if (transactions.length + needs.length > MAX_BACKUP_RECORDS) throw new Error('BACKUP_TOO_MANY_RECORDS');
-
-    for (const [index, tx] of transactions.entries()) {
-        const amount = Number(tx.amount);
-        if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_BACKUP_AMOUNT) throw new Error(`TRANSACTION_AMOUNT_INVALID_${index + 1}`);
-        if (tx.contact !== undefined && typeof tx.contact !== 'string') throw new Error(`TRANSACTION_CONTACT_INVALID_${index + 1}`);
-        if (tx.note !== undefined && typeof tx.note !== 'string') throw new Error(`TRANSACTION_NOTE_INVALID_${index + 1}`);
-        if (tx.payments !== undefined && !Array.isArray(tx.payments)) throw new Error(`TRANSACTION_PAYMENTS_INVALID_${index + 1}`);
-        for (const [paymentIndex, payment] of (Array.isArray(tx.payments) ? tx.payments : []).entries()) {
-            if (!isPlainRecord(payment)) throw new Error(`PAYMENT_INVALID_${index + 1}_${paymentIndex + 1}`);
-            const paymentAmount = Number(payment.amount);
-            if (!Number.isFinite(paymentAmount) || paymentAmount <= 0 || paymentAmount > MAX_BACKUP_AMOUNT) throw new Error(`PAYMENT_AMOUNT_INVALID_${index + 1}_${paymentIndex + 1}`);
-            if (payment.date !== undefined && typeof payment.date !== 'string') throw new Error(`PAYMENT_DATE_INVALID_${index + 1}_${paymentIndex + 1}`);
+    if (parsed.app && !['Catatan Ayah','Catatan Utang Piutang','Catatan Utang'].includes(parsed.app)) throw new Error('BACKUP_WRONG_APPLICATION');
+    if (Object.prototype.hasOwnProperty.call(parsed,'data') && !isPlainRecord(parsed.data)) throw new Error('BACKUP_DATA_INVALID');
+    const source = Object.prototype.hasOwnProperty.call(parsed,'data') ? parsed.data : parsed;
+    if (!isPlainRecord(source) || !Object.prototype.hasOwnProperty.call(source,'transactions') || !Object.prototype.hasOwnProperty.call(source,'needs')) throw new Error('BACKUP_MISSING_COLLECTIONS');
+    const transactions=validateBackupCollection(source.transactions,'transactions'), needs=validateBackupCollection(source.needs,'needs');
+    const ledgerPayments=source.ledgerPayments===undefined?[]:validateBackupCollection(source.ledgerPayments,'ledgerPayments');
+    if(transactions.length+needs.length+ledgerPayments.length>MAX_BACKUP_RECORDS)throw new Error('BACKUP_TOO_MANY_RECORDS');
+    for(const [index,tx] of transactions.entries()){
+        const amount=Number(tx.amount);
+        if(!Number.isFinite(amount)||amount<=0||amount>MAX_BACKUP_AMOUNT)throw new Error(`TRANSACTION_AMOUNT_INVALID_${index+1}`);
+        if(tx.contact!==undefined&&typeof tx.contact!=='string')throw new Error(`TRANSACTION_CONTACT_INVALID_${index+1}`);
+        if(tx.note!==undefined&&typeof tx.note!=='string')throw new Error(`TRANSACTION_NOTE_INVALID_${index+1}`);
+        if(tx.payments!==undefined&&!Array.isArray(tx.payments))throw new Error(`TRANSACTION_PAYMENTS_INVALID_${index+1}`);
+        for(const [pIndex,payment] of (Array.isArray(tx.payments)?tx.payments:[]).entries()){
+            if(!isPlainRecord(payment))throw new Error(`PAYMENT_INVALID_${index+1}_${pIndex+1}`);
+            const paid=Number(payment.amount);
+            if(!Number.isFinite(paid)||paid<=0||paid>MAX_BACKUP_AMOUNT)throw new Error(`PAYMENT_AMOUNT_INVALID_${index+1}_${pIndex+1}`);
+            if(payment.date!==undefined&&typeof payment.date!=='string')throw new Error(`PAYMENT_DATE_INVALID_${index+1}_${pIndex+1}`);
         }
     }
-    for (const [index, need] of needs.entries()) {
-        const amount = Number(need.amount);
-        if (!Number.isFinite(amount) || amount <= 0 || amount > MAX_BACKUP_AMOUNT) throw new Error(`NEED_AMOUNT_INVALID_${index + 1}`);
-        if (need.description !== undefined && typeof need.description !== 'string') throw new Error(`NEED_DESCRIPTION_INVALID_${index + 1}`);
-        if (need.dueDate !== undefined && typeof need.dueDate !== 'string') throw new Error(`NEED_DATE_INVALID_${index + 1}`);
+    for(const [index,payment] of ledgerPayments.entries()){
+        if(!isPlainRecord(payment))throw new Error(`LEDGER_PAYMENT_INVALID_${index+1}`);
+        const amount=Number(payment.amount);
+        if(!Number.isFinite(amount)||amount<=0||amount>MAX_BACKUP_AMOUNT)throw new Error(`LEDGER_PAYMENT_AMOUNT_INVALID_${index+1}`);
+        if(payment.contact!==undefined&&typeof payment.contact!=='string')throw new Error(`LEDGER_PAYMENT_CONTACT_INVALID_${index+1}`);
+        if(payment.type!==undefined&&!['hutang','piutang'].includes(payment.type))throw new Error(`LEDGER_PAYMENT_TYPE_INVALID_${index+1}`);
+        if(payment.date!==undefined&&typeof payment.date!=='string')throw new Error(`LEDGER_PAYMENT_DATE_INVALID_${index+1}`);
+        if(payment.mode!==undefined&&!['cicil','lunas'].includes(payment.mode))throw new Error(`LEDGER_PAYMENT_MODE_INVALID_${index+1}`);
     }
-    return { source, transactions, needs };
+    for(const [index,need] of needs.entries()){
+        const amount=Number(need.amount);
+        if(!Number.isFinite(amount)||amount<=0||amount>MAX_BACKUP_AMOUNT)throw new Error(`NEED_AMOUNT_INVALID_${index+1}`);
+        if(need.description!==undefined&&typeof need.description!=='string')throw new Error(`NEED_DESCRIPTION_INVALID_${index+1}`);
+        if(need.dueDate!==undefined&&typeof need.dueDate!=='string')throw new Error(`NEED_DATE_INVALID_${index+1}`);
+    }
+    return {source,transactions,needs,ledgerPayments};
 }
 
 async function downloadBackup() {
