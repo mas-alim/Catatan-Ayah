@@ -1023,6 +1023,7 @@ let activeLedgerSelectedTxId = '';
 let activePaymentContactKey = '';
 let activePaymentContactName = '';
 let activePaymentType = '';
+let ledgerMigrationPending = false;
 let firebaseListening = false;
 let firebaseUnsubscribe = null;
 let firebaseInitialLoadPromise = null;
@@ -1169,6 +1170,9 @@ function normalizeData(input) {
         ...tx,
         payments:Array.isArray(tx.payments)?tx.payments.map((payment,i)=>({...payment,id:payment?.id||`legacy-payment-${tx.id}-${i+1}`})):[]
     }));
+    if (isLegacyPaymentSchema && transactions.some(tx => (Array.isArray(tx.payments) && tx.payments.length > 0) || tx.status === TX_STATUS.LUNAS)) {
+        ledgerMigrationPending = true;
+    }
     const ledgerPayments=collectionToArray(root.ledgerPayments,'ledger-payment');
     const ledgerPaymentIds=new Set(ledgerPayments.map(payment=>String(payment?.id||'')));
     const txById=new Map(transactions.map(tx=>[String(tx.id||''),tx]));
@@ -2145,6 +2149,7 @@ async function saveData({ replaceAll = false } = {}) {
         // stable baseline from that string to avoid a second full serialization pass.
         lastStableDataJson = JSON.stringify(data);
         lastStableData = JSON.parse(lastStableDataJson);
+        ledgerMigrationPending = false;
         setSyncState('online');
     } catch (err) {
         if (lastStableData) data = cloneData(lastStableData);
@@ -2241,6 +2246,18 @@ async function unlockApp() {
         await setupFirebaseListener();
         if (!isTenantAuthenticated() || !firebaseDataReady) throw new Error('DATA_NOT_READY');
         appUnlocked = true;
+        if (ledgerMigrationPending) {
+            try {
+                // Persist the schema migration immediately so legacy payments are not
+                // re-migrated on every browser load. The transaction is ID-merged safely.
+                await saveData();
+                showToast('Riwayat pembayaran lama berhasil dimigrasikan ke ledger kontak.');
+            } catch (migrationError) {
+                ledgerMigrationPending = true;
+                console.warn('Contact ledger migration will be retried on the next successful save:', migrationError);
+                showToast('Riwayat lama sudah dimuat. Penyimpanan migrasi akan dicoba kembali saat koneksi pulih.');
+            }
+        }
         document.getElementById('screen-data-loading').classList.add('hidden');
         document.getElementById('app-content').classList.remove('hidden');
         renderLastSyncInfo();
