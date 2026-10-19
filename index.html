@@ -2437,14 +2437,24 @@ async function saveTransaction(e) {
         const existing = data.transactions.find(t => t.id === editId);
         if (!existing) { showToast('Transaksi tidak ditemukan. Muat ulang data lalu coba kembali.'); return; }
         const oldContactKey = normalizeContactKey(existing.contact);
+        const nextContactKey = normalizeContactKey(contact);
         const oldType = existing.type === 'piutang' ? 'piutang' : 'hutang';
-        const hasContactLedgerHistory = getContactLedgerPayments(oldContactKey, oldType).length > 0;
-        if (hasContactLedgerHistory && (oldContactKey !== normalizeContactKey(contact) || oldType !== type)) {
-            showToast('Nama kontak dan jenis saldo tidak dapat diubah pada transaksi ini karena sudah ada riwayat pembayaran tingkat kontak. Ubah tanggal, nominal, jatuh tempo, atau keterangannya saja agar saldo tetap akurat.');
+        const nextType = type === 'piutang' ? 'piutang' : 'hutang';
+        const changingLedgerIdentity = oldContactKey !== nextContactKey || oldType !== nextType;
+        const sourceHasLedgerHistory = getContactLedgerPayments(oldContactKey, oldType).length > 0;
+        const destinationHasLedgerHistory = getContactLedgerPayments(nextContactKey, nextType).length > 0;
+        if (changingLedgerIdentity && (sourceHasLedgerHistory || destinationHasLedgerHistory)) {
+            showToast('Nama kontak atau jenis saldo tidak dapat diubah karena salah satu saldo sudah memiliki riwayat pembayaran tingkat kontak. Ubah tanggal, nominal, jatuh tempo, atau keterangannya saja.');
             return;
         }
-        const alreadyPaid = getTxPaidAmount(existing);
-        if (amount < alreadyPaid) { showToast(`Nominal transaksi tidak boleh lebih kecil dari alokasi pembayaran saat ini (${formatRupiah(alreadyPaid)}).`); return; }
+        // Payments are contact-level, so validate the total saldo—not a virtual FIFO allocation to this one transaction.
+        const principalBefore = getContactPrincipal(oldContactKey, oldType);
+        const paymentsForBalance = getContactPaidAmount(oldContactKey, oldType);
+        const principalAfter = principalBefore - Math.max(0, Number(existing.amount) || 0) + amount;
+        if (principalAfter < paymentsForBalance) {
+            showToast('Nominal ini membuat total utang/piutang lebih kecil daripada pembayaran yang sudah tercatat untuk kontak tersebut (' + formatRupiah(paymentsForBalance) + ').');
+            return;
+        }
     }
     const btn = document.getElementById('btn-save-tx');
     btn.disabled = true; btn.classList.add('disabled');
