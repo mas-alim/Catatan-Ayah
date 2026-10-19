@@ -2436,8 +2436,15 @@ async function saveTransaction(e) {
     if (editId) {
         const existing = data.transactions.find(t => t.id === editId);
         if (!existing) { showToast('Transaksi tidak ditemukan. Muat ulang data lalu coba kembali.'); return; }
+        const oldContactKey = normalizeContactKey(existing.contact);
+        const oldType = existing.type === 'piutang' ? 'piutang' : 'hutang';
+        const hasContactLedgerHistory = getContactLedgerPayments(oldContactKey, oldType).length > 0;
+        if (hasContactLedgerHistory && (oldContactKey !== normalizeContactKey(contact) || oldType !== type)) {
+            showToast('Nama kontak dan jenis saldo tidak dapat diubah pada transaksi ini karena sudah ada riwayat pembayaran tingkat kontak. Ubah tanggal, nominal, jatuh tempo, atau keterangannya saja agar saldo tetap akurat.');
+            return;
+        }
         const alreadyPaid = getTxPaidAmount(existing);
-        if (amount < alreadyPaid) { showToast(`Nominal transaksi tidak boleh lebih kecil dari pembayaran yang sudah tercatat (${formatRupiah(alreadyPaid)}).`); return; }
+        if (amount < alreadyPaid) { showToast(`Nominal transaksi tidak boleh lebih kecil dari alokasi pembayaran saat ini (${formatRupiah(alreadyPaid)}).`); return; }
     }
     const btn = document.getElementById('btn-save-tx');
     btn.disabled = true; btn.classList.add('disabled');
@@ -2682,8 +2689,16 @@ async function executeDelete() {
         if (target.type === 'contact') {
             data.transactions = data.transactions.filter(item => normalizeContactKey(item.contact) !== normalizeContactKey(target.key));
             data.ledgerPayments = (data.ledgerPayments || []).filter(payment => normalizeContactKey(payment.contactKey || payment.contact) !== normalizeContactKey(target.key));
-        } else if (target.type === 'transaction') data.transactions = data.transactions.filter(item => item.id !== target.id);
-        else if (target.type === 'need') data.needs = data.needs.filter(item => item.id !== target.id);
+        } else if (target.type === 'transaction') {
+            const deletedTx = data.transactions.find(item => String(item.id) === String(target.id));
+            const deletedContactKey = normalizeContactKey(target.contactKey || deletedTx?.contact || '');
+            data.transactions = data.transactions.filter(item => String(item.id) !== String(target.id));
+            // If this was the final principal entry for a contact, remove its now-orphaned payment events too.
+            const contactStillHasTransactions = data.transactions.some(item => normalizeContactKey(item.contact) === deletedContactKey);
+            if (!contactStillHasTransactions && deletedContactKey) {
+                data.ledgerPayments = (data.ledgerPayments || []).filter(payment => normalizeContactKey(payment.contactKey || payment.contact) !== deletedContactKey);
+            }
+        } else if (target.type === 'need') data.needs = data.needs.filter(item => item.id !== target.id);
         invalidateLedgerCalculationCache(data);
         recordActivity('record_deleted', summary, target.type, target.id || target.key || '', amount);
         await saveData();
