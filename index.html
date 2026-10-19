@@ -832,7 +832,7 @@
     <!-- PAYMENT MODAL -->
     <div id="modal-pay-transaction" class="fixed inset-0 bg-black/60 z-[100] hidden flex-col justify-end backdrop-blur-sm">
         <div class="bg-white rounded-t-3xl w-full max-h-[94vh] overflow-y-auto p-6 slide-up safe-bottom">
-            <div class="flex justify-between items-center mb-4"><div><p class="text-[10px] uppercase tracking-widest text-orange-600 font-black">Pembayaran</p><h2 class="text-lg font-bold text-gray-800">Catat Pembayaran</h2><p id="pay-target-name" class="text-xs text-gray-500 font-medium"></p></div><button onclick="closeModal('modal-pay-transaction')" class="p-2 text-gray-500 rounded-full bg-gray-100"><i class="ph ph-x text-lg"></i></button></div>
+            <div class="flex justify-between items-center mb-4"><div><p class="text-[10px] uppercase tracking-widest text-orange-600 font-black">Pembayaran</p><h2 id="pay-modal-title" class="text-lg font-bold text-gray-800">Catat Pembayaran</h2><p id="pay-target-name" class="text-xs text-gray-500 font-medium"></p></div><button onclick="closeModal('modal-pay-transaction')" class="p-2 text-gray-500 rounded-full bg-gray-100"><i class="ph ph-x text-lg"></i></button></div>
             <div class="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4"><p id="pay-balance-caption" class="text-xs text-green-700 font-semibold mb-1">Sisa Saldo Kontak</p><p id="pay-remaining-text" class="text-2xl font-black text-green-700">Pilih jenis saldo</p></div>
             <form id="form-pay" class="space-y-4" onsubmit="savePayment(event)">
                 <input type="hidden" id="pay-tx-id">
@@ -1023,6 +1023,7 @@ let activeLedgerSelectedTxId = '';
 let activePaymentContactKey = '';
 let activePaymentContactName = '';
 let activePaymentType = '';
+let editingLedgerPaymentId = '';
 let ledgerMigrationPending = false;
 let firebaseListening = false;
 let firebaseUnsubscribe = null;
@@ -2404,6 +2405,11 @@ function closeModal(id) {
     if (id === 'modal-add-need') { document.getElementById('form-need').reset(); document.getElementById('nd_edit_id').value = ''; }
     if (id === 'modal-pay-transaction') {
         document.getElementById('form-pay').reset();
+        editingLedgerPaymentId = '';
+        document.getElementById('pay-ledger-type').disabled = false;
+        document.getElementById('pay-modal-title').textContent = 'Catat Pembayaran';
+        document.getElementById('pay-balance-caption').textContent = 'Sisa Saldo Kontak';
+        document.getElementById('btn-save-pay').innerHTML = '<i class="ph-bold ph-check-square"></i> Simpan Pembayaran';
         activePayTx = null;
         activePaymentContactKey = '';
         activePaymentContactName = '';
@@ -2605,7 +2611,12 @@ function openPayModalByContact(contactKey,preferredType=''){
     if(debtRemaining<=0&&creditRemaining<=0){showToast('Kontak ini sudah tidak memiliki sisa hutang atau piutang.');return;}
 
     document.getElementById('form-pay').reset();
+    editingLedgerPaymentId='';
     activePayTx=null;
+    document.getElementById('pay-ledger-type').disabled=false;
+    document.getElementById('pay-modal-title').textContent='Catat Pembayaran';
+    document.getElementById('pay-balance-caption').textContent='Sisa Saldo Kontak';
+    document.getElementById('btn-save-pay').innerHTML='<i class="ph-bold ph-check-square"></i> Simpan Pembayaran';
     activePaymentContactKey=normalizedKey;
     activePaymentContactName=contactName;
     document.getElementById('pay-tx-id').value='';
@@ -2624,6 +2635,59 @@ function openPayModalByContact(contactKey,preferredType=''){
     openModal('modal-pay-transaction');
 }
 
+
+function openEditLedgerPayment(paymentId) {
+    if (!requireUnlockedApp()) return;
+    const payment = (Array.isArray(data.ledgerPayments) ? data.ledgerPayments : [])
+        .find(item => String(item.id) === String(paymentId));
+    if (!payment) { showToast('Catatan pembayaran tidak ditemukan.'); return; }
+    if (payment.type !== 'hutang') { showToast('Aksi ini hanya tersedia untuk catatan Bayar Hutang.'); return; }
+
+    const contactKey = normalizeContactKey(payment.contactKey || payment.contact);
+    const contactTxs = data.transactions.filter(tx => normalizeContactKey(tx.contact) === contactKey);
+    if (!contactKey || !contactTxs.length) { showToast('Transaksi pihak untuk pembayaran ini tidak ditemukan.'); return; }
+
+    const contactName = String(payment.contact || contactTxs[0].contact || 'Tanpa Nama');
+    const maxAmount = getContactRemaining(contactKey, 'hutang') + Math.max(0, Number(payment.amount || 0));
+    if (!Number.isFinite(maxAmount) || maxAmount <= 0) { showToast('Batas nominal pembayaran tidak valid.'); return; }
+
+    document.getElementById('form-pay').reset();
+    activePayTx = null;
+    editingLedgerPaymentId = String(payment.id);
+    activePaymentContactKey = contactKey;
+    activePaymentContactName = contactName;
+    activePaymentType = 'hutang';
+
+    document.getElementById('pay-tx-id').value = '';
+    document.getElementById('pay-target-name').textContent = contactName + ' · Edit Bayar Hutang';
+    document.getElementById('pay-balance-caption').textContent = 'Batas nominal setelah perubahan';
+    document.getElementById('pay-remaining-text').textContent = formatRupiah(maxAmount);
+
+    const typeSelect = document.getElementById('pay-ledger-type');
+    typeSelect.value = 'hutang';
+    typeSelect.disabled = true;
+
+    const amountInput = document.getElementById('pay_amount');
+    amountInput.value = Number(payment.amount || 0);
+    amountInput.min = '1';
+    amountInput.max = String(maxAmount);
+    amountInput.disabled = false;
+    amountInput.readOnly = false;
+
+    document.getElementById('pay_date').value = String(payment.date || payment.createdAt || todayStr()).slice(0, 10);
+    document.getElementById('pay_note').value = String(payment.note || '');
+
+    const selectedMode = payment.mode === 'lunas' && Number(payment.amount || 0) === maxAmount ? 'lunas' : 'cicil';
+    document.querySelector('input[name="pay_mode"][value="cicil"]').checked = selectedMode === 'cicil';
+    document.querySelector('input[name="pay_mode"][value="lunas"]').checked = selectedMode === 'lunas';
+
+    document.getElementById('pay-modal-title').textContent = 'Edit Pembayaran Hutang';
+    const saveButton = document.getElementById('btn-save-pay');
+    saveButton.innerHTML = '<i class="ph-bold ph-check-square"></i> Simpan Perubahan';
+    saveButton.disabled = false;
+    openModal('modal-pay-transaction');
+}
+
 function openPayModalByTransaction(txId){
     if(!requireUnlockedApp())return;
     const tx=data.transactions.find(item=>String(item.id)===String(txId));
@@ -2632,7 +2696,8 @@ function openPayModalByTransaction(txId){
 }
 
 function togglePayMode(mode){
-    const remaining=activePaymentContactKey&&activePaymentType?getContactRemaining(activePaymentContactKey,activePaymentType):0;
+    const editingPayment=editingLedgerPaymentId?(data.ledgerPayments||[]).find(item=>String(item.id)===String(editingLedgerPaymentId)):null;
+    const remaining=activePaymentContactKey&&activePaymentType?(getContactRemaining(activePaymentContactKey,activePaymentType)+(editingPayment?Math.max(0,Number(editingPayment.amount||0)):0)):0;
     const input=document.getElementById('pay_amount');
     if(!input)return;
     if(mode==='lunas'){input.value=remaining>0?remaining:'';input.readOnly=true;}
@@ -2641,8 +2706,70 @@ function togglePayMode(mode){
     input.disabled=remaining<=0;
 }
 
+
+async function saveEditedLedgerPayment() {
+    if (!requireUnlockedApp()) return;
+    const paymentId = String(editingLedgerPaymentId || '');
+    const existing = (Array.isArray(data.ledgerPayments) ? data.ledgerPayments : [])
+        .find(item => String(item.id) === paymentId);
+    if (!existing || existing.type !== 'hutang') {
+        showToast('Catatan Bayar Hutang tidak ditemukan. Muat ulang Detail Ledger lalu coba kembali.');
+        return;
+    }
+
+    const contactKey = normalizeContactKey(existing.contactKey || existing.contact);
+    const contactName = String(existing.contact || activePaymentContactName || 'Tanpa Nama');
+    const amount = Number(document.getElementById('pay_amount').value);
+    const date = document.getElementById('pay_date').value || todayStr();
+    const note = document.getElementById('pay_note').value.trim() || 'Pembayaran cicilan';
+    const selectedMode = document.querySelector('input[name="pay_mode"]:checked')?.value || 'cicil';
+    const maxAmount = getContactRemaining(contactKey, 'hutang') + Math.max(0, Number(existing.amount || 0));
+
+    if (!Number.isFinite(amount) || amount <= 0 || amount > maxAmount) {
+        showToast('Nominal harus lebih dari Rp 0 dan maksimal ' + formatRupiah(maxAmount) + '.');
+        return;
+    }
+    if (selectedMode === 'lunas' && amount !== maxAmount) {
+        showToast('Untuk opsi Lunas, nominal harus sama dengan batas ' + formatRupiah(maxAmount) + '.');
+        return;
+    }
+
+    const mode = amount === maxAmount ? 'lunas' : 'cicil';
+    const button = document.getElementById('btn-save-pay');
+    button.disabled = true;
+    try {
+        const livePayment = (data.ledgerPayments || []).find(item => String(item.id) === paymentId);
+        if (!livePayment || livePayment.type !== 'hutang') throw new Error('PAYMENT_NOT_FOUND');
+        const liveMaxAmount = getContactRemaining(contactKey, 'hutang') + Math.max(0, Number(livePayment.amount || 0));
+        if (!Number.isFinite(liveMaxAmount) || amount <= 0 || amount > liveMaxAmount) throw new Error('PAYMENT_EXCEEDS_REMAINING');
+
+        const updatedPayment = { ...livePayment, date, amount, mode, note };
+        data.ledgerPayments = data.ledgerPayments.map(item =>
+            String(item.id) === paymentId ? updatedPayment : item
+        );
+        invalidateLedgerCalculationCache(data);
+        recordActivity('payment_updated',
+            'Pembayaran hutang ' + contactName + ' diperbarui (' + formatRupiah(amount) + ')',
+            'pembayaran', paymentId, amount);
+
+        const detailModal = document.getElementById('modal-detail-transaction');
+        const detailWasOpen = !!detailModal && !detailModal.classList.contains('hidden');
+        await saveData();
+        closeModal('modal-pay-transaction');
+        renderApp();
+        if (detailWasOpen) openDetailModalByContact(contactKey, activeLedgerSelectedTxId);
+        showToast('Pembayaran hutang berhasil diperbarui.');
+    } catch (error) {
+        console.error('Update Bayar Hutang failed:', error);
+        showToast('Perubahan pembayaran gagal disimpan. Periksa koneksi lalu coba kembali.');
+    } finally {
+        button.disabled = false;
+    }
+}
+
 async function savePayment(event){
     event.preventDefault();
+    if (editingLedgerPaymentId) { await saveEditedLedgerPayment(); return; }
     if(!requireUnlockedApp())return;
     const contactKey=normalizeContactKey(activePaymentContactKey);
     const contactName=String(activePaymentContactName||'');
@@ -2708,6 +2835,20 @@ function confirmDeleteTransaction(txId){
     deleteTarget={type:'transaction',id:tx.id,contactKey};
     showConfirm('Hapus transaksi ini?','Transaksi tanggal '+formatDateShort(tx.txDate||tx.createdAt)+' akan dihapus. Pembayaran tersimpan terpisah pada saldo kontak dan tidak dihapus selama masih relevan.');
 }
+
+function confirmDeleteLedgerPayment(paymentId) {
+    if (!requireUnlockedApp()) return;
+    const payment = (Array.isArray(data.ledgerPayments) ? data.ledgerPayments : [])
+        .find(item => String(item.id) === String(paymentId));
+    if (!payment) { showToast('Catatan pembayaran tidak ditemukan.'); return; }
+    if (payment.type !== 'hutang') { showToast('Aksi ini hanya tersedia untuk catatan Bayar Hutang.'); return; }
+    const contactKey = normalizeContactKey(payment.contactKey || payment.contact);
+    deleteTarget = { type: 'ledger-payment', id: String(payment.id), contactKey };
+    showConfirm('Hapus pembayaran hutang?',
+        'Pembayaran tanggal ' + formatDateShort(payment.date || payment.createdAt) + ' sebesar ' +
+        formatRupiah(payment.amount) + ' akan dihapus permanen dan sisa hutang dihitung ulang.');
+}
+
 function confirmDeleteNeed(needId){ if(!requireUnlockedApp()) return; deleteTarget={type:'need',id:needId}; showConfirm('Hapus tagihan ini?','Rencana tagihan ini akan dihapus permanen.'); }
 function showConfirm(title,text){ document.getElementById('confirm-title').textContent=title; document.getElementById('confirm-text').textContent=text; document.getElementById('btn-confirm-delete').onclick=executeDelete; openModal('modal-confirm'); }
 function closeConfirmModal(){ deleteTarget=null; closeModal('modal-confirm'); }
@@ -2725,6 +2866,10 @@ async function executeDelete() {
         const tx = data.transactions.find(item => item.id === target.id);
         summary = 'Transaksi milik ' + String(tx?.contact || target.id || 'Tanpa Nama') + ' dihapus';
         amount = tx?.amount ?? null;
+    } else if (target.type === 'ledger-payment') {
+        const payment = (data.ledgerPayments || []).find(item => String(item.id) === String(target.id));
+        summary = 'Pembayaran hutang ' + String(payment?.contact || target.contactKey || 'Tanpa Nama') + ' dihapus';
+        amount = payment?.amount ?? null;
     } else if (target.type === 'need') {
         const need = data.needs.find(item => item.id === target.id);
         summary = 'Tagihan ' + String(need?.description || target.id || 'tanpa nama') + ' dihapus';
@@ -2743,13 +2888,17 @@ async function executeDelete() {
             if (!contactStillHasTransactions && deletedContactKey) {
                 data.ledgerPayments = (data.ledgerPayments || []).filter(payment => normalizeContactKey(payment.contactKey || payment.contact) !== deletedContactKey);
             }
+        } else if (target.type === 'ledger-payment') {
+            const payment = (data.ledgerPayments || []).find(item => String(item.id) === String(target.id));
+            if (!payment || payment.type !== 'hutang') throw new Error('PAYMENT_NOT_FOUND');
+            data.ledgerPayments = (data.ledgerPayments || []).filter(item => String(item.id) !== String(target.id));
         } else if (target.type === 'need') data.needs = data.needs.filter(item => item.id !== target.id);
         invalidateLedgerCalculationCache(data);
-        recordActivity('record_deleted', summary, target.type, target.id || target.key || '', amount);
+        recordActivity(target.type === 'ledger-payment' ? 'payment_deleted' : 'record_deleted', summary, target.type, target.id || target.key || '', amount);
         await saveData();
         closeConfirmModal();
         renderApp();
-        if (target.type === 'transaction' && ledgerWasOpen) {
+        if ((target.type === 'transaction' || target.type === 'ledger-payment') && ledgerWasOpen) {
             const key = String(target.contactKey || activeLedgerContactKey || '').trim().toLowerCase();
             const hasRemainingContactTransactions = data.transactions.some(item => (item.contact || '').trim().toLowerCase() === key);
             if (hasRemainingContactTransactions) openDetailModalByContact(key);
@@ -2843,7 +2992,9 @@ function openDetailModalByContact(contactKey, preferredTxId = '') {
                 <button type="button" onclick="openTransactionModal(${jsArg(item.id)})" class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] font-bold"><i class="ph-bold ph-pencil-simple"></i> Edit</button>
                 <button type="button" onclick="confirmDeleteTransaction(${jsArg(item.id)})" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 text-[10px] font-bold"><i class="ph-bold ph-trash"></i> Hapus</button>
             </div>`
-            : '';
+            : (item.type === 'hutang' ? '<div class="flex flex-wrap gap-2 mt-2">' +
+                '<button type="button" onclick="openEditLedgerPayment(' + jsArg(item.id) + ')" class="px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] font-bold"><i class="ph-bold ph-pencil-simple"></i> Edit</button>' +
+                '<button type="button" onclick="confirmDeleteLedgerPayment(' + jsArg(item.id) + ')" class="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 text-[10px] font-bold"><i class="ph-bold ph-trash"></i> Hapus</button></div>' : '');
         return `<div class="relative pl-6 pb-4 border-l-2 border-gray-200 last:border-l-0 last:pb-0">
             <div class="absolute -left-[13px] top-0 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm ${iconClass}"><i class="ph-bold ${iconClass.split(' ').slice(0,2).join(' ')}"></i></div>
             <div class="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm">
@@ -3734,7 +3885,7 @@ function initApp(){
 
 window.openSettings=openSettings; window.openActivityHistory=openActivityHistory; window.openPaymentReceipt=openPaymentReceipt; window.printPaymentReceipt=printPaymentReceipt; window.openUserProfile=openUserProfile; window.saveUserProfile=saveUserProfile; window.sendPasswordResetFromSettings=sendPasswordResetFromSettings; window.sendPasswordResetFromLogin=sendPasswordResetFromLogin; window.openPasswordResetConfirmation=openPasswordResetConfirmation; window.cancelPasswordResetConfirmation=cancelPasswordResetConfirmation; window.handlePasswordResetOk=handlePasswordResetOk; window.openAdminUsers=openAdminUsers; window.refreshManagedUsers=refreshManagedUsers; window.filterManagedUsers=filterManagedUsers; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
 window.setReportPeriodMode=setReportPeriodMode; window.setReportPeriodValue=setReportPeriodValue; window.downloadPeriodReportCsv=downloadPeriodReportCsv; window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
-window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.showAuthView=showAuthView; window.openForgotPasswordView=openForgotPasswordView; window.toggleAuthPassword=toggleAuthPassword; window.sendPasswordResetFromForgotScreen=sendPasswordResetFromForgotScreen; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.paySelectedLedgerTransaction=paySelectedLedgerTransaction; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
+window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.showAuthView=showAuthView; window.openForgotPasswordView=openForgotPasswordView; window.toggleAuthPassword=toggleAuthPassword; window.sendPasswordResetFromForgotScreen=sendPasswordResetFromForgotScreen; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openEditLedgerPayment=openEditLedgerPayment; window.confirmDeleteLedgerPayment=confirmDeleteLedgerPayment; window.openDetailModalByContact=openDetailModalByContact; window.paySelectedLedgerTransaction=paySelectedLedgerTransaction; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
 document.addEventListener('DOMContentLoaded', initApp);
 </script>
