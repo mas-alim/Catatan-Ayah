@@ -613,6 +613,18 @@
             .tx-status-chip { min-height:44px; font-size:13px; }
         }
 
+
+        /* Detail Ledger: one set of actions per contact, using a selected transaction. */
+        .ledger-actions-card { min-width:0; }
+        .ledger-actions-card select { box-sizing:border-box; }
+        .ledger-action-button { min-width:0; cursor:pointer; transition:opacity .15s ease, transform .15s ease; }
+        .ledger-action-button:active:not(:disabled) { transform:scale(.98); }
+        .ledger-action-button:disabled { opacity:.42; cursor:not-allowed; box-shadow:none; }
+        @media (max-width:360px) {
+            .ledger-actions-card { padding:11px; }
+            .ledger-action-button { font-size:10px; padding-left:4px; padding-right:4px; }
+        }
+
 </style>
 </head>
 <body class="text-gray-800 font-sans selection:bg-green-200">
@@ -1002,6 +1014,8 @@ let reportSearchRenderTimer = null;
 let data = { transactions: [], needs: [] };
 let deleteTarget = null;
 let activePayTx = null;
+let activeLedgerContactKey = '';
+let activeLedgerSelectedTxId = '';
 let firebaseListening = false;
 let firebaseUnsubscribe = null;
 let firebaseInitialLoadPromise = null;
@@ -2272,9 +2286,12 @@ function openNeedModal(needId=''){
     openModal('modal-add-need');
 }
 
+
 async function saveTransaction(e) {
     e.preventDefault();
     if (!requireUnlockedApp()) return;
+    const ledgerModal = document.getElementById('modal-detail-transaction');
+    const ledgerWasOpen = !!ledgerModal && !ledgerModal.classList.contains('hidden');
     const type = document.querySelector('input[name="tx_type"]:checked')?.value || 'hutang';
     const contact = document.getElementById('tx_name').value.trim();
     const amount = Number(document.getElementById('tx_amount').value);
@@ -2308,7 +2325,13 @@ async function saveTransaction(e) {
         recordActivity(editId ? 'transaction_updated' : 'transaction_created',
             (editId ? 'Transaksi diperbarui: ' : 'Transaksi dibuat: ') + contact,
             'transaksi', itemId, amount);
-        await saveData(); closeModal('modal-add-transaction'); renderApp();
+        await saveData();
+        const savedTx = data.transactions.find(item => String(item.id) === String(itemId));
+        const savedContactKey = String(savedTx?.contact || contact).trim().toLowerCase();
+        closeModal('modal-add-transaction');
+        renderApp();
+        if (ledgerWasOpen && savedTx) openDetailModalByContact(savedContactKey, savedTx.id);
+        else if (ledgerWasOpen && !savedTx) closeModal('modal-detail-transaction');
         showToast(editId ? 'Transaksi berhasil diperbarui.' : 'Transaksi berhasil disimpan.');
     } catch (err) {
         console.error('Transaction save failed:', err);
@@ -2427,7 +2450,7 @@ async function savePayment(e) {
         const committedTx = data.transactions.find(item => item.id === txId);
         activePayTx = committedTx || null;
         closeModal('modal-pay-transaction'); renderApp();
-        if (document.getElementById('modal-detail-transaction') && !document.getElementById('modal-detail-transaction').classList.contains('hidden')) openDetailModalByContact(contactKey);
+        if (document.getElementById('modal-detail-transaction') && !document.getElementById('modal-detail-transaction').classList.contains('hidden')) openDetailModalByContact(contactKey, txId);
         showToast(committedTx?.status === TX_STATUS.LUNAS ? 'Pembayaran lunas berhasil dicatat.' : 'Cicilan berhasil dicatat.');
     } catch (err) {
         console.error('Payment save failed:', err);
@@ -2436,13 +2459,15 @@ async function savePayment(e) {
 }
 
 function confirmDeleteContact(contactKey){ if(!requireUnlockedApp()) return; deleteTarget={type:'contact',key:contactKey}; showConfirm('Hapus semua transaksi pihak ini?','Semua transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
-function confirmDeleteTransaction(txId){ if(!requireUnlockedApp()) return; const tx=data.transactions.find(t=>t.id===txId); if(!tx) return; deleteTarget={type:'transaction',id:txId}; showConfirm('Hapus transaksi ini?','Transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
+function confirmDeleteTransaction(txId){ if(!requireUnlockedApp()) return; const tx=data.transactions.find(t=>String(t.id)===String(txId)); if(!tx) return; deleteTarget={type:'transaction',id:tx.id,contactKey:(tx.contact||'').trim().toLowerCase()}; showConfirm('Hapus transaksi ini?','Transaksi tanggal '+formatDateShort(tx.txDate||tx.createdAt)+' dan seluruh riwayat pembayarannya akan dihapus permanen.'); }
 function confirmDeleteNeed(needId){ if(!requireUnlockedApp()) return; deleteTarget={type:'need',id:needId}; showConfirm('Hapus tagihan ini?','Rencana tagihan ini akan dihapus permanen.'); }
 function showConfirm(title,text){ document.getElementById('confirm-title').textContent=title; document.getElementById('confirm-text').textContent=text; document.getElementById('btn-confirm-delete').onclick=executeDelete; openModal('modal-confirm'); }
 function closeConfirmModal(){ deleteTarget=null; closeModal('modal-confirm'); }
 async function executeDelete() {
     if (!requireUnlockedApp() || !deleteTarget) return;
     const target = { ...deleteTarget };
+    const ledgerModal = document.getElementById('modal-detail-transaction');
+    const ledgerWasOpen = !!ledgerModal && !ledgerModal.classList.contains('hidden');
     let summary = 'Data dihapus';
     let amount = null;
     if (target.type === 'contact') {
@@ -2463,7 +2488,17 @@ async function executeDelete() {
         else if (target.type === 'need') data.needs = data.needs.filter(item => item.id !== target.id);
         recordActivity('record_deleted', summary, target.type, target.id || target.key || '', amount);
         await saveData();
-        closeConfirmModal(); closeModal('modal-detail-transaction'); renderApp();
+        closeConfirmModal();
+        renderApp();
+        if (target.type === 'transaction' && ledgerWasOpen) {
+            const key = String(target.contactKey || activeLedgerContactKey || '').trim().toLowerCase();
+            const hasRemainingContactTransactions = data.transactions.some(item => (item.contact || '').trim().toLowerCase() === key);
+            if (hasRemainingContactTransactions) openDetailModalByContact(key);
+            else { closeModal('modal-detail-transaction'); activeLedgerContactKey=''; activeLedgerSelectedTxId=''; }
+        } else {
+            closeModal('modal-detail-transaction');
+            if (target.type === 'contact') { activeLedgerContactKey=''; activeLedgerSelectedTxId=''; }
+        }
         showToast('Data berhasil dihapus.');
     } catch (err) {
         console.error(err);
@@ -2471,10 +2506,82 @@ async function executeDelete() {
     }
 }
 
-function openDetailModalByContact(contactKey){
+
+function getSelectedLedgerTransaction() {
+    const select = document.getElementById('ledger-transaction-select');
+    const selectedId = String(select?.value || activeLedgerSelectedTxId || '');
+    if (!selectedId) return null;
+    const tx = data.transactions.find(item =>
+        String(item.id) === selectedId &&
+        (item.contact || '').trim().toLowerCase() === activeLedgerContactKey
+    );
+    if (tx) activeLedgerSelectedTxId = String(tx.id);
+    return tx || null;
+}
+
+function selectLedgerTransaction(txId) {
+    const selectedId = String(txId || '');
+    const tx = data.transactions.find(item =>
+        String(item.id) === selectedId &&
+        (item.contact || '').trim().toLowerCase() === activeLedgerContactKey
+    );
+    if (!tx) {
+        activeLedgerSelectedTxId = '';
+        const payButton = document.getElementById('btn-ledger-action-pay');
+        if (payButton) payButton.disabled = true;
+        const summary = document.getElementById('ledger-selected-summary');
+        if (summary) summary.textContent = 'Pilih transaksi untuk melanjutkan.';
+        return;
+    }
+    activeLedgerSelectedTxId = String(tx.id);
+    const remaining = getTxRemaining(tx);
+    const summary = document.getElementById('ledger-selected-summary');
+    if (summary) summary.textContent = formatDateShort(tx.txDate || tx.createdAt) +
+        ' · ' + (tx.type === 'hutang' ? 'Hutang' : 'Piutang') +
+        ' · Sisa pembayaran: ' + formatRupiah(remaining);
+    const payButton = document.getElementById('btn-ledger-action-pay');
+    if (payButton) payButton.disabled = remaining <= 0;
+}
+
+function editSelectedLedgerTransaction() {
     if (!requireUnlockedApp()) return;
+    const tx = getSelectedLedgerTransaction();
+    if (!tx) { showToast('Pilih transaksi yang ingin diedit.'); return; }
+    openTransactionModal(tx.id);
+}
+
+function paySelectedLedgerTransaction() {
+    if (!requireUnlockedApp()) return;
+    const tx = getSelectedLedgerTransaction();
+    if (!tx) { showToast('Pilih transaksi yang ingin dibayar.'); return; }
+    if (getTxRemaining(tx) <= 0) { showToast('Transaksi yang dipilih sudah lunas.'); selectLedgerTransaction(tx.id); return; }
+    openPayModalByTransaction(tx.id);
+}
+
+function deleteSelectedLedgerTransaction() {
+    if (!requireUnlockedApp()) return;
+    const tx = getSelectedLedgerTransaction();
+    if (!tx) { showToast('Pilih transaksi yang ingin dihapus.'); return; }
+    confirmDeleteTransaction(tx.id);
+}
+
+function openDetailModalByContact(contactKey, preferredTxId = ''){
+    if (!requireUnlockedApp()) return;
+    contactKey = String(contactKey || '').trim().toLowerCase();
     const contactTxs=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey);
-    if(!contactTxs.length) return;
+    if(!contactTxs.length) { closeModal('modal-detail-transaction'); activeLedgerContactKey=''; activeLedgerSelectedTxId=''; return; }
+    const ledgerModal=document.getElementById('modal-detail-transaction');
+    const sameOpenLedger=!!ledgerModal && !ledgerModal.classList.contains('hidden') && activeLedgerContactKey===contactKey;
+    const desiredTxId=String(preferredTxId || (sameOpenLedger ? activeLedgerSelectedTxId : '') || '');
+    const newestContactTxs=contactTxs.slice().sort((a,b)=>{
+        const da=new Date(a.txDate || a.createdAt || 0).getTime() || 0;
+        const db=new Date(b.txDate || b.createdAt || 0).getTime() || 0;
+        return db-da;
+    });
+    const selectedLedgerTx=newestContactTxs.find(tx=>String(tx.id)===desiredTxId) || newestContactTxs[0];
+    activeLedgerContactKey=contactKey;
+    activeLedgerSelectedTxId=String(selectedLedgerTx.id);
+    const selectedLedgerRemaining=getTxRemaining(selectedLedgerTx);
     const contactName=contactTxs[0].contact || 'Tanpa Nama';
     let totalHutang=0,totalPiutang=0,totalBayarKeluar=0,totalBayarMasuk=0;
     const items=[];
@@ -2488,12 +2595,34 @@ function openDetailModalByContact(contactKey){
     const sisaHutang=Math.max(0,totalHutang-totalBayarKeluar), sisaPiutang=Math.max(0,totalPiutang-totalBayarMasuk), netSisa=sisaHutang-sisaPiutang;
     const totalPokok=totalHutang+totalPiutang,totalBayar=totalBayarKeluar+totalBayarMasuk,progress=totalPokok>0?Math.min(100,Math.round(totalBayar/totalPokok*100)):100;
     const status=netSisa>0?`<span class="bg-rose-100 text-rose-700 text-[11px] font-black px-2.5 py-1 rounded-full border border-rose-200">Sisa Hutang: ${formatRupiah(netSisa)}</span>`:netSisa<0?`<span class="bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-1 rounded-full border border-emerald-200">Sisa Piutang: ${formatRupiah(Math.abs(netSisa))}</span>`:`<span class="bg-slate-100 text-slate-700 text-[11px] font-black px-2.5 py-1 rounded-full border border-slate-200">LUNAS (Rp 0)</span>`;
+
+    const transactionOptions=newestContactTxs.map(tx=>{
+        const txDate=tx.txDate || tx.createdAt;
+        const txType=tx.type==='hutang'?'Hutang':'Piutang';
+        const txNote=String(tx.note || (tx.type==='hutang'?'Hutang Baru':'Piutang Baru')).trim();
+        const label=`${formatDateShort(txDate)} • ${txType} • ${formatRupiah(tx.amount)} • ${txNote || 'Tanpa catatan'}`;
+        return `<option value="${escapeHtml(tx.id)}" ${String(tx.id)===activeLedgerSelectedTxId?'selected':''}>${escapeHtml(label)}</option>`;
+    }).join('');
+    const ledgerActions=`<section class="ledger-actions-card bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-3" aria-label="Aksi transaksi terpilih">
+        <div class="flex items-start justify-between gap-3">
+            <div><h3 class="text-sm font-extrabold text-gray-800">Kelola Transaksi</h3><p class="text-[10px] text-gray-500 mt-0.5">Pilih tanggal transaksi yang ingin dikelola.</p></div>
+            <span class="text-[10px] text-green-700 bg-green-50 rounded-full px-2 py-1 font-bold whitespace-nowrap">Per kontak</span>
+        </div>
+        <label for="ledger-transaction-select" class="block text-[11px] font-bold text-gray-600">Transaksi berdasarkan tanggal</label>
+        <select id="ledger-transaction-select" onchange="selectLedgerTransaction(this.value)" class="w-full min-w-0 border border-gray-200 bg-gray-50 text-gray-800 rounded-xl px-3 py-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-green-500">${transactionOptions}</select>
+        <p id="ledger-selected-summary" class="text-[10px] leading-relaxed text-gray-500">${formatDateShort(selectedLedgerTx.txDate || selectedLedgerTx.createdAt)} · ${selectedLedgerTx.type==='hutang'?'Hutang':'Piutang'} · Sisa pembayaran: ${formatRupiah(selectedLedgerRemaining)}</p>
+        <div class="grid grid-cols-3 gap-2">
+            <button type="button" onclick="editSelectedLedgerTransaction()" class="ledger-action-button bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-pencil"></i> Edit</button>
+            <button type="button" id="btn-ledger-action-pay" onclick="paySelectedLedgerTransaction()" ${selectedLedgerRemaining>0?'':'disabled'} class="ledger-action-button bg-green-600 text-white border border-green-600 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-hand-coins"></i> Bayar</button>
+            <button type="button" onclick="deleteSelectedLedgerTransaction()" class="ledger-action-button bg-rose-50 text-rose-600 border border-rose-100 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-trash"></i> Hapus</button>
+        </div>
+    </section>`;
     const timeline=items.map(item=>{
         const isOrigin=item.kind==='tx'; let amountColor=isOrigin?(item.type==='hutang'?'text-rose-600':'text-teal-600'):'text-emerald-600'; let prefix=isOrigin?'+':'-'; let icon=isOrigin?(item.type==='hutang'?'ph-trend-down text-rose-500 bg-rose-100':'ph-trend-up text-teal-600 bg-teal-100'):'ph-check text-emerald-600 bg-emerald-100';
-        const action=isOrigin?`<div class="flex flex-wrap gap-1.5 mt-2"><button onclick="openTransactionModal(${jsArg(item.id)})" class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-bold"><i class="ph-bold ph-pencil"></i> Edit</button>${item.remaining>0?`<button onclick="openPayModalByTransaction(${jsArg(item.id)})" class="px-2.5 py-1 rounded-lg bg-green-600 text-white text-[10px] font-bold"><i class="ph-bold ph-hand-coins"></i> Bayar</button>`:''}<button onclick="confirmDeleteTransaction(${jsArg(item.id)})" class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 text-[10px] font-bold"><i class="ph-bold ph-trash"></i> Hapus</button><span class="px-2.5 py-1 rounded-lg bg-gray-50 text-gray-500 text-[10px] font-semibold">Sisa ${formatRupiah(item.remaining)}</span></div>`:`<div class="flex mt-2"><button onclick="openPaymentReceipt(${jsArg(item.txId)},${jsArg(item.id)})" class="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold"><i class="ph-bold ph-receipt"></i> Kuitansi</button></div>`;
+        const action=isOrigin?`<div class="mt-2 flex flex-wrap items-center gap-1.5"><span class="px-2.5 py-1 rounded-lg bg-gray-50 text-gray-600 text-[10px] font-semibold">Sisa ${formatRupiah(item.remaining)}</span><span class="px-2.5 py-1 rounded-lg ${item.status===TX_STATUS.LUNAS?'bg-green-50 text-green-700':item.status===TX_STATUS.CICIL?'bg-orange-50 text-orange-700':'bg-amber-50 text-amber-700'} text-[10px] font-bold">${escapeHtml(item.status)}</span></div>`:`<div class="flex mt-2"><button onclick="openPaymentReceipt(${jsArg(item.txId)},${jsArg(item.id)})" class="px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold"><i class="ph-bold ph-receipt"></i> Kuitansi</button></div>`;
         return `<div class="relative pl-6 pb-4 border-l-2 border-gray-200 last:border-l-0 last:pb-0"><div class="absolute -left-[13px] top-0 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm ${icon}"><i class="ph-bold ${icon.split(' ').slice(0,2).join(' ')}"></i></div><div class="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm"><div class="flex justify-between items-start gap-2"><div><span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase block">${formatDateShort(item.date)}</span><h4 class="font-bold text-gray-800 text-xs mt-0.5">${escapeHtml(item.title)}</h4></div><span class="font-black text-sm ${amountColor} whitespace-nowrap">${prefix}${formatRupiah(item.amount)}</span></div><p class="text-xs text-gray-500 leading-relaxed bg-gray-50/80 p-2 rounded-xl mt-1.5 border border-gray-100">${escapeHtml(item.note)}</p>${action}</div></div>`;
     }).join('');
-    document.getElementById('detail-content').innerHTML=`<div class="bg-gradient-to-br from-green-50 via-white to-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3"><div class="flex items-center justify-between gap-3"><div class="flex items-center gap-3 min-w-0"><div class="w-11 h-11 rounded-2xl bg-white text-green-700 shadow-sm border border-green-100 flex items-center justify-center font-black text-lg">${escapeHtml(contactName.charAt(0).toUpperCase())}</div><div class="min-w-0"><h3 class="text-base font-black text-gray-900 leading-tight truncate">${escapeHtml(contactName)}</h3><p class="text-[11px] text-gray-500 font-medium">${contactTxs.length} transaksi</p></div></div>${status}</div><div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm"><div class="flex justify-between text-[11px] font-bold"><span class="text-gray-500">Kemajuan pembayaran</span><span class="text-green-600">${progress}%</span></div><div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mt-2"><div class="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full" style="width:${progress}%"></div></div></div><div class="grid grid-cols-2 gap-2"><div class="bg-white p-2.5 rounded-xl border border-gray-100"><span class="text-[10px] text-gray-400 font-bold uppercase block">Total Akumulasi</span><span class="font-extrabold text-gray-800 text-sm">${formatRupiah(totalPokok)}</span></div><div class="bg-white p-2.5 rounded-xl border border-gray-100"><span class="text-[10px] text-gray-400 font-bold uppercase block">Total Dibayar</span><span class="font-extrabold text-green-600 text-sm">${formatRupiah(totalBayar)}</span></div></div></div><div class="flex justify-between items-center px-1 pt-1"><h3 class="text-xs font-black text-gray-700 uppercase tracking-wider">Riwayat Transaksi</h3><button onclick="openTransactionModal('',${jsArg(contactName)})" class="text-[11px] font-bold text-green-600"><i class="ph-bold ph-plus-circle"></i> Tambah</button></div><div class="py-1">${timeline}</div><div class="pt-3 border-t border-gray-100"><div class="grid grid-cols-2 gap-2"><button onclick="downloadContactStatement(${jsArg(contactKey)})" class="bg-blue-50 text-blue-700 border border-blue-200 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-download-simple"></i> Download Nota</button><button onclick="confirmDeleteContact(${jsArg(contactKey)})" class="col-span-2 bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-trash"></i> Hapus Semua Transaksi Pihak Ini</button></div></div>`;
+    document.getElementById('detail-content').innerHTML=`<div class="bg-gradient-to-br from-green-50 via-white to-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3"><div class="flex items-center justify-between gap-3"><div class="flex items-center gap-3 min-w-0"><div class="w-11 h-11 rounded-2xl bg-white text-green-700 shadow-sm border border-green-100 flex items-center justify-center font-black text-lg">${escapeHtml(contactName.charAt(0).toUpperCase())}</div><div class="min-w-0"><h3 class="text-base font-black text-gray-900 leading-tight truncate">${escapeHtml(contactName)}</h3><p class="text-[11px] text-gray-500 font-medium">${contactTxs.length} transaksi</p></div></div>${status}</div><div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm"><div class="flex justify-between text-[11px] font-bold"><span class="text-gray-500">Kemajuan pembayaran</span><span class="text-green-600">${progress}%</span></div><div class="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden mt-2"><div class="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full" style="width:${progress}%"></div></div></div><div class="grid grid-cols-2 gap-2"><div class="bg-white p-2.5 rounded-xl border border-gray-100"><span class="text-[10px] text-gray-400 font-bold uppercase block">Total Akumulasi</span><span class="font-extrabold text-gray-800 text-sm">${formatRupiah(totalPokok)}</span></div><div class="bg-white p-2.5 rounded-xl border border-gray-100"><span class="text-[10px] text-gray-400 font-bold uppercase block">Total Dibayar</span><span class="font-extrabold text-green-600 text-sm">${formatRupiah(totalBayar)}</span></div></div></div>${ledgerActions}<div class="flex justify-between items-center px-1 pt-1"><h3 class="text-xs font-black text-gray-700 uppercase tracking-wider">Riwayat Transaksi</h3><button onclick="openTransactionModal('',${jsArg(contactName)})" class="text-[11px] font-bold text-green-600"><i class="ph-bold ph-plus-circle"></i> Tambah</button></div><div class="py-1">${timeline}</div><div class="pt-3 border-t border-gray-100"><div class="grid grid-cols-2 gap-2"><button onclick="downloadContactStatement(${jsArg(contactKey)})" class="bg-blue-50 text-blue-700 border border-blue-200 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-download-simple"></i> Download Nota</button><button onclick="confirmDeleteContact(${jsArg(contactKey)})" title="Hapus seluruh transaksi kontak ini" class="bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-trash"></i> Hapus Semua</button></div></div>`;
     openModal('modal-detail-transaction');
 }
 
@@ -3274,7 +3403,7 @@ function initApp(){
 
 window.openSettings=openSettings; window.openActivityHistory=openActivityHistory; window.openPaymentReceipt=openPaymentReceipt; window.printPaymentReceipt=printPaymentReceipt; window.openUserProfile=openUserProfile; window.saveUserProfile=saveUserProfile; window.sendPasswordResetFromSettings=sendPasswordResetFromSettings; window.sendPasswordResetFromLogin=sendPasswordResetFromLogin; window.openPasswordResetConfirmation=openPasswordResetConfirmation; window.cancelPasswordResetConfirmation=cancelPasswordResetConfirmation; window.handlePasswordResetOk=handlePasswordResetOk; window.openAdminUsers=openAdminUsers; window.refreshManagedUsers=refreshManagedUsers; window.filterManagedUsers=filterManagedUsers; window.downloadBackup=downloadBackup; window.restoreBackup=restoreBackup;
 window.setReportPeriodMode=setReportPeriodMode; window.setReportPeriodValue=setReportPeriodValue; window.downloadPeriodReportCsv=downloadPeriodReportCsv; window.setTxStatus=setTxStatus; window.setTxSearch=setTxSearch; window.clearTxSearch=clearTxSearch; window.setReportSearch=setReportSearch; window.loadMoreTransactions=loadMoreTransactions; window.loadMoreReportContacts=loadMoreReportContacts; window.downloadContactCsv=downloadContactCsv; window.downloadAllContactsCsv=downloadAllContactsCsv;
-window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.showAuthView=showAuthView; window.openForgotPasswordView=openForgotPasswordView; window.toggleAuthPassword=toggleAuthPassword; window.sendPasswordResetFromForgotScreen=sendPasswordResetFromForgotScreen; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
+window.authLogin=authLogin; window.authCreateAccount=authCreateAccount; window.showAuthView=showAuthView; window.openForgotPasswordView=openForgotPasswordView; window.toggleAuthPassword=toggleAuthPassword; window.sendPasswordResetFromForgotScreen=sendPasswordResetFromForgotScreen; window.logoutFirebaseAccount=logoutFirebaseAccount; window.checkMyApprovalStatus=checkMyApprovalStatus; window.openAccessAdmin=openAccessAdmin; window.refreshAccessRequests=refreshAccessRequests; window.setUserAccessStatus=setUserAccessStatus; window.lockApp=lockApp; window.switchTab=switchTab; window.setTxFilter=setTxFilter; window.openModal=openModal; window.closeModal=closeModal; window.openTransactionModal=openTransactionModal; window.openNeedModal=openNeedModal; window.saveTransaction=saveTransaction; window.saveNeed=saveNeed; window.toggleNeedStatus=toggleNeedStatus; window.openPayModalByContact=openPayModalByContact; window.openPayModalByTransaction=openPayModalByTransaction; window.togglePayMode=togglePayMode; window.savePayment=savePayment; window.openDetailModalByContact=openDetailModalByContact; window.selectLedgerTransaction=selectLedgerTransaction; window.editSelectedLedgerTransaction=editSelectedLedgerTransaction; window.paySelectedLedgerTransaction=paySelectedLedgerTransaction; window.deleteSelectedLedgerTransaction=deleteSelectedLedgerTransaction; window.downloadContactStatement=downloadContactStatement; window.confirmDeleteContact=confirmDeleteContact; window.confirmDeleteTransaction=confirmDeleteTransaction; window.confirmDeleteNeed=confirmDeleteNeed; window.closeConfirmModal=closeConfirmModal; window.executeDelete=executeDelete;
 
 document.addEventListener('DOMContentLoaded', initApp);
 </script>
