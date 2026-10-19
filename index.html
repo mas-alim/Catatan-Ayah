@@ -833,9 +833,10 @@
     <div id="modal-pay-transaction" class="fixed inset-0 bg-black/60 z-[100] hidden flex-col justify-end backdrop-blur-sm">
         <div class="bg-white rounded-t-3xl w-full max-h-[94vh] overflow-y-auto p-6 slide-up safe-bottom">
             <div class="flex justify-between items-center mb-4"><div><p class="text-[10px] uppercase tracking-widest text-orange-600 font-black">Pembayaran</p><h2 class="text-lg font-bold text-gray-800">Catat Pembayaran</h2><p id="pay-target-name" class="text-xs text-gray-500 font-medium"></p></div><button onclick="closeModal('modal-pay-transaction')" class="p-2 text-gray-500 rounded-full bg-gray-100"><i class="ph ph-x text-lg"></i></button></div>
-            <div class="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4"><p class="text-xs text-green-700 font-semibold mb-1">Sisa Tagihan Saat Ini</p><p id="pay-remaining-text" class="text-2xl font-black text-green-700">Rp 0</p></div>
+            <div class="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4"><p id="pay-balance-caption" class="text-xs text-green-700 font-semibold mb-1">Sisa Saldo Kontak</p><p id="pay-remaining-text" class="text-2xl font-black text-green-700">Pilih jenis saldo</p></div>
             <form id="form-pay" class="space-y-4" onsubmit="savePayment(event)">
                 <input type="hidden" id="pay-tx-id">
+                <div><label class="block text-sm font-medium text-gray-700 mb-1">Jenis Saldo</label><select id="pay-ledger-type" required onchange="updatePaymentTypeBalance(this.value)" class="w-full border border-gray-300 rounded-xl p-3 text-sm bg-white focus:ring-2 focus:ring-green-500 outline-none"><option value="">Pilih Bayar Hutang / Terima Piutang</option><option value="hutang">Bayar Hutang</option><option value="piutang">Terima Piutang</option></select><p class="text-[10px] text-gray-400 mt-1">Pembayaran dihitung terhadap total saldo kontak, bukan satu tanggal utang.</p></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-2">Opsi Pembayaran</label><div class="flex gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200"><label class="flex-1 cursor-pointer"><input type="radio" name="pay_mode" value="cicil" class="peer hidden" checked onchange="togglePayMode('cicil')"><div class="text-center py-2.5 text-xs font-bold rounded-lg peer-checked:bg-orange-500 peer-checked:text-white text-gray-600 transition-all shadow-sm"><i class="ph-bold ph-hourglass"></i> Cicil</div></label><label class="flex-1 cursor-pointer"><input type="radio" name="pay_mode" value="lunas" class="peer hidden" onchange="togglePayMode('lunas')"><div class="text-center py-2.5 text-xs font-bold rounded-lg peer-checked:bg-green-600 peer-checked:text-white text-gray-600 transition-all shadow-sm"><i class="ph-bold ph-check-circle"></i> Lunas</div></label></div></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Nominal Yang Dibayar (Rp)</label><input type="number" id="pay_amount" required min="1" inputmode="numeric" placeholder="0" class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
                 <div><label class="block text-sm font-medium text-gray-700 mb-1">Tanggal Pembayaran</label><input type="date" id="pay_date" required class="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-green-500 outline-none"></div>
@@ -1014,11 +1015,14 @@ let reportSearch = '';
 let reportPeriodMode = 'month';
 let reportPeriodValue = monthKey(todayStr());
 let reportSearchRenderTimer = null;
-let data = { transactions: [], needs: [] };
+let data = { transactions: [], ledgerPayments: [], needs: [], ledgerSchemaVersion: 1 };
 let deleteTarget = null;
 let activePayTx = null;
 let activeLedgerContactKey = '';
 let activeLedgerSelectedTxId = '';
+let activePaymentContactKey = '';
+let activePaymentContactName = '';
+let activePaymentType = '';
 let firebaseListening = false;
 let firebaseUnsubscribe = null;
 let firebaseInitialLoadPromise = null;
@@ -1079,31 +1083,149 @@ function jsArg(value) {
         .replace(/>/g, '\\x3E')
         .replace(/&/g, '\\x26') + "'";
 }
-function getTxPaidAmount(tx) { if(Array.isArray(tx?.payments) && tx.payments.length) return tx.payments.reduce((s,p)=>s+Number(p?.amount||0),0); return tx?.status===TX_STATUS.LUNAS ? Number(tx.amount||0) : 0; }
-function getTxRemaining(tx) { return Math.max(0, Number(tx?.amount||0)-getTxPaidAmount(tx)); }
-function deriveStatus(tx) { const paid=getTxPaidAmount(tx); const amount=Number(tx?.amount||0); return paid>=amount && amount>0 ? TX_STATUS.LUNAS : paid>0 ? TX_STATUS.CICIL : TX_STATUS.BELUM; }
+function normalizeContactKey(value) { return String(value || '').trim().toLowerCase(); }
+const ledgerCalculationCache = new WeakMap();
+function invalidateLedgerCalculationCache(sourceData = data) {
+    if (sourceData && typeof sourceData === 'object') ledgerCalculationCache.delete(sourceData);
+}
+function buildLedgerCalculationCache(sourceData = data) {
+    if (!sourceData || typeof sourceData !== 'object') sourceData = { transactions: [], ledgerPayments: [] };
+    const existing = ledgerCalculationCache.get(sourceData);
+    if (existing) return existing;
+    const transactions = Array.isArray(sourceData.transactions) ? sourceData.transactions : [];
+    const payments = Array.isArray(sourceData.ledgerPayments) ? sourceData.ledgerPayments : [];
+    const totals = new Map(), grouped = new Map(), txById = new Map(), paidByTransaction = new WeakMap();
+    const keyFor = (contact, type) => JSON.stringify([normalizeContactKey(contact), type === 'piutang' ? 'piutang' : 'hutang']);
+    for (const tx of transactions) {
+        const type = tx?.type === 'piutang' ? 'piutang' : 'hutang';
+        const key = keyFor(tx?.contact, type);
+        if (!grouped.has(key)) grouped.set(key, []);
+        grouped.get(key).push(tx);
+        txById.set(String(tx?.id || ''), tx);
+        const total = totals.get(key) || { principal: 0, paid: 0 };
+        total.principal += Math.max(0, Number(tx?.amount) || 0);
+        totals.set(key, total);
+    }
+    for (const payment of payments) {
+        const contact = payment?.contactKey || payment?.contact || '';
+        const type = payment?.type === 'piutang' ? 'piutang' : 'hutang';
+        const amount = Number(payment?.amount);
+        if (!contact || !Number.isFinite(amount) || amount <= 0) continue;
+        const key = keyFor(contact, type);
+        const total = totals.get(key) || { principal: 0, paid: 0 };
+        total.paid += amount;
+        totals.set(key, total);
+    }
+    // FIFO exists only as a computed compatibility view for transaction-level filters.
+    // Contact-level payments remain independent events and are never stored on a transaction.
+    for (const [key, list] of grouped.entries()) {
+        list.sort((a,b) => String(a?.txDate || a?.createdAt || '').localeCompare(String(b?.txDate || b?.createdAt || '')) || String(a?.id || '').localeCompare(String(b?.id || '')));
+        let remainingPool = Math.max(0, Number(totals.get(key)?.paid) || 0);
+        for (const tx of list) {
+            const principal = Math.max(0, Number(tx?.amount) || 0);
+            paidByTransaction.set(tx, Math.min(principal, remainingPool));
+            remainingPool = Math.max(0, remainingPool - principal);
+        }
+    }
+    const cache = { totals, paidByTransaction, txById, keyFor, getTotal(contact,type) { return totals.get(keyFor(contact,type)) || {principal:0,paid:0}; } };
+    ledgerCalculationCache.set(sourceData, cache);
+    return cache;
+}
+function getContactLedgerPayments(contactKey, type = '', sourceData = data) {
+    const key = normalizeContactKey(contactKey);
+    return (Array.isArray(sourceData?.ledgerPayments) ? sourceData.ledgerPayments : [])
+        .filter(payment => normalizeContactKey(payment?.contactKey || payment?.contact) === key && (!type || payment?.type === type));
+}
+function getContactPrincipal(contactKey,type,sourceData=data) {
+    return Math.max(0,Number(buildLedgerCalculationCache(sourceData).getTotal(contactKey,type).principal)||0);
+}
+function getContactPaidAmount(contactKey,type,sourceData=data) {
+    return Math.max(0,Number(buildLedgerCalculationCache(sourceData).getTotal(contactKey,type).paid)||0);
+}
+function getContactRemaining(contactKey,type,sourceData=data) {
+    const total=buildLedgerCalculationCache(sourceData).getTotal(contactKey,type);
+    return Math.max(0,(Number(total.principal)||0)-(Number(total.paid)||0));
+}
+function getTxPaidAmount(tx,sourceData=data) {
+    if(!tx||typeof tx!=='object') return 0;
+    const cache=buildLedgerCalculationCache(sourceData);
+    const actual=cache.txById.get(String(tx.id||''))||tx;
+    return cache.paidByTransaction.has(actual)?cache.paidByTransaction.get(actual):0;
+}
+function getTxRemaining(tx,sourceData=data) { return Math.max(0,Number(tx?.amount||0)-getTxPaidAmount(tx,sourceData)); }
+function deriveStatus(tx,sourceData=data) {
+    const paid=getTxPaidAmount(tx,sourceData), amount=Number(tx?.amount||0);
+    return paid>=amount&&amount>0?TX_STATUS.LUNAS:paid>0?TX_STATUS.CICIL:TX_STATUS.BELUM;
+}
 function collectionToArray(value, prefix) {
     if (Array.isArray(value)) return value.map((item, index) => item && typeof item === 'object' ? ({ ...item, id: item.id || `legacy-${prefix}-${index + 1}` }) : item).filter(item => item && typeof item === 'object');
     if (value && typeof value === 'object') return Object.entries(value).map(([key, item], index) => item && typeof item === 'object' ? ({ ...item, id: item.id || key || `legacy-${prefix}-${index + 1}` }) : null).filter(Boolean);
     return [];
 }
 function normalizeData(input) {
-    const root = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
-    const next = {
-        ...root, // pertahankan metadata root lain yang tidak termasuk koleksi
-        transactions: collectionToArray(root.transactions, 'tx').map(tx => ({ ...tx, payments: Array.isArray(tx.payments) ? tx.payments.map((p, i) => ({ ...p, id: p?.id || `legacy-payment-${tx.id}-${i + 1}` })) : [] })),
-        needs: collectionToArray(root.needs, 'need').map(n => ({ ...n }))
-    };
-    next.transactions.forEach(tx => {
-        delete tx.image; // Ignore legacy attachment fields in imported or stored data.
-        tx.payments.forEach(payment => { delete payment.image; });
-        tx.status = deriveStatus(tx);
-    });
-    next.needs.forEach(n => { if(!n.status) n.status='Belum Lunas'; });
+    const root=input&&typeof input==='object'&&!Array.isArray(input)?input:{};
+    const isLegacyPaymentSchema=Number(root.ledgerSchemaVersion||0)<1;
+    const transactions=collectionToArray(root.transactions,'tx').map(tx=>({
+        ...tx,
+        payments:Array.isArray(tx.payments)?tx.payments.map((payment,i)=>({...payment,id:payment?.id||`legacy-payment-${tx.id}-${i+1}`})):[]
+    }));
+    const ledgerPayments=collectionToArray(root.ledgerPayments,'ledger-payment');
+    const ledgerPaymentIds=new Set(ledgerPayments.map(payment=>String(payment?.id||'')));
+    const txById=new Map(transactions.map(tx=>[String(tx.id||''),tx]));
+    for(const tx of transactions){
+        const oldPayments=Array.isArray(tx.payments)?tx.payments:[];
+        for(const payment of oldPayments){
+            const id=String(payment?.id||`legacy-payment-${tx.id}-${ledgerPayments.length+1}`);
+            if(ledgerPaymentIds.has(id)) continue;
+            ledgerPayments.push({
+                id,contact:String(tx.contact||'Tanpa Nama'),contactKey:normalizeContactKey(tx.contact),
+                type:tx.type==='piutang'?'piutang':'hutang',
+                date:String(payment?.date||tx.txDate||tx.createdAt||todayStr()),
+                amount:Number(payment?.amount||0),mode:payment?.mode==='lunas'?'lunas':'cicil',
+                note:String(payment?.note||(payment?.mode==='lunas'?'Pelunasan':'Pembayaran legacy')),
+                createdAt:String(payment?.createdAt||payment?.date||tx.createdAt||new Date().toISOString()),
+                legacyTransactionId:String(tx.id||'')
+            });
+            ledgerPaymentIds.add(id);
+        }
+        if(isLegacyPaymentSchema&&oldPayments.length===0&&tx.status===TX_STATUS.LUNAS){
+            const alreadyMigrated=ledgerPayments.some(payment=>String(payment?.legacyTransactionId||'')===String(tx.id||''));
+            const id=`legacy-settlement-${tx.id}`;
+            if(!alreadyMigrated&&!ledgerPaymentIds.has(id)){
+                ledgerPayments.push({
+                    id,contact:String(tx.contact||'Tanpa Nama'),contactKey:normalizeContactKey(tx.contact),
+                    type:tx.type==='piutang'?'piutang':'hutang',
+                    date:String(tx.txDate||tx.createdAt||todayStr()),amount:Math.max(0,Number(tx.amount)||0),
+                    mode:'lunas',note:'Pelunasan lama; rincian pembayaran tidak tersedia',
+                    createdAt:String(tx.createdAt||tx.txDate||new Date().toISOString()),
+                    legacyTransactionId:String(tx.id||''),legacyStatusMigration:true
+                });
+                ledgerPaymentIds.add(id);
+            }
+        }
+        tx.payments=[];
+    }
+    for(const payment of ledgerPayments){
+        const oldTx=txById.get(String(payment?.legacyTransactionId||''));
+        if(!payment.contact&&oldTx?.contact) payment.contact=String(oldTx.contact);
+        payment.contact=String(payment.contact||'Tanpa Nama');
+        payment.contactKey=normalizeContactKey(payment.contactKey||payment.contact);
+        payment.type=payment.type==='piutang'?'piutang':'hutang';
+        payment.date=String(payment.date||payment.createdAt||todayStr());
+        payment.amount=Math.max(0,Number(payment.amount)||0);
+        payment.mode=payment.mode==='lunas'?'lunas':'cicil';
+        payment.note=String(payment.note||(payment.mode==='lunas'?'Pelunasan':'Pembayaran'));
+        delete payment.image;
+    }
+    const next={...root,ledgerSchemaVersion:1,transactions,ledgerPayments,needs:collectionToArray(root.needs,'need').map(n=>({...n}))};
+    next.transactions.forEach(tx=>{delete tx.image;tx.payments=[];tx.status=TX_STATUS.BELUM;});
+    invalidateLedgerCalculationCache(next);
+    next.transactions.forEach(tx=>{tx.status=deriveStatus(tx,next);});
+    next.needs.forEach(n=>{if(!n.status)n.status='Belum Lunas';});
     return next;
 }
 function cloneData(input) {
-    const source = input && typeof input === 'object' ? input : { transactions: [], needs: [] };
+    const source = input && typeof input === 'object' ? input : { transactions: [], ledgerPayments: [], needs: [], ledgerSchemaVersion: 1 };
     // structuredClone avoids a large serialization round-trip on modern browsers.
     // Keep a JSON fallback for older supported browsers and plain JSON payloads.
     let copy;
@@ -1239,7 +1361,7 @@ function clearSensitiveInMemoryData() {
     if (txSearchRenderTimer !== null) { clearTimeout(txSearchRenderTimer); txSearchRenderTimer = null; }
     if (reportSearchRenderTimer !== null) { clearTimeout(reportSearchRenderTimer); reportSearchRenderTimer = null; }
     txSearch = ''; reportSearch = '';
-    data = { transactions: [], needs: [] };
+    data = { transactions: [], ledgerPayments: [], needs: [], ledgerSchemaVersion: 1 };
     lastStableData = null; lastStableDataJson = null; activePayTx = null;
     clearSensitiveLocalCache();
     const appContainer = document.getElementById('app-container');
@@ -1993,7 +2115,9 @@ function mergeLocalChanges(remoteValue, baseline, desired) {
     const remote = normalizeData(remoteObject);
     const merged = {
         ...remoteObject,
+        ledgerSchemaVersion: 1,
         transactions: mergeCollectionById(remote.transactions, baseline.transactions, desired.transactions),
+        ledgerPayments: mergeCollectionById(remote.ledgerPayments, baseline.ledgerPayments, desired.ledgerPayments),
         needs: mergeCollectionById(remote.needs, baseline.needs, desired.needs),
         activityLog: mergeActivityLog(remoteObject.activityLog, desired.activityLog)
     };
@@ -2004,7 +2128,7 @@ async function saveData({ replaceAll = false } = {}) {
     if (!isAppUnlocked()) throw new Error('Login Email/Password, persetujuan akun, dan pemuatan data diperlukan sebelum menyimpan.');
 
     const candidate = cloneData(data);
-    const baseline = cloneData(lastStableData || { transactions: [], needs: [] });
+    const baseline = cloneData(lastStableData || { transactions: [], ledgerPayments: [], needs: [], ledgerSchemaVersion: 1 });
     saveInProgress = true;
     setSyncState('saving');
     try {
@@ -2016,7 +2140,7 @@ async function saveData({ replaceAll = false } = {}) {
             return mergeLocalChanges(current, baseline, candidate);
         }, { applyLocally: false });
         if (!result.committed) throw new Error('TRANSACTION_NOT_COMMITTED');
-        data = normalizeData(result.snapshot.val() || { transactions: [], needs: [] });
+        data = normalizeData(result.snapshot.val() || { transactions: [], ledgerPayments: [], needs: [], ledgerSchemaVersion: 1 });
         // Serialize once and reuse the signature for listener echo checks; create the
         // stable baseline from that string to avoid a second full serialization pass.
         lastStableDataJson = JSON.stringify(data);
@@ -2024,7 +2148,7 @@ async function saveData({ replaceAll = false } = {}) {
         setSyncState('online');
     } catch (err) {
         if (lastStableData) data = cloneData(lastStableData);
-        else data = { transactions: [], needs: [] };
+        else data = { transactions: [], ledgerPayments: [], needs: [], ledgerSchemaVersion: 1 };
         clearSensitiveLocalCache();
         setSyncState('offline');
         throw err;
@@ -2048,7 +2172,7 @@ function setupFirebaseListener() {
             // Firebase echoes a snapshot that is identical to the stable baseline.
             const incoming = cloud && typeof cloud === 'object'
                 ? normalizeData(cloud)
-                : { transactions: [], needs: [] };
+                : { transactions: [], ledgerPayments: [], needs: [], ledgerSchemaVersion: 1 };
             // Compare against the already-cached normalized signature. This saves
             // another full JSON serialization of the stable data on every RTDB event.
             const incomingJson = JSON.stringify(incoming);
@@ -2258,7 +2382,13 @@ function closeModal(id) {
     if (!document.querySelector('.fixed.inset-0:not(.hidden)')) document.body.classList.remove('modal-open');
     if (id === 'modal-add-transaction') { document.getElementById('form-transaction').reset(); document.getElementById('tx_edit_id').value = ''; }
     if (id === 'modal-add-need') { document.getElementById('form-need').reset(); document.getElementById('nd_edit_id').value = ''; }
-    if (id === 'modal-pay-transaction') { document.getElementById('form-pay').reset(); activePayTx = null; }
+    if (id === 'modal-pay-transaction') {
+        document.getElementById('form-pay').reset();
+        activePayTx = null;
+        activePaymentContactKey = '';
+        activePaymentContactName = '';
+        activePaymentType = '';
+    }
 }
 
 function openTransactionModal(txId='', contactName='') {
@@ -2313,6 +2443,7 @@ async function saveTransaction(e) {
     btn.disabled = true; btn.classList.add('disabled');
     try {
         const itemId = editId || generateId();
+        invalidateLedgerCalculationCache(data);
         let tx;
         if (editId) {
             tx = data.transactions.find(t => t.id === editId);
@@ -2398,67 +2529,128 @@ async function toggleNeedStatus(needId) {
     }
 }
 
-function openPayModalByContact(contactKey){
-    if (!requireUnlockedApp()) return;
-    const outstanding=data.transactions.filter(t=>(t.contact||'').trim().toLowerCase()===contactKey && getTxRemaining(t)>0);
-    if(!outstanding.length){ showToast('Tidak ada transaksi yang masih memiliki sisa pembayaran.'); return; }
-    if(outstanding.length>1){
-        openDetailModalByContact(contactKey);
-        showToast('Pihak ini memiliki beberapa transaksi aktif. Pilih tombol Bayar pada transaksi yang tepat.');
-        return;
+function updatePaymentTypeBalance(type = '') {
+    activePaymentType=type==='piutang'||type==='hutang'?type:'';
+    const amountInput=document.getElementById('pay_amount');
+    const remainingText=document.getElementById('pay-remaining-text');
+    const caption=document.getElementById('pay-balance-caption');
+    const saveButton=document.getElementById('btn-save-pay');
+    if(!activePaymentType||!activePaymentContactKey){
+        if(remainingText)remainingText.textContent='Pilih jenis saldo';
+        if(caption)caption.textContent='Sisa Saldo Kontak';
+        if(amountInput){amountInput.value='';amountInput.max='';amountInput.disabled=true;amountInput.readOnly=false;}
+        if(saveButton)saveButton.disabled=true;
+        return 0;
     }
-    openPayModalByTransaction(outstanding[0].id);
+    const remaining=getContactRemaining(activePaymentContactKey,activePaymentType);
+    if(caption)caption.textContent=activePaymentType==='hutang'?'Sisa Hutang Kontak':'Sisa Piutang Kontak';
+    if(remainingText)remainingText.textContent=formatRupiah(remaining);
+    if(amountInput){
+        amountInput.max=remaining;
+        amountInput.disabled=remaining<=0;
+        const isFullPayment=document.querySelector('input[name="pay_mode"][value="lunas"]')?.checked;
+        amountInput.readOnly=!!isFullPayment;
+        if(isFullPayment)amountInput.value=remaining>0?remaining:'';
+        else if(Number(amountInput.value)>remaining)amountInput.value=remaining>0?remaining:'';
+    }
+    if(saveButton)saveButton.disabled=remaining<=0;
+    return remaining;
 }
-function openPayModalByTransaction(txId){
-    if (!requireUnlockedApp()) return;
-    const tx=data.transactions.find(t=>t.id===txId);
-    if(!tx){ showToast('Transaksi tidak ditemukan.'); return; }
-    const remaining=getTxRemaining(tx);
-    if(remaining<=0){ showToast('Transaksi sudah lunas.'); return; }
-    document.getElementById('form-pay').reset(); 
-    activePayTx=tx; document.getElementById('pay-tx-id').value=tx.id; document.getElementById('pay-target-name').textContent=`${tx.type==='hutang'?'Hutang ke':'Piutang dari'}: ${tx.contact}`; document.getElementById('pay-remaining-text').textContent=formatRupiah(remaining); document.getElementById('pay_amount').max=remaining; document.getElementById('pay_amount').value=''; document.getElementById('pay_date').value=todayStr(); document.querySelector('input[name="pay_mode"][value="cicil"]').checked=true; document.getElementById('pay_amount').readOnly=false; openModal('modal-pay-transaction');
-}
-function togglePayMode(mode){ if(!activePayTx) return; const remaining=getTxRemaining(activePayTx); const input=document.getElementById('pay_amount'); if(mode==='lunas'){ input.value=remaining; input.readOnly=true; } else { input.value=''; input.readOnly=false; } }
 
-async function savePayment(e) {
-    e.preventDefault();
-    if (!requireUnlockedApp() || !activePayTx) return;
-    const txId = activePayTx.id;
-    const tx = data.transactions.find(item => item.id === txId);
-    if (!tx) { activePayTx = null; closeModal('modal-pay-transaction'); showToast('Transaksi tidak ditemukan. Buka kembali detail transaksi.'); return; }
-    const mode = document.querySelector('input[name="pay_mode"]:checked')?.value || 'cicil';
-    const amount = Number(document.getElementById('pay_amount').value);
-    const date = document.getElementById('pay_date').value || todayStr();
-    const note = document.getElementById('pay_note').value.trim() || (mode === 'lunas' ? 'Pelunasan Total' : 'Cicilan');
-    const remaining = getTxRemaining(tx);
-    if (remaining <= 0) { showToast('Transaksi sudah lunas.'); return; }
-    if (!Number.isFinite(amount) || amount <= 0 || amount > remaining) { showToast(`Nominal pembayaran maksimal ${formatRupiah(remaining)}.`); return; }
-    if (mode === 'lunas' && amount !== remaining) { showToast(`Pelunasan harus sama dengan sisa ${formatRupiah(remaining)}.`); return; }
-    const btn = document.getElementById('btn-save-pay');
-    btn.disabled = true; btn.classList.add('disabled');
-    try {
-        const paymentId = generateId();
-        const currentTx = data.transactions.find(item => item.id === txId);
-        if (!currentTx) throw new Error('TRANSACTION_NOT_FOUND');
-        const currentRemaining = getTxRemaining(currentTx);
-        if (amount <= 0 || amount > currentRemaining) throw new Error('PAYMENT_EXCEEDS_REMAINING');
-        const payment = { id: paymentId, date, amount, mode, note };
-        if (!Array.isArray(currentTx.payments)) currentTx.payments = [];
-        currentTx.payments.push(payment); currentTx.status = deriveStatus(currentTx);
-        const contactKey = (currentTx.contact || '').trim().toLowerCase();
+function openPayModalByContact(contactKey,preferredType=''){
+    if(!requireUnlockedApp())return;
+    const normalizedKey=normalizeContactKey(contactKey);
+    const contactTxs=data.transactions.filter(tx=>normalizeContactKey(tx.contact)===normalizedKey);
+    if(!contactTxs.length){showToast('Transaksi kontak tidak ditemukan.');return;}
+    const contactName=String(contactTxs[0].contact||'Tanpa Nama');
+    const debtRemaining=getContactRemaining(normalizedKey,'hutang');
+    const creditRemaining=getContactRemaining(normalizedKey,'piutang');
+    if(debtRemaining<=0&&creditRemaining<=0){showToast('Kontak ini sudah tidak memiliki sisa hutang atau piutang.');return;}
+
+    document.getElementById('form-pay').reset();
+    activePayTx=null;
+    activePaymentContactKey=normalizedKey;
+    activePaymentContactName=contactName;
+    document.getElementById('pay-tx-id').value='';
+    document.getElementById('pay-target-name').textContent=contactName;
+    document.getElementById('pay_date').value=todayStr();
+    document.getElementById('pay_amount').value='';
+    document.getElementById('pay_amount').readOnly=false;
+    document.querySelector('input[name="pay_mode"][value="cicil"]').checked=true;
+    const select=document.getElementById('pay-ledger-type');
+    let selectedType=preferredType==='piutang'?'piutang':preferredType==='hutang'?'hutang':'';
+    if(selectedType&&((selectedType==='hutang'&&debtRemaining<=0)||(selectedType==='piutang'&&creditRemaining<=0)))selectedType='';
+    if(!selectedType&&debtRemaining>0&&creditRemaining<=0)selectedType='hutang';
+    if(!selectedType&&creditRemaining>0&&debtRemaining<=0)selectedType='piutang';
+    if(select)select.value=selectedType;
+    updatePaymentTypeBalance(selectedType);
+    openModal('modal-pay-transaction');
+}
+
+function openPayModalByTransaction(txId){
+    if(!requireUnlockedApp())return;
+    const tx=data.transactions.find(item=>String(item.id)===String(txId));
+    if(!tx){showToast('Transaksi tidak ditemukan.');return;}
+    openPayModalByContact(normalizeContactKey(tx.contact),tx.type==='piutang'?'piutang':'hutang');
+}
+
+function togglePayMode(mode){
+    const remaining=activePaymentContactKey&&activePaymentType?getContactRemaining(activePaymentContactKey,activePaymentType):0;
+    const input=document.getElementById('pay_amount');
+    if(!input)return;
+    if(mode==='lunas'){input.value=remaining>0?remaining:'';input.readOnly=true;}
+    else{input.value='';input.readOnly=false;}
+    input.max=remaining>0?remaining:'';
+    input.disabled=remaining<=0;
+}
+
+async function savePayment(event){
+    event.preventDefault();
+    if(!requireUnlockedApp())return;
+    const contactKey=normalizeContactKey(activePaymentContactKey);
+    const contactName=String(activePaymentContactName||'');
+    const type=document.getElementById('pay-ledger-type')?.value;
+    if(!contactKey||!contactName||!['hutang','piutang'].includes(type)){
+        showToast('Pilih kontak dan jenis saldo yang akan diperbarui.');return;
+    }
+    const mode=document.querySelector('input[name="pay_mode"]:checked')?.value||'cicil';
+    const amount=Number(document.getElementById('pay_amount').value);
+    const date=document.getElementById('pay_date').value||todayStr();
+    const note=document.getElementById('pay_note').value.trim()||(mode==='lunas'?'Pelunasan saldo':'Pembayaran cicilan');
+    const remaining=getContactRemaining(contactKey,type);
+    if(remaining<=0){showToast('Jenis saldo yang dipilih sudah lunas.');updatePaymentTypeBalance(type);return;}
+    if(!Number.isFinite(amount)||amount<=0||amount>remaining){
+        showToast('Nominal pembayaran harus lebih dari Rp 0 dan tidak boleh melebihi '+formatRupiah(remaining)+'.');return;
+    }
+    if(mode==='lunas'&&amount!==remaining){
+        showToast('Untuk opsi Lunas, nominal harus sama dengan sisa '+formatRupiah(remaining)+'.');return;
+    }
+    const button=document.getElementById('btn-save-pay');
+    button.disabled=true;
+    try{
+        const actualRemaining=getContactRemaining(contactKey,type);
+        if(amount>actualRemaining||actualRemaining<=0)throw new Error('PAYMENT_EXCEEDS_CONTACT_BALANCE');
+        const payment={id:generateId(),contact:contactName,contactKey,type,date,amount,mode,note,createdAt:new Date().toISOString()};
+        data.ledgerPayments=Array.isArray(data.ledgerPayments)?data.ledgerPayments:[];
+        data.ledgerPayments.push(payment);
+        invalidateLedgerCalculationCache(data);
         recordActivity('payment_recorded',
-            (mode === 'lunas' ? 'Pelunasan dicatat: ' : 'Cicilan dicatat: ') + String(currentTx.contact || 'Tanpa Nama'),
-            'pembayaran', paymentId, amount);
+            (type==='hutang'?'Pembayaran hutang ':'Penerimaan piutang ')+contactName+': '+(mode==='lunas'?'Lunas':'Cicil'),
+            'pembayaran',payment.id,amount);
+        const detailModal=document.getElementById('modal-detail-transaction');
+        const detailWasOpen=!!detailModal&&!detailModal.classList.contains('hidden');
         await saveData();
-        const committedTx = data.transactions.find(item => item.id === txId);
-        activePayTx = committedTx || null;
-        closeModal('modal-pay-transaction'); renderApp();
-        if (document.getElementById('modal-detail-transaction') && !document.getElementById('modal-detail-transaction').classList.contains('hidden')) openDetailModalByContact(contactKey, txId);
-        showToast(committedTx?.status === TX_STATUS.LUNAS ? 'Pembayaran lunas berhasil dicatat.' : 'Cicilan berhasil dicatat.');
-    } catch (err) {
-        console.error('Payment save failed:', err);
+        closeModal('modal-pay-transaction');
+        renderApp();
+        if(detailWasOpen)openDetailModalByContact(contactKey,activeLedgerSelectedTxId);
+        const balanceAfter=getContactRemaining(contactKey,type);
+        showToast(balanceAfter<=0
+            ?(type==='hutang'?'Saldo hutang kontak sudah lunas.':'Saldo piutang kontak sudah lunas.')
+            :(mode==='lunas'?'Pelunasan saldo berhasil dicatat.':'Pembayaran berhasil dicatat.'));
+    }catch(error){
+        console.error('Contact-level payment save failed:',error);
         showToast('Pembayaran gagal disimpan. Data sebelumnya dipertahankan; periksa koneksi lalu coba lagi.');
-    } finally { btn.disabled = false; btn.classList.remove('disabled'); }
+    }finally{button.disabled=false;}
 }
 
 function confirmDeleteContact(contactKey){ if(!requireUnlockedApp()) return; deleteTarget={type:'contact',key:contactKey}; showConfirm('Hapus semua transaksi pihak ini?','Semua transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
@@ -2523,33 +2715,26 @@ function getSelectedLedgerTransaction() {
 }
 
 function selectLedgerTransaction(txId) {
-    const selectedId = String(txId || '');
-    const tx = data.transactions.find(item =>
-        String(item.id) === selectedId &&
-        (item.contact || '').trim().toLowerCase() === activeLedgerContactKey
-    );
-    if (!tx) {
-        activeLedgerSelectedTxId = '';
-        ['btn-ledger-action-edit','btn-ledger-action-pay','btn-ledger-action-delete'].forEach(id => {
-            const button = document.getElementById(id);
-            if (button) button.disabled = true;
-        });
-        const summary = document.getElementById('ledger-selected-summary');
-        if (summary) summary.textContent = 'Belum ada transaksi dipilih. Pilih tanggal transaksi terlebih dahulu.';
+    const selectedId=String(txId||'');
+    const tx=data.transactions.find(item=>String(item.id)===selectedId&&normalizeContactKey(item.contact)===activeLedgerContactKey);
+    const editButton=document.getElementById('btn-ledger-action-edit');
+    const payButton=document.getElementById('btn-ledger-action-pay');
+    const deleteButton=document.getElementById('btn-ledger-action-delete');
+    if(!tx){
+        activeLedgerSelectedTxId='';
+        if(editButton)editButton.disabled=true;
+        if(deleteButton)deleteButton.disabled=true;
+        if(payButton)payButton.disabled=getContactRemaining(activeLedgerContactKey,'hutang')+getContactRemaining(activeLedgerContactKey,'piutang')<=0;
+        const summary=document.getElementById('ledger-selected-summary');
+        if(summary)summary.textContent='Pilih tanggal transaksi untuk Edit/Hapus.';
         return;
     }
-    activeLedgerSelectedTxId = String(tx.id);
-    const remaining = getTxRemaining(tx);
-    const summary = document.getElementById('ledger-selected-summary');
-    if (summary) summary.textContent = formatDateShort(tx.txDate || tx.createdAt) +
-        ' · ' + (tx.type === 'hutang' ? 'Hutang' : 'Piutang') +
-        ' · Sisa pembayaran: ' + formatRupiah(remaining);
-    const editButton = document.getElementById('btn-ledger-action-edit');
-    const payButton = document.getElementById('btn-ledger-action-pay');
-    const deleteButton = document.getElementById('btn-ledger-action-delete');
-    if (editButton) editButton.disabled = false;
-    if (payButton) payButton.disabled = remaining <= 0;
-    if (deleteButton) deleteButton.disabled = false;
+    activeLedgerSelectedTxId=String(tx.id);
+    const summary=document.getElementById('ledger-selected-summary');
+    if(summary)summary.textContent=formatDateShort(tx.txDate||tx.createdAt)+' · '+(tx.type==='hutang'?'Hutang':'Piutang')+' · '+formatRupiah(tx.amount)+' · '+String(tx.note||'Tanpa catatan');
+    if(editButton)editButton.disabled=false;
+    if(payButton)payButton.disabled=getContactRemaining(activeLedgerContactKey,'hutang')+getContactRemaining(activeLedgerContactKey,'piutang')<=0;
+    if(deleteButton)deleteButton.disabled=false;
 }
 
 function editSelectedLedgerTransaction() {
@@ -2561,10 +2746,8 @@ function editSelectedLedgerTransaction() {
 
 function paySelectedLedgerTransaction() {
     if (!requireUnlockedApp()) return;
-    const tx = getSelectedLedgerTransaction();
-    if (!tx) { showToast('Pilih transaksi yang ingin dibayar.'); return; }
-    if (getTxRemaining(tx) <= 0) { showToast('Transaksi yang dipilih sudah lunas.'); selectLedgerTransaction(tx.id); return; }
-    openPayModalByTransaction(tx.id);
+    if (!activeLedgerContactKey) { showToast('Kontak ledger tidak ditemukan.'); return; }
+    openPayModalByContact(activeLedgerContactKey);
 }
 
 function deleteSelectedLedgerTransaction() {
@@ -2614,7 +2797,7 @@ function openDetailModalByContact(contactKey, preferredTxId = ''){
     }).join('');
     const ledgerActions=`<section class="ledger-actions-card bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-3" aria-label="Aksi transaksi terpilih">
         <div class="flex items-start justify-between gap-3">
-            <div><h3 class="text-sm font-extrabold text-gray-800">Kelola Transaksi</h3><p class="text-[10px] text-gray-500 mt-0.5">Pilih tanggal transaksi yang ingin dikelola.</p></div>
+            <div><h3 class="text-sm font-extrabold text-gray-800">Kelola Transaksi</h3><p class="text-[10px] text-gray-500 mt-0.5">Pilih tanggal untuk Edit/Hapus. Bayar dihitung dari total saldo kontak.</p></div>
             <span class="text-[10px] text-green-700 bg-green-50 rounded-full px-2 py-1 font-bold whitespace-nowrap">Per kontak</span>
         </div>
         <label for="ledger-transaction-select" class="block text-[11px] font-bold text-gray-600">Transaksi berdasarkan tanggal</label>
@@ -2622,7 +2805,7 @@ function openDetailModalByContact(contactKey, preferredTxId = ''){
         <p id="ledger-selected-summary" class="text-[10px] leading-relaxed text-gray-500">${selectedLedgerTx ? `${formatDateShort(selectedLedgerTx.txDate || selectedLedgerTx.createdAt)} · ${selectedLedgerTx.type==='hutang'?'Hutang':'Piutang'} · Sisa pembayaran: ${formatRupiah(selectedLedgerRemaining)}` : 'Belum ada transaksi dipilih.'}</p>
         <div class="grid grid-cols-3 gap-2">
             <button type="button" id="btn-ledger-action-edit" onclick="editSelectedLedgerTransaction()" ${selectedLedgerTx?'':'disabled'} class="ledger-action-button ledger-edit-action bg-indigo-50 text-indigo-700 border font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-pencil"></i> Edit</button>
-            <button type="button" id="btn-ledger-action-pay" onclick="paySelectedLedgerTransaction()" ${selectedLedgerTx && selectedLedgerRemaining>0?'':'disabled'} class="ledger-action-button ledger-pay-action bg-green-600 text-white border font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-hand-coins"></i> Bayar</button>
+            <button type="button" id="btn-ledger-action-pay" onclick="paySelectedLedgerTransaction()" ${(sisaHutang+sisaPiutang)>0?'':'disabled'} class="ledger-action-button ledger-pay-action bg-green-600 text-white border font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-hand-coins"></i> Bayar</button>
             <button type="button" id="btn-ledger-action-delete" onclick="deleteSelectedLedgerTransaction()" ${selectedLedgerTx?'':'disabled'} class="ledger-action-button ledger-delete-action bg-rose-50 text-rose-600 border font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-trash"></i> Hapus</button>
         </div>
     </section>`;
@@ -3269,7 +3452,7 @@ async function downloadBackup() {
         const dataJson = JSON.stringify(backupData);
         const payload = {
             app: 'Catatan Utang',
-            version: 3,
+            version: 4,
             exportedAt: new Date().toISOString(),
             data: backupData,
             integrity: { algorithm: 'SHA-256', digest: await sha256Hex(dataJson) }
