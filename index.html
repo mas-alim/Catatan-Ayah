@@ -1367,6 +1367,9 @@ function clearSensitiveInMemoryData() {
     txSearch = ''; reportSearch = '';
     data = { transactions: [], ledgerPayments: [], needs: [], ledgerSchemaVersion: 1 };
     lastStableData = null; lastStableDataJson = null; activePayTx = null;
+    activeLedgerContactKey = ''; activeLedgerSelectedTxId = '';
+    activePaymentContactKey = ''; activePaymentContactName = ''; activePaymentType = '';
+    ledgerMigrationPending = false;
     clearSensitiveLocalCache();
     const appContainer = document.getElementById('app-container');
     if (appContainer) appContainer.replaceChildren();
@@ -3200,26 +3203,59 @@ function csvCell(value){
     return '"'+text.replace(/"/g,'""')+'"';
 }
 function reportCsvRow(values){ return values.map(csvCell).join(','); }
-function createContactCsvRows(transactions){
-    const rows=[['Kontak','Jenis Catatan','ID','Jenis Saldo','Tanggal','Keterangan','Jatuh Tempo','Nominal','Total Dibayar Jenis Saldo','Sisa Jenis Saldo','Status Saldo']];
-    const txs=transactions.slice().sort((a,b)=>String(a.txDate||a.createdAt||'').localeCompare(String(b.txDate||b.createdAt||''))||String(a.contact||'').localeCompare(String(b.contact||''),'id'));
-    const contactKey=normalizeContactKey(txs[0]?.contact), contactKeys=new Set(txs.map(tx=>normalizeContactKey(tx.contact))), events=[];
-    txs.forEach(tx=>events.push({kind:'Utang/Piutang',id:tx.id||'',type:tx.type==='piutang'?'piutang':'hutang',date:tx.txDate||tx.createdAt||'',note:tx.note||'',dueDate:tx.dueDate||'',amount:Number(tx.amount||0),contact:tx.contact||'Tanpa Nama'}));
-    (data.ledgerPayments||[]).filter(payment=>contactKeys.has(normalizeContactKey(payment.contactKey||payment.contact))).forEach(payment=>events.push({
-        kind:payment.mode==='lunas'?'Pembayaran Lunas':'Pembayaran Cicil',id:payment.id||'',type:payment.type==='piutang'?'piutang':'hutang',
-        date:payment.date||'',note:payment.note||'',dueDate:'',amount:-Math.abs(Number(payment.amount||0)),contact:payment.contact||txs[0]?.contact||'Tanpa Nama'
-    }));
-    events.sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.id||'').localeCompare(String(b.id||'')));
-    events.forEach(event=>{
-        const paid=getContactPaidAmount(contactKey,event.type),remaining=getContactRemaining(contactKey,event.type);
-        rows.push([event.contact,event.kind,event.id,event.type==='hutang'?'Utang':'Piutang',event.date,event.note,event.dueDate,event.amount,paid,remaining,remaining>0?'Belum Lunas':'Lunas']);
+function createContactCsvRows(transactions) {
+    const rows = [['Kontak','Jenis Catatan','ID','Jenis Saldo','Tanggal','Keterangan','Jatuh Tempo','Nominal','Total Dibayar Jenis Saldo','Sisa Jenis Saldo','Status Saldo']];
+    const txs = transactions.slice().sort((a,b) =>
+        String(a.txDate || a.createdAt || '').localeCompare(String(b.txDate || b.createdAt || '')) ||
+        String(a.contact || '').localeCompare(String(b.contact || ''), 'id')
+    );
+    const contactNames = new Map();
+    txs.forEach(tx => {
+        const key = normalizeContactKey(tx.contact);
+        if (key && !contactNames.has(key)) contactNames.set(key, String(tx.contact || 'Tanpa Nama'));
     });
-    rows.push(['','','','Saldo akhir','','','','','','','']);
-    ['hutang','piutang'].forEach(type=>rows.push([
-        txs[0]?.contact||'Tanpa Nama','Saldo Akhir','',type==='hutang'?'Utang':'Piutang','','','',
-        getContactPrincipal(contactKey,type),getContactPaidAmount(contactKey,type),getContactRemaining(contactKey,type),
-        getContactRemaining(contactKey,type)>0?'Belum Lunas':'Lunas'
-    ]));
+    const events = [];
+    txs.forEach(tx => events.push({
+        kind:'Utang/Piutang', id:tx.id || '', type:tx.type==='piutang'?'piutang':'hutang',
+        date:tx.txDate || tx.createdAt || '', note:tx.note || '', dueDate:tx.dueDate || '',
+        amount:Number(tx.amount || 0), contact:String(tx.contact || 'Tanpa Nama')
+    }));
+    (data.ledgerPayments || [])
+        .filter(payment => contactNames.has(normalizeContactKey(payment.contactKey || payment.contact)))
+        .forEach(payment => events.push({
+            kind:payment.mode==='lunas'?'Pembayaran Lunas':'Pembayaran Cicil',
+            id:payment.id || '', type:payment.type==='piutang'?'piutang':'hutang',
+            date:payment.date || '', note:payment.note || '', dueDate:'',
+            amount:-Math.abs(Number(payment.amount || 0)),
+            contact:String(payment.contact || contactNames.get(normalizeContactKey(payment.contactKey)) || 'Tanpa Nama')
+        }));
+    events.sort((a,b) =>
+        String(a.date || '').localeCompare(String(b.date || '')) ||
+        String(a.contact || '').localeCompare(String(b.contact || ''),'id') ||
+        String(a.id || '').localeCompare(String(b.id || ''))
+    );
+    events.forEach(event => {
+        const key = normalizeContactKey(event.contact);
+        const paid = getContactPaidAmount(key,event.type);
+        const remaining = getContactRemaining(key,event.type);
+        rows.push([
+            event.contact,event.kind,event.id,event.type==='hutang'?'Utang':'Piutang',
+            event.date,event.note,event.dueDate,event.amount,paid,remaining,
+            remaining>0?'Belum Lunas':'Lunas'
+        ]);
+    });
+    rows.push(['','','','Saldo Akhir','','','','','','','']);
+    for (const [key,name] of contactNames.entries()) {
+        for (const type of ['hutang','piutang']) {
+            const principal = getContactPrincipal(key,type);
+            const paid = getContactPaidAmount(key,type);
+            const remaining = getContactRemaining(key,type);
+            rows.push([
+                name,'Saldo Akhir','',type==='hutang'?'Utang':'Piutang','','','','',
+                principal,paid,remaining>0?'Belum Lunas':'Lunas'
+            ]);
+        }
+    }
     return rows;
 }
 
@@ -3648,7 +3684,7 @@ async function restoreBackup(e) {
         try { parsed = JSON.parse(raw); } catch { throw new Error('BACKUP_JSON_INVALID'); }
         const validated = validateBackupPayload(parsed);
 
-        // Backups generated by v3 carry a checksum. Legacy backups remain supported but are clearly identified.
+        // Backups generated by this release (v4) carry a checksum. Legacy backups remain supported but are clearly identified.
         if (parsed.integrity !== undefined) {
             if (!isPlainRecord(parsed.integrity) || parsed.integrity.algorithm !== 'SHA-256' || !/^[a-f0-9]{64}$/i.test(String(parsed.integrity.digest || ''))) {
                 throw new Error('BACKUP_INTEGRITY_FIELD_INVALID');
