@@ -20,6 +20,9 @@ Aplikasi pencatatan utang-piutang, pembayaran/cicilan, tagihan, laporan, serta b
 - **Pengingat:** pengingat jatuh tempo muncul di dalam aplikasi saat ada item yang jatuh tempo atau mendekati tenggat. Pengingat backup disimpan per perangkat/browser. Notifikasi push saat aplikasi tertutup belum disiapkan.
 - **Backup/restore:** backup JSON membawa checksum SHA-256 untuk pemeriksaan integritas. Buat backup berkala dan simpan di lokasi aman.
 - **Laporan:** laporan ringkasan bulanan/tahunan dapat diekspor ke CSV.
+- **Model Detail Ledger:** riwayat per kontak menampilkan setiap pencatatan utang/piutang dan setiap pembayaran sebagai kejadian terpisah, dengan tanggal, keterangan, dan nominal. Saldo **Sisa Hutang** dan **Sisa Piutang** dihitung terpisah dari total pokok dikurangi total pembayaran pada jenis saldo yang sama.
+- **Pembayaran tingkat kontak:** pembayaran tidak ditempelkan ke satu tanggal utang tertentu. Saat mencatat pembayaran, pilih **Bayar Hutang** atau **Terima Piutang**. Opsi **Lunas** mengisi sisa saldo terpilih; nominal pembayaran yang sama dengan saldo tersisa juga dicatat sebagai pelunasan.
+- **Migrasi ledger lama:** ketika data lama dimuat, riwayat pembayaran yang tersimpan di dalam transaksi dipindahkan satu kali ke koleksi ledger pembayaran tingkat kontak. Tanggal, nominal, keterangan, dan mode lama dipertahankan. Riwayat lama berstatus Lunas tanpa rincian pembayaran dipertahankan sebagai entri pelunasan historis yang diberi keterangan bahwa rincian aslinya tidak tersedia.
 - **Kuitansi:** kuitansi pembayaran dapat dicetak atau disimpan sebagai PDF dari dialog print browser; kuitansi bukan bukti transfer bank.
 - **Riwayat aktivitas:** hingga 500 aktivitas terbaru disimpan dan ikut tersinkron. Karena penulisannya dilakukan dari aplikasi/browser, ini adalah jejak bantu penelusuran, bukan log audit yang anti-manipulasi.
 
