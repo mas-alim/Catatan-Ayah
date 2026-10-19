@@ -3251,8 +3251,8 @@ function createContactCsvRows(transactions) {
             const paid = getContactPaidAmount(key,type);
             const remaining = getContactRemaining(key,type);
             rows.push([
-                name,'Saldo Akhir','',type==='hutang'?'Utang':'Piutang','','','','',
-                principal,paid,remaining>0?'Belum Lunas':'Lunas'
+                name,'Saldo Akhir','',type==='hutang'?'Utang':'Piutang','','','',
+                principal,paid,remaining,remaining>0?'Belum Lunas':'Lunas'
             ]);
         }
     }
