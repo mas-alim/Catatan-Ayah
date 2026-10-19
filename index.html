@@ -2692,7 +2692,22 @@ async function savePayment(event){
 }
 
 function confirmDeleteContact(contactKey){ if(!requireUnlockedApp()) return; deleteTarget={type:'contact',key:contactKey}; showConfirm('Hapus semua transaksi pihak ini?','Semua transaksi dan riwayat pembayarannya akan dihapus permanen.'); }
-function confirmDeleteTransaction(txId){ if(!requireUnlockedApp()) return; const tx=data.transactions.find(t=>String(t.id)===String(txId)); if(!tx) return; deleteTarget={type:'transaction',id:tx.id,contactKey:(tx.contact||'').trim().toLowerCase()}; showConfirm('Hapus transaksi ini?','Transaksi tanggal '+formatDateShort(tx.txDate||tx.createdAt)+' dan seluruh riwayat pembayarannya akan dihapus permanen.'); }
+function confirmDeleteTransaction(txId){
+    if(!requireUnlockedApp()) return;
+    const tx=data.transactions.find(item=>String(item.id)===String(txId));
+    if(!tx) return;
+    const contactKey=normalizeContactKey(tx.contact);
+    const type=tx.type==='piutang'?'piutang':'hutang';
+    const principalBefore=getContactPrincipal(contactKey,type);
+    const paidForType=getContactPaidAmount(contactKey,type);
+    const principalAfter=principalBefore-Math.max(0,Number(tx.amount)||0);
+    if(principalAfter<paidForType){
+        showToast('Transaksi tidak dapat dihapus karena sisa saldo jenis ini akan lebih kecil daripada pembayaran yang sudah tercatat. Gunakan Hapus Semua hanya jika ingin menghapus seluruh transaksi dan riwayat kontak.');
+        return;
+    }
+    deleteTarget={type:'transaction',id:tx.id,contactKey};
+    showConfirm('Hapus transaksi ini?','Transaksi tanggal '+formatDateShort(tx.txDate||tx.createdAt)+' akan dihapus. Pembayaran tersimpan terpisah pada saldo kontak dan tidak dihapus selama masih relevan.');
+}
 function confirmDeleteNeed(needId){ if(!requireUnlockedApp()) return; deleteTarget={type:'need',id:needId}; showConfirm('Hapus tagihan ini?','Rencana tagihan ini akan dihapus permanen.'); }
 function showConfirm(title,text){ document.getElementById('confirm-title').textContent=title; document.getElementById('confirm-text').textContent=text; document.getElementById('btn-confirm-delete').onclick=executeDelete; openModal('modal-confirm'); }
 function closeConfirmModal(){ deleteTarget=null; closeModal('modal-confirm'); }
