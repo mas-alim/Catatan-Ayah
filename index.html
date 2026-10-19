@@ -2613,18 +2613,19 @@ async function savePayment(event){
     if(!contactKey||!contactName||!['hutang','piutang'].includes(type)){
         showToast('Pilih kontak dan jenis saldo yang akan diperbarui.');return;
     }
-    const mode=document.querySelector('input[name="pay_mode"]:checked')?.value||'cicil';
+    const selectedMode=document.querySelector('input[name="pay_mode"]:checked')?.value||'cicil';
     const amount=Number(document.getElementById('pay_amount').value);
     const date=document.getElementById('pay_date').value||todayStr();
-    const note=document.getElementById('pay_note').value.trim()||(mode==='lunas'?'Pelunasan saldo':'Pembayaran cicilan');
     const remaining=getContactRemaining(contactKey,type);
     if(remaining<=0){showToast('Jenis saldo yang dipilih sudah lunas.');updatePaymentTypeBalance(type);return;}
     if(!Number.isFinite(amount)||amount<=0||amount>remaining){
         showToast('Nominal pembayaran harus lebih dari Rp 0 dan tidak boleh melebihi '+formatRupiah(remaining)+'.');return;
     }
-    if(mode==='lunas'&&amount!==remaining){
+    if(selectedMode==='lunas'&&amount!==remaining){
         showToast('Untuk opsi Lunas, nominal harus sama dengan sisa '+formatRupiah(remaining)+'.');return;
     }
+    const mode=amount===remaining?'lunas':selectedMode;
+    const note=document.getElementById('pay_note').value.trim()||(mode==='lunas'?'Pelunasan saldo':'Pembayaran cicilan');
     const button=document.getElementById('btn-save-pay');
     button.disabled=true;
     try{
