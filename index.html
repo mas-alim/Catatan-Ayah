@@ -2852,18 +2852,16 @@ function openDetailModalByContact(contactKey, preferredTxId = '') {
     for (const tx of contactTxs) {
         events.push({
             kind: 'transaction', id: String(tx.id), date: tx.txDate || tx.createdAt || '',
-            title: tx.type === 'hutang' ? 'Utang dicatat' : 'Piutang dicatat',
-            note: String(tx.note || (tx.type === 'hutang' ? 'Pencatatan utang' : 'Pencatatan piutang')),
+            note: (tx.type === 'hutang' ? 'Utang' : 'Piutang') + (tx.note ? ' · ' + String(tx.note) : ''),
             amount: Number(tx.amount || 0), type: tx.type
         });
     }
     getContactLedgerPayments(contactKey).forEach(payment => {
         events.push({
             kind: 'payment', id: String(payment.id), date: payment.date || payment.createdAt || '',
-            title: payment.type === 'hutang'
-                ? (payment.mode === 'lunas' ? 'Pembayaran hutang · Lunas' : 'Pembayaran hutang · Cicil')
-                : (payment.mode === 'lunas' ? 'Penerimaan piutang · Lunas' : 'Penerimaan piutang · Cicil'),
-            note: String(payment.note || (payment.mode === 'lunas' ? 'Pelunasan saldo' : 'Pembayaran')),
+            note: (payment.type === 'hutang' ? 'Bayar Hutang' : 'Terima Piutang') +
+                (payment.mode === 'lunas' ? ' · Lunas' : ' · Cicil') +
+                (payment.note ? ' · ' + String(payment.note) : ''),
             amount: Number(payment.amount || 0), type: payment.type
         });
     });
@@ -2903,10 +2901,9 @@ function openDetailModalByContact(contactKey, preferredTxId = '') {
             <div class="absolute -left-[13px] top-0 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm ${iconClass}"><i class="ph-bold ${iconClass.split(' ').slice(0,2).join(' ')}"></i></div>
             <div class="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm">
                 <div class="flex justify-between items-start gap-2">
-                    <div class="min-w-0"><span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase block">${formatDateShort(item.date)}</span><h4 class="font-bold text-gray-800 text-xs mt-0.5">${escapeHtml(item.title)}</h4></div>
+                    <div class="min-w-0 flex-1"><span class="text-[10px] font-bold text-gray-400 tracking-wider uppercase block">${formatDateShort(item.date)}</span><p class="text-xs text-gray-700 leading-relaxed mt-1">${escapeHtml(item.note)}</p></div>
                     <span class="font-black text-sm ${amountColor} whitespace-nowrap">${amountPrefix}${formatRupiah(item.amount)}</span>
-                </div>
-                <p class="text-xs text-gray-600 leading-relaxed bg-gray-50/80 p-2 rounded-xl mt-1.5 border border-gray-100">${escapeHtml(item.note)}</p>${action}
+                </div>${action}
             </div>
         </div>`;
     }).join('');
