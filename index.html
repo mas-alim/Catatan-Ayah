@@ -2527,10 +2527,12 @@ function selectLedgerTransaction(txId) {
     );
     if (!tx) {
         activeLedgerSelectedTxId = '';
-        const payButton = document.getElementById('btn-ledger-action-pay');
-        if (payButton) payButton.disabled = true;
+        ['btn-ledger-action-edit','btn-ledger-action-pay','btn-ledger-action-delete'].forEach(id => {
+            const button = document.getElementById(id);
+            if (button) button.disabled = true;
+        });
         const summary = document.getElementById('ledger-selected-summary');
-        if (summary) summary.textContent = 'Pilih transaksi untuk melanjutkan.';
+        if (summary) summary.textContent = 'Belum ada transaksi dipilih. Pilih tanggal transaksi terlebih dahulu.';
         return;
     }
     activeLedgerSelectedTxId = String(tx.id);
@@ -2539,8 +2541,12 @@ function selectLedgerTransaction(txId) {
     if (summary) summary.textContent = formatDateShort(tx.txDate || tx.createdAt) +
         ' · ' + (tx.type === 'hutang' ? 'Hutang' : 'Piutang') +
         ' · Sisa pembayaran: ' + formatRupiah(remaining);
+    const editButton = document.getElementById('btn-ledger-action-edit');
     const payButton = document.getElementById('btn-ledger-action-pay');
+    const deleteButton = document.getElementById('btn-ledger-action-delete');
+    if (editButton) editButton.disabled = false;
     if (payButton) payButton.disabled = remaining <= 0;
+    if (deleteButton) deleteButton.disabled = false;
 }
 
 function editSelectedLedgerTransaction() {
@@ -2578,10 +2584,10 @@ function openDetailModalByContact(contactKey, preferredTxId = ''){
         const db=new Date(b.txDate || b.createdAt || 0).getTime() || 0;
         return db-da;
     });
-    const selectedLedgerTx=newestContactTxs.find(tx=>String(tx.id)===desiredTxId) || newestContactTxs[0];
+    const selectedLedgerTx=newestContactTxs.find(tx=>String(tx.id)===desiredTxId) || null;
     activeLedgerContactKey=contactKey;
-    activeLedgerSelectedTxId=String(selectedLedgerTx.id);
-    const selectedLedgerRemaining=getTxRemaining(selectedLedgerTx);
+    activeLedgerSelectedTxId=selectedLedgerTx ? String(selectedLedgerTx.id) : '';
+    const selectedLedgerRemaining=selectedLedgerTx ? getTxRemaining(selectedLedgerTx) : 0;
     const contactName=contactTxs[0].contact || 'Tanpa Nama';
     let totalHutang=0,totalPiutang=0,totalBayarKeluar=0,totalBayarMasuk=0;
     const items=[];
@@ -2596,7 +2602,7 @@ function openDetailModalByContact(contactKey, preferredTxId = ''){
     const totalPokok=totalHutang+totalPiutang,totalBayar=totalBayarKeluar+totalBayarMasuk,progress=totalPokok>0?Math.min(100,Math.round(totalBayar/totalPokok*100)):100;
     const status=netSisa>0?`<span class="bg-rose-100 text-rose-700 text-[11px] font-black px-2.5 py-1 rounded-full border border-rose-200">Sisa Hutang: ${formatRupiah(netSisa)}</span>`:netSisa<0?`<span class="bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-1 rounded-full border border-emerald-200">Sisa Piutang: ${formatRupiah(Math.abs(netSisa))}</span>`:`<span class="bg-slate-100 text-slate-700 text-[11px] font-black px-2.5 py-1 rounded-full border border-slate-200">LUNAS (Rp 0)</span>`;
 
-    const transactionOptions=newestContactTxs.map(tx=>{
+    const transactionOptions=`<option value="" disabled ${!selectedLedgerTx?'selected':''}>Pilih tanggal transaksi...</option>` + newestContactTxs.map(tx=>{
         const txDate=tx.txDate || tx.createdAt;
         const txType=tx.type==='hutang'?'Hutang':'Piutang';
         const txNote=String(tx.note || (tx.type==='hutang'?'Hutang Baru':'Piutang Baru')).trim();
@@ -2610,11 +2616,11 @@ function openDetailModalByContact(contactKey, preferredTxId = ''){
         </div>
         <label for="ledger-transaction-select" class="block text-[11px] font-bold text-gray-600">Transaksi berdasarkan tanggal</label>
         <select id="ledger-transaction-select" onchange="selectLedgerTransaction(this.value)" class="w-full min-w-0 border border-gray-200 bg-gray-50 text-gray-800 rounded-xl px-3 py-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-green-500">${transactionOptions}</select>
-        <p id="ledger-selected-summary" class="text-[10px] leading-relaxed text-gray-500">${formatDateShort(selectedLedgerTx.txDate || selectedLedgerTx.createdAt)} · ${selectedLedgerTx.type==='hutang'?'Hutang':'Piutang'} · Sisa pembayaran: ${formatRupiah(selectedLedgerRemaining)}</p>
+        <p id="ledger-selected-summary" class="text-[10px] leading-relaxed text-gray-500">${selectedLedgerTx ? `${formatDateShort(selectedLedgerTx.txDate || selectedLedgerTx.createdAt)} · ${selectedLedgerTx.type==='hutang'?'Hutang':'Piutang'} · Sisa pembayaran: ${formatRupiah(selectedLedgerRemaining)}` : 'Belum ada transaksi dipilih.'}</p>
         <div class="grid grid-cols-3 gap-2">
-            <button type="button" onclick="editSelectedLedgerTransaction()" class="ledger-action-button bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-pencil"></i> Edit</button>
-            <button type="button" id="btn-ledger-action-pay" onclick="paySelectedLedgerTransaction()" ${selectedLedgerRemaining>0?'':'disabled'} class="ledger-action-button bg-green-600 text-white border border-green-600 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-hand-coins"></i> Bayar</button>
-            <button type="button" onclick="deleteSelectedLedgerTransaction()" class="ledger-action-button bg-rose-50 text-rose-600 border border-rose-100 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-trash"></i> Hapus</button>
+            <button type="button" id="btn-ledger-action-edit" onclick="editSelectedLedgerTransaction()" ${selectedLedgerTx?'':'disabled'} class="ledger-action-button bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-pencil"></i> Edit</button>
+            <button type="button" id="btn-ledger-action-pay" onclick="paySelectedLedgerTransaction()" ${selectedLedgerTx && selectedLedgerRemaining>0?'':'disabled'} class="ledger-action-button bg-green-600 text-white border border-green-600 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-hand-coins"></i> Bayar</button>
+            <button type="button" id="btn-ledger-action-delete" onclick="deleteSelectedLedgerTransaction()" ${selectedLedgerTx?'':'disabled'} class="ledger-action-button bg-rose-50 text-rose-600 border border-rose-100 font-bold rounded-xl py-2.5 text-[11px]"><i class="ph-bold ph-trash"></i> Hapus</button>
         </div>
     </section>`;
     const timeline=items.map(item=>{
